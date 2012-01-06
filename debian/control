@@ -1,0 +1,33 @@
+Source: alarm-manager
+Section: devel
+Priority: extra
+Maintainer: SHIVAKUMAR BT<shiva.bt@samsung.com>, Jayoun Lee <airjany@samsung.com>, Sewook Park <sewook7.park@samsung.com>, Jaeho Lee <jaeho81.lee@samsung.com>
+Build-Depends: debhelper (>= 5), libdbus-1-dev, libglib2.0-dev, libdbus-glib-1-dev, libslp-pm-dev, dlog-dev, libheynoti-dev, libaul-1-dev, libbundle-dev, libsecurity-server-client-dev, libslp-db-util-dev, libvconf-dev, libvconf-keys-dev, libslp-tapi-dev, libappsvc-dev
+Standards-Version: 0.2.0
+
+Package: alarm-server
+Section: devel
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Conflicts: alarm-manager
+Replaces: alarm-manager
+Description: Alarm Server
+
+Package: libalarm-dev
+Architecture: any
+Depends: libalarm-0 (= ${Source-Version}), libdbus-1-dev, libglib2.0-dev, libdbus-glib-1-dev, dlog-dev, libaul-1-dev, libbundle-dev, libsecurity-server-client-dev, libslp-db-util-dev, libappsvc-dev
+Description: libalarm dev package
+XB-Generate-Docs: yes
+
+Package: libalarm-0
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends},alarm-server
+Description: libalarm package
+
+Package: alarm-manager-dbg
+Section: debug
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, alarm-server, libalarm-0
+Description: alarm-manager package (unstripped)
+

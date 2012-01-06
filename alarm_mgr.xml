@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<node name="/org/tizen/alarm/manager">
+  <interface name="org.tizen.alarm.manager">
+    <method name="alarm_create">
+      <arg type="i" name="pid" direction="in" />
+      <arg type="s" name="app_service_name" direction="in" />
+      <arg type="s" name="app_service_name_mod" direction="in" />
+      <arg type="i" name="alarm_info_start_year" direction="in" />
+      <arg type="i" name="alarm_info_start_month" direction="in" />
+      <arg type="i" name="alarm_info_start_day" direction="in" />
+      <arg type="i" name="alarm_info_start_hour" direction="in" />
+      <arg type="i" name="alarm_info_start_min" direction="in" />
+      <arg type="i" name="alarm_info_start_sec" direction="in" />
+      <arg type="i" name="alarm_info_end_year" direction="in" />
+      <arg type="i" name="alarm_info_end_month" direction="in" />
+      <arg type="i" name="alarm_info_end_day" direction="in" />
+      <arg type="i" name="alarm_info_mode_day_of_week" direction="in" />
+      <arg type="i" name="alarm_info_mode_repeat" direction="in" />
+      <arg type="i" name="alarm_info_alarm_type" direction="in" />
+      <arg type="i" name="alarm_info_reserved_info" direction="in" />
+      <arg type="s" name="alarm_info_reserved_service_name" direction="in" />
+      <arg type="s" name="alarm_info_reserved_service_name_mod" direction="in" />
+      <arg type="s" name="cookie" direction="in" />
+      <arg type="i" name="alarm_id" direction="out" />
+      <arg type="i" name="return_code" direction="out" />
+    </method>
+	<method name="alarm_create_appsvc">
+      <arg type="i" name="pid" direction="in" />
+      <arg type="i" name="alarm_info_start_year" direction="in" />
+      <arg type="i" name="alarm_info_start_month" direction="in" />
+      <arg type="i" name="alarm_info_start_day" direction="in" />
+      <arg type="i" name="alarm_info_start_hour" direction="in" />
+      <arg type="i" name="alarm_info_start_min" direction="in" />
+      <arg type="i" name="alarm_info_start_sec" direction="in" />
+      <arg type="i" name="alarm_info_end_year" direction="in" />
+      <arg type="i" name="alarm_info_end_month" direction="in" />
+      <arg type="i" name="alarm_info_end_day" direction="in" />
+      <arg type="i" name="alarm_info_mode_day_of_week" direction="in" />
+      <arg type="i" name="alarm_info_mode_repeat" direction="in" />
+      <arg type="i" name="alarm_info_alarm_type" direction="in" />
+      <arg type="i" name="alarm_info_reserved_info" direction="in" />
+      <arg type="s" name="alarm_info_bundle_data" direction="in" />
+      <arg type="s" name="cookie" direction="in" />
+      <arg type="i" name="alarm_id" direction="out" />
+      <arg type="i" name="return_code" direction="out" />
+    </method>
+	<method name="alarm_delete">
+      <arg type="i" name="pid" direction="in" />
+      <arg type="i" name="alarm_id" direction="in" />
+      <arg type="s" name="cookie" direction="in" />
+      <arg type="i" name="alarm_info_return_code" direction="out" />
+    </method>
+	<method name="alarm_power_on">
+      <arg type="i" name="pid" direction="in" />
+      <arg type="i" name="on_off" direction="in" />
+      <arg type="i" name="alarm_info_return_code" direction="out" />
+    </method>
+	<method name="alarm_power_off">
+      <arg type="i" name="pid" direction="in" />
+      <arg type="i" name="alarm_info_return_code" direction="out" />
+    </method>
+	<method name="alarm_check_next_duetime">
+      <arg type="i" name="pid" direction="in" />
+      <arg type="i" name="alarm_info_return_code" direction="out" />
+    </method>    
+	<method name="alarm_update">
+	  <arg type="i" name="pid" direction="in" />
+	  <arg type="s" name="app_service_name" direction="in" />
+	  <arg type="i" name="alarm_id" direction="in" />
+      <arg type="i" name="alarm_info_start_year" direction="in" />
+      <arg type="i" name="alarm_info_start_month" direction="in" />
+      <arg type="i" name="alarm_info_start_day" direction="in" />
+      <arg type="i" name="alarm_info_start_hour" direction="in" />
+      <arg type="i" name="alarm_info_start_min" direction="in" />
+      <arg type="i" name="alarm_info_start_sec" direction="in" />
+      <arg type="i" name="alarm_info_end_year" direction="in" />
+      <arg type="i" name="alarm_info_end_month" direction="in" />
+      <arg type="i" name="alarm_info_end_day" direction="in" />
+      <arg type="i" name="alarm_info_mode_day_of_week" direction="in" />
+      <arg type="i" name="alarm_info_mode_repeat" direction="in" />
+	  <arg type="i" name="alarm_info_alarm_type" direction="in" />
+      <arg type="i" name="alarm_info_reserved_info" direction="in" />
+      <arg type="i" name="return_code" direction="out" />
+    </method>
+	<method name="alarm_get_number_of_ids">
+	  <arg type="i" name="pid" direction="in" />
+	  <arg type="i" name="number_of_ids" direction="out" />
+	  <arg type="i" name="return_code" direction="out" />
+    </method>
+	<method name="alarm_get_list_of_ids">
+	  <arg type="i" name="pid" direction="in" />
+	  <arg type="i" name="max_number_of_ids" direction="in" />
+	  <arg type="ai" name="alarm_id" direction="out" />
+	  <arg type="i" name="number_of_ids" direction="out" />
+	  <arg type="i" name="return_code" direction="out" />
+    </method>
+    <method name="alarm_get_info">
+	  <arg type="i" name="pid" direction="in" />
+	  <arg type="i" name="alarm_id" direction="in" />
+      <arg type="i" name="alarm_info_start_year" direction="out" />
+      <arg type="i" name="alarm_info_start_month" direction="out" />
+      <arg type="i" name="alarm_info_start_day" direction="out" />
+      <arg type="i" name="alarm_info_start_hour" direction="out" />
+      <arg type="i" name="alarm_info_start_min" direction="out" />
+      <arg type="i" name="alarm_info_start_sec" direction="out" />
+      <arg type="i" name="alarm_info_end_year" direction="out" />
+      <arg type="i" name="alarm_info_end_month" direction="out" />
+      <arg type="i" name="alarm_info_end_day" direction="out" />
+      <arg type="i" name="alarm_info_mode_day_of_week" direction="out" />
+      <arg type="i" name="alarm_info_mode_repeat" direction="out" />
+      <arg type="i" name="alarm_info_alarm_type" direction="out" />
+      <arg type="i" name="alarm_info_reserved_info" direction="out" />
+      <arg type="i" name="return_code" direction="out" />
+    </method>
+  </interface>
+</node>

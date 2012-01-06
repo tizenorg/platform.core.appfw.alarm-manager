@@ -1,0 +1,9 @@
+Package: alarm-service-@MACHINE@
+Priority: optional
+Version: @VERSION@
+Section: middleware
+Architecture: @HOST@
+Maintainer: JY Lee<jaeyong911.lee@samsung.com>
+Source: XO 
+Depends:
+Description: alarm manager 
