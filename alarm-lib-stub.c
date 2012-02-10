@@ -276,12 +276,12 @@ bundle *_send_alarm_get_appsvc_info(alarm_context_t context, alarm_id_t alarm_id
 	}
 
 
-	if (!com_samsung_alarm_manager_alarm_get_appsvc_info
+	if (!org_tizen_alarm_manager_alarm_get_appsvc_info
 	    (context.proxy, context.pid, alarm_id, e_cookie, &b_data, &return_code, &error)) {
 		/* dbus-glib error */
 		/*error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT(
-		"com_samsung_alarm_manager_alarm_delete() failed. "
+		"org_tizen_alarm_manager_alarm_delete() failed. "
 		     "alarm_id[%d], return_code[%d]\n", alarm_id, return_code);
 		if (error_code)
 			*error_code = ERR_ALARM_SYSTEM_FAIL; /*-1 means that system
