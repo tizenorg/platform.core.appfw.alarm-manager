@@ -748,12 +748,6 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 
 	time(&current_time);
 
-	ALARM_MGR_LOG_PRINT("[alarm-server]:pid=%d, app_unique_name=%s, "
-		"app_bundle_encoded_val=%s,c_due_time=%d", \
-		pid, g_quark_to_string(__alarm_info->quark_app_unique_name), \
-		g_quark_to_string(__alarm_info->quark_bundle), \
-			    alarm_context.c_due_time);
-
 	if (alarm_context.c_due_time < current_time) {
 		ALARM_MGR_EXCEPTION_PRINT("Caution!! alarm_context.c_due_time "
 		"(%d) is less than current time(%d)", alarm_context.c_due_time,
@@ -1419,9 +1413,9 @@ static void __alarm_expired()
 						else
 						{
 							ALARM_MGR_LOG_PRINT("Successfuly ran app svc\n");
-							bundle_free(b);
 						}
 					}
+					bundle_free(b);
 				}
 
 		}
@@ -2070,6 +2064,81 @@ gboolean alarm_manager_alarm_get_list_of_ids(void *pObject, int pid,
 	return true;
 }
 
+gboolean alarm_manager_alarm_get_appsvc_info(void *pObject, int pid, alarm_id_t alarm_id,
+				char *e_cookie, gchar **b_data, int *return_code)
+{
+	bool found = false;
+
+	GSList *gs_iter = NULL;
+	__alarm_info_t *entry = NULL;
+
+	guchar *cookie = NULL;
+	gsize size;
+	int retval = 0;
+	gid_t call_gid;
+
+	ALARM_MGR_LOG_PRINT("called for  pid(%d) and alarm_id(%d)\n", pid,
+			    alarm_id);
+
+	cookie = g_base64_decode(e_cookie, &size);
+	if (NULL == cookie)
+	{
+		if (return_code)
+			*return_code = ERR_ALARM_SYSTEM_FAIL;
+		ALARM_MGR_EXCEPTION_PRINT("Unable to decode cookie!!!\n");
+		return true;
+	}
+	call_gid = security_server_get_gid("alarm");
+
+	ALARM_MGR_LOG_PRINT("call_gid : %d\n", call_gid);
+
+	retval = security_server_check_privilege((const char *)cookie, call_gid);
+	if (retval < 0) {
+		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
+			ALARM_MGR_EXCEPTION_PRINT(
+				"%s", "access has been denied\n");
+		}
+		ALARM_MGR_EXCEPTION_PRINT("%s", "Error has occurred\n");
+
+		if (return_code)
+			*return_code = ERR_ALARM_NO_PERMISSION;
+
+		if (cookie)
+			g_free(cookie);
+
+		return true;
+	}
+
+	if (return_code)
+		*return_code = 0;
+
+	for (gs_iter = alarm_context.alarms; gs_iter != NULL;
+	     gs_iter = g_slist_next(gs_iter)) {
+		entry = gs_iter->data;
+		if (entry->alarm_id == alarm_id) {
+			found = true;
+			*b_data = g_strdup(g_quark_to_string(entry->quark_bundle));
+			break;
+		}
+	}
+
+	if (found) {
+		if ( *b_data && strlen(*b_data) == 4 && strncmp(*b_data,"null",4) == 0){
+			ALARM_MGR_EXCEPTION_PRINT("Regular alarm,not svc alarm");
+			if (return_code)
+				*return_code = ERR_ALARM_INVALID_TYPE;
+		}
+	} else {
+		if (return_code)
+			*return_code = ERR_ALARM_INVALID_ID;
+	}
+
+	if (cookie)
+		g_free(cookie);
+
+	return true;
+}
+
 gboolean alarm_manager_alarm_get_info(void *pObject, int pid,
 				      alarm_id_t alarm_id, int *start_year,
 				      int *start_month, int *start_day,
@@ -2102,7 +2171,7 @@ gboolean alarm_manager_alarm_get_info(void *pObject, int pid,
 	{
 		ALARM_MGR_EXCEPTION_PRINT("alarm id(%d) was not found\n",
 					  alarm_id);
-		*return_code = ERR_ALARM_INVALID_PARAM; /*TODO: ERR_ALARM_INVALID_ID?*/
+		*return_code = ERR_ALARM_INVALID_ID;
 	} else {
 		ALARM_MGR_LOG_PRINT("alarm was found\n");
 		*start_year = alarm_info->start.year;

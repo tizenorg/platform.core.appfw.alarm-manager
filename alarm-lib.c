@@ -528,6 +528,28 @@ static int __alarmmgr_init_appsvc(void)
 
 }
 
+EXPORT_API void *alarmmgr_get_alarm_appsvc_info(alarm_id_t alarm_id, int *return_code){
+
+	int ret = 0;
+
+	ret = __sub_init();
+	if (ret < 0){
+		if (return_code)
+			*return_code = ret;
+		return NULL;
+	}
+
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarmmgr_get_alarm_appsvc_info() is called\n");
+
+	if (alarm_id <= 0) {
+		if (return_code)
+			*return_code = ERR_ALARM_INVALID_ID;
+		return NULL;
+	}
+
+	return _send_alarm_get_appsvc_info(alarm_context, alarm_id, return_code);
+
+}
 
 
 EXPORT_API int alarmmgr_add_alarm_appsvc_with_localtime(alarm_entry_t *alarm, void *bundle_data, alarm_id_t *alarm_id)

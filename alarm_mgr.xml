@@ -94,6 +94,13 @@
 	  <arg type="i" name="number_of_ids" direction="out" />
 	  <arg type="i" name="return_code" direction="out" />
     </method>
+	<method name="alarm_get_appsvc_info">
+	  <arg type="i" name="pid" direction="in" />
+	  <arg type="i" name="alarm_id" direction="in" />
+	  <arg type="s" name="cookie" direction="in" />
+	  <arg type="s" name="b_data" direction="out" />
+	  <arg type="i" name="return_code" direction="out" />
+    </method>
     <method name="alarm_get_info">
 	  <arg type="i" name="pid" direction="in" />
 	  <arg type="i" name="alarm_id" direction="in" />

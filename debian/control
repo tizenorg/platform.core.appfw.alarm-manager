@@ -1,7 +1,7 @@
 Source: alarm-manager
 Section: devel
 Priority: extra
-Maintainer: SHIVAKUMAR BT<shiva.bt@samsung.com>, Jayoun Lee <airjany@samsung.com>, Sewook Park <sewook7.park@samsung.com>, Jaeho Lee <jaeho81.lee@samsung.com>
+Maintainer: SHIVAKUMAR BT<shiva.bt@samsung.com>, Jayoun Lee <airjany@samsung.com>, Sewook Park <sewook7.park@samsung.com>, Jaeho Lee <jaeho81.lee@samsung.com>, Venkatesha Sarpangala <sarpangala.v@samsung.com>
 Build-Depends: debhelper (>= 5), libdbus-1-dev, libglib2.0-dev, libdbus-glib-1-dev, libslp-pm-dev, dlog-dev, libheynoti-dev, libaul-1-dev, libbundle-dev, libsecurity-server-client-dev, libslp-db-util-dev, libvconf-dev, libvconf-keys-dev, libslp-tapi-dev, libappsvc-dev
 Standards-Version: 0.2.0
 

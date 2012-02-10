@@ -40,7 +40,6 @@
 #define ALARM_INTERFACE_NAME "appframework.alarm"
 
 
-			 
 bool _send_alarm_create(alarm_context_t context, alarm_info_t *alarm_info,
 			alarm_id_t *alarm_id, const char *dst_service_name, const char *dst_service_name_mod,
 			int *error_code);
@@ -164,7 +163,6 @@ bool _send_alarm_create_appsvc(alarm_context_t context, alarm_info_t *alarm_info
 
 
 
-			 
 bool _send_alarm_create(alarm_context_t context, alarm_info_t *alarm_info,
 			alarm_id_t *alarm_id, const char *dst_service_name, const char *dst_service_name_mod,
 			int *error_code)
@@ -176,6 +174,16 @@ bool _send_alarm_create(alarm_context_t context, alarm_info_t *alarm_info,
 	char *e_cookie;
 	int size;
 	int retval;
+
+	/*TODO: Dbus bus name validation is must & will be added to avoid alarm-server crash*/
+	if (g_quark_to_string(context.quark_app_service_name) == NULL
+		&& strlen(dst_service_name) == 4
+		&& strncmp(dst_service_name, "null",4) == 0 ){
+			ALARM_MGR_EXCEPTION_PRINT("Invalid arg. Provide valid destination or call alarmmgr_init()\n");
+		if (error_code)
+			*error_code = ERR_ALARM_INVALID_PARAM;
+		return false;
+	}
 
 	size = security_server_get_cookie_size();
 	retval = security_server_request_cookie(cookie, size);
@@ -229,6 +237,76 @@ bool _send_alarm_create(alarm_context_t context, alarm_info_t *alarm_info,
 	}
 
 	return true;
+}
+bundle *_send_alarm_get_appsvc_info(alarm_context_t context, alarm_id_t alarm_id, int *error_code)
+{
+	GError *error = NULL;
+	int return_code = 0;
+
+	bundle *b = NULL;
+
+	char cookie[256] = {0,};
+	char *e_cookie = NULL;
+	int size = 0;
+	int retval = 0;
+
+	gchar *b_data = NULL;
+	int len = 0;
+
+	size = security_server_get_cookie_size();
+	retval = security_server_request_cookie(cookie, size);
+
+	if (retval < 0) {
+		ALARM_MGR_EXCEPTION_PRINT(
+			"security_server_request_cookie failed\n");
+		if (error_code)
+			*error_code = -1; /*TODO: define error*/
+		return NULL;
+	}
+
+	e_cookie = g_base64_encode((const guchar *)cookie, size);
+
+	if (NULL == e_cookie)
+	{
+		ALARM_MGR_EXCEPTION_PRINT(
+			"g_base64_encode failed\n");
+		if (error_code)
+			*error_code = -1; /*TODO: define error*/
+		return NULL;
+	}
+
+
+	if (!com_samsung_alarm_manager_alarm_get_appsvc_info
+	    (context.proxy, context.pid, alarm_id, e_cookie, &b_data, &return_code, &error)) {
+		/* dbus-glib error */
+		/*error_code should be set */
+		ALARM_MGR_EXCEPTION_PRINT(
+		"com_samsung_alarm_manager_alarm_delete() failed. "
+		     "alarm_id[%d], return_code[%d]\n", alarm_id, return_code);
+		if (error_code)
+			*error_code = ERR_ALARM_SYSTEM_FAIL; /*-1 means that system
+								failed internally.*/
+		if (e_cookie)
+			g_free(e_cookie);
+		if (b_data)
+			g_free(b_data);
+
+		return NULL;
+	}
+
+	if (return_code != 0){
+		if (error_code)
+			*error_code = return_code;
+	} else {
+		b = bundle_decode((bundle_raw *)b_data, len);
+	}
+
+	if (e_cookie)
+		g_free(e_cookie);
+	if (b_data)
+		g_free(b_data);
+
+	return b;
 }
 
 bool _send_alarm_delete(alarm_context_t context, alarm_id_t alarm_id,

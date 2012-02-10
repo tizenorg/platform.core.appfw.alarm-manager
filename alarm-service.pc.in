@@ -7,6 +7,6 @@ localedir=@localedir@
 Name: alarm-service
 Description: alarm library
 Version: @VERSION@
-Requires: dbus-1 dbus-glib-1 glib-2.0 gobject-2.0 gconf-2.0 dlog
+Requires: dbus-1 dbus-glib-1 glib-2.0 gobject-2.0 dlog
 Libs: -L${libdir} -lalarm
 Cflags: -I${includedir}

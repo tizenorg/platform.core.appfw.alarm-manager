@@ -194,6 +194,8 @@ typedef enum {
 		ERR_ALARM_NO_SERVICE_NAME,
 				    /**<there is no alarm service 
 					for this applicaation. */
+		ERR_ALARM_INVALID_TYPE,  /*Invalid type*/
+		ERR_ALARM_NO_PERMISSION, /*No permission*/
 		ERR_ALARM_SYSTEM_FAIL = -1,
 		ALARMMGR_RESULT_SUCCESS = 0,
 	} alarm_error_t;
@@ -1229,6 +1231,70 @@ int alarmmgr_enum_alarm_ids(alarm_enum_fn_t fn, void *user_param);
  * @limo
  */
 int alarmmgr_get_info(alarm_id_t alarm_id, alarm_entry_t *alarm);
+
+
+/**
+ * This function retrieves bundle associated with alarm.
+ * Server will remember this entry, and pass the bundle information upon alarm expiry.
+ * Server will call app-svc interface to sent notification to destination application. Destination information
+ * should be available in the input bundle.
+ * @param	[in]		alarm_id		alarm id
+ * @param	[out]		ALARMMGR_RESULT_SUCCESS on success or negative number on failure.
+ *
+ * @return	This function returns bundle on success or NULL on failure.
+ *
+ * @pre None.
+ * @post None.
+ * @see None
+ * @remark  None.
+ *
+ * @par Sample code:
+ * @code
+#include <alarm.h>
+
+ ...
+
+alarm_id_t alarm_id;
+
+register_alarm(){
+	int result;
+	bundle *b=NULL;
+	b=bundle_create();
+
+	if (NULL == b)
+	{
+		printf("Unable to create bundle!!!\n");
+		return;
+	}
+
+	appsvc_set_pkgname(b,"org.tizen.alarm-test");
+	appsvc_set_operation(b,APPSVC_OPERATION_DEFAULT);
+
+	if ((result = alarmmgr_add_alarm_appsvc(ALARM_TYPE_DEFAULT, 10, 0, (void *)b ,&alarm_id)))
+		printf("Unable to add alarm. Alarmmgr alarm no is %d\n", result);
+	else
+		printf("Alarm added successfully. Alarm Id is %d\n", alarm_id);
+}
+int main(int argc,char **argv {
+	register_alarm();
+
+	int return_code = 0;
+	bundle *b = NULL;
+	b = alarmmgr_get_alarm_appsvc_info(alarm_id, &return_code);
+	if (b){
+		const char *pkgname = appsvc_get_pkgname(b);
+		if (pkgname){
+			printf("Package name is %s\n",pkgname);
+		}
+	}
+
+	return 0;
+
+ }
+ * @endcode
+ * @limo
+ */
+void *alarmmgr_get_alarm_appsvc_info(alarm_id_t alarm_id, int *return_code);
 
 /**
  * @}
