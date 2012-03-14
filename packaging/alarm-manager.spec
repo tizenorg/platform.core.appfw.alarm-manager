@@ -1,9 +1,9 @@
 Name:       alarm-manager
 Summary:    Alarm library
-Version:    0.4.31
+Version:	0.4.39
 Release:    1
 Group:      System/Libraries
-License:    LGPLv2
+License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
@@ -20,7 +20,8 @@ BuildRequires: pkgconfig(security-server)
 BuildRequires: pkgconfig(db-util)
 BuildRequires: pkgconfig(vconf)
 BuildRequires: pkgconfig(tapi)
-BuildRequires: pkgconfig(tapi-priv)
+BuildRequires: pkgconfig(appsvc)
+BuildRequires: pkgconfig(gconf-2.0)
 
 %description
 Alarm Server and devel libraries
@@ -54,30 +55,24 @@ Alarm server library (devel)
 %prep
 %setup -q
 
-# HACK_removed_dbus_glib_alarm_manager_object_info.diff
-#%patch0 -p1
-
 %build
 
 export LDFLAGS+=" -Wl,--rpath=%{_libdir} -Wl,--as-needed"
 
-%autogen --disable-static
+%autogen 
 
 dbus-binding-tool --mode=glib-server --prefix=alarm_manager ./alarm_mgr.xml > ./include/alarm-skeleton.h
 dbus-binding-tool --mode=glib-client --prefix=alarm_manager ./alarm_mgr.xml > ./include/alarm-stub.h
 dbus-binding-tool --mode=glib-server --prefix=alarm_client ./alarm-expire.xml > ./include/alarm-expire-skeleton.h
 dbus-binding-tool --mode=glib-client --prefix=alarm_client ./alarm-expire.xml > ./include/alarm-expire-stub.h
 
-%configure --disable-static
+%configure 
 make %{?jobs:-j%jobs}
 
 
 %install
-rm -rf %{buildroot}
 %make_install
-
-
-
+install -D -m755 alarm-server_run %{buildroot}/etc/rc.d/init.d/alarm-server_run
 
 %post -p /sbin/ldconfig
 
@@ -85,28 +80,15 @@ rm -rf %{buildroot}
 
 %post -n alarm-server
 
-chmod 755 /usr/bin/alarm-server
-chmod 755 /etc/rc.d/init.d/alarm-server_run
-
-mkdir -p /etc/rc.d/rc3.d
-mkdir -p /etc/rc.d/rc5.d
-ln -s /etc/rc.d/init.d/alarm-server /etc/rc.d/rc3.d/S80alarm-server
-ln -s /etc/rc.d/init.d/alarm-server /etc/rc.d/rc5.d/S80alarm-server
+ln -s /etc/rc.d/init.d/alarm-server_run /etc/rc.d/rc3.d/S80alarm-server
+ln -s /etc/rc.d/init.d/alarm-server_run /etc/rc.d/rc5.d/S80alarm-server
 
 %postun -n alarm-server
 rm -f /etc/rc.d/rc3.d/S80alarm-server
 rm -f /etc/rc.d/rc5.d/S80alarm-server
 
-%post -n libalarm
-if [ ${USER} == "root" ]
-then
-	chown root:root /usr/lib/libalarm.so.0.0.0
-fi
-
-chmod 644 /usr/lib/libalarm.so.0.0.0
-
-
 %files -n alarm-server
+/etc/rc.d/init.d/alarm-server_run
 %{_bindir}/*
 
 %files -n libalarm
