@@ -187,6 +187,9 @@ static int __sub_init()
 		return ALARMMGR_RESULT_SUCCESS;
 	}
 
+	g_thread_init(NULL);
+	dbus_g_thread_init();
+
 	alarm_context.bus = dbus_g_bus_get(DBUS_BUS_SYSTEM, &error);
 	if (alarm_context.bus == NULL) {
 		ALARM_MGR_EXCEPTION_PRINT("dbus bus get failed\n");
@@ -270,9 +273,6 @@ EXPORT_API int alarmmgr_init(const char *pkg_name)
 		     g_quark_to_string(alarm_context.quark_app_service_name));
 		return ALARMMGR_RESULT_SUCCESS;
 	}
-
-	g_thread_init(NULL);
-	dbus_g_thread_init();
 
 	ret = __sub_init();
 	if (ret < 0)

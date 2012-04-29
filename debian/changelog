@@ -1,7 +1,7 @@
-alarm-manager (0.4.39-1) unstable; urgency=low
+alarm-manager (0.4.46) unstable; urgency=low
 
   * Initial release
   * Git: pkgs/a/alarm-manager
-  * Tag: alarm-manager_0.4.39-1
+  * Tag: alarm-manager_0.4.46
 
- -- Jaeho Lee <jaeho81.lee@samsung.com>  Wed, 07 Dec 2011 13:32:59 +0900
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 26 Mar 2012 13:43:41 +0900

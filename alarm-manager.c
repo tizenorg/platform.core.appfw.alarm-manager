@@ -51,8 +51,6 @@
 #include <vconf.h>
 #include <vconf-keys.h>
 
-#include <ITapiMisc.h>
-
 #define SIG_TIMER 0x32
 #define WAKEUP_ALARM_APP_ID       "org.tizen.alarm.ALARM"
 	/* alarm ui application's alarm's dbus_service name instead of 21
@@ -241,8 +239,6 @@ int _set_rtc_time(time_t _time)
 	const char *rtc1 = default_rtc;
 	struct tm *_tm;
 	struct tm time_r;
-	int tapi_ret;
-	tapi_misc_time_zone_info_type info = { 0, };
 
 	fd0 = open(rtc0, O_RDONLY);
 	fd1 = open(rtc1, O_RDONLY);
@@ -290,24 +286,6 @@ int _set_rtc_time(time_t _time)
 		perror("\t");
 	}
 	close(fd1);
-
-	/* set modem */
-	info.time_zone_valid = TAPI_MISC_NITZ_RTC_BKUP_PHONE;
-	info.year = time_r.tm_year;
-	info.month = time_r.tm_mon;
-	info.day = time_r.tm_mday;
-	info.hour = time_r.tm_hour;
-	info.minute = time_r.tm_min;
-	info.second = 0;
-	ALARM_MGR_LOG_PRINT("***********Set timezone info*********\n");
-	ALARM_MGR_LOG_PRINT("***********info.year:%d\t*********\n", info.year);
-	ALARM_MGR_LOG_PRINT("***********info.month:%d\t*********\n",
-			    info.month);
-	ALARM_MGR_LOG_PRINT("***********info.day:%d\t*********\n", info.day);
-	ALARM_MGR_LOG_PRINT("***********info.hour:%d\t*********\n", info.hour);
-	ALARM_MGR_LOG_PRINT("***********info.minute:%d\t*********\n",
-			    info.minute);
-	tapi_ret = tel_set_misc_timezone_info(&info);
 
 	return 1;
 }
@@ -1401,7 +1379,7 @@ static void __alarm_expired()
 				{
 					snprintf(alarm_id_val,31,"%d",alarm_id);
 
-					if (bundle_add(b,"slp.alarm.data.ID", alarm_id_val)){
+					if (bundle_add(b,"http://tizen.org/appsvc/data/alarm_id", alarm_id_val)){
 						ALARM_MGR_EXCEPTION_PRINT("Unable to add alarm id to the bundle\n");
 					}
 					else
