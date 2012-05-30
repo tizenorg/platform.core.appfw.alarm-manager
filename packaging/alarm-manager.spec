@@ -5,6 +5,7 @@ Release:    1
 Group:      System/Libraries
 License:    Apache License, Version 2.0
 Source0:    %{name}-%{version}.tar.gz
+Source1001: packaging/alarm-manager.manifest 
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 
@@ -55,6 +56,7 @@ Alarm server library (devel)
 %setup -q
 
 %build
+cp %{SOURCE1001} .
 
 export LDFLAGS+=" -Wl,--rpath=%{_libdir} -Wl,--as-needed"
 
@@ -101,14 +103,17 @@ chmod 644 /usr/lib/libalarm.so.0.0.0
 
 
 %files -n alarm-server
+%manifest alarm-manager.manifest
 %{_bindir}/*
 /etc/init.d/alarm-server_run
 
 %files -n libalarm
+%manifest alarm-manager.manifest
 %{_libdir}/*.so.*
 
 
 %files -n libalarm-devel
+%manifest alarm-manager.manifest
 %{_includedir}/*.h
 %{_libdir}/pkgconfig/*.pc
 %{_libdir}/*.so
