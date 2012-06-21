@@ -1,0 +1,10 @@
+[Unit]
+Description=Start the Alarm service
+
+[Service]
+ExecStart=/usr/bin/alarm-server
+Nice=5
+OOMScoreAdjust=100
+
+[Install]
+WantedBy=tizen-middleware.target

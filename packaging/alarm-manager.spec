@@ -5,9 +5,14 @@ Release:    1
 Group:      System/Libraries
 License:    Apache License, Version 2.0
 Source0:    %{name}-%{version}.tar.gz
+Source101:  packaging/alarm-server.service
 Source1001: packaging/alarm-manager.manifest 
+
 Requires(post): /sbin/ldconfig
+Requires(post): /usr/bin/systemctl
 Requires(postun): /sbin/ldconfig
+Requires(postun): /usr/bin/systemctl
+Requires(preun): /usr/bin/systemctl
 
 BuildRequires: pkgconfig(dbus-1)
 BuildRequires: pkgconfig(glib-2.0)
@@ -83,10 +88,26 @@ mkdir -p %{buildroot}/%{_sysconfdir}/rc.d/rc5.d
 ln -s ../etc/init.d/alarm-server_run %{buildroot}/%{_sysconfdir}/rc.d/rc3.d/S80alarm-server
 ln -s ../etc/init.d/alarm-server_run %{buildroot}/%{_sysconfdir}/rc.d/rc5.d/S80alarm-server
 
+install -d %{buildroot}%{_libdir}/systemd/user/tizen-middleware.target.wants
+install -m0644 %{SOURCE101} %{buildroot}%{_libdir}/systemd/user/
+ln -sf ../alarm-server.service %{buildroot}%{_libdir}/systemd/user/tizen-middleware.target.wants/alarm-server.service
 
-%post -p /sbin/ldconfig
 
-%postun -p /sbin/ldconfig
+%preun
+if [ $1 == 0 ]; then
+    systemctl stop alarm-server.service
+fi
+
+%post
+/sbin/ldconfig
+if [ $1 == 1 ]; then
+    systemctl restart alarm-server.service
+fi
+
+%postun
+/sbin/ldconfig
+systemctl daemon-reload
+
 
 %files -n alarm-server
 %manifest alarm-manager.manifest
@@ -94,6 +115,8 @@ ln -s ../etc/init.d/alarm-server_run %{buildroot}/%{_sysconfdir}/rc.d/rc5.d/S80a
 %attr(0755,root,root) %{_sysconfdir}/init.d/alarm-server_run
 %attr(0755,root,root) %{_sysconfdir}/rc.d/rc3.d/S80alarm-server
 %attr(0755,root,root) %{_sysconfdir}/rc.d/rc5.d/S80alarm-server
+%{_libdir}/systemd/user/tizen-middleware.target.wants/alarm-server.service
+%{_libdir}/systemd/user/alarm-server.service
 
 %files -n libalarm
 %manifest alarm-manager.manifest
