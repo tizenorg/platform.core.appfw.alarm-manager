@@ -78,43 +78,31 @@ rm -rf %{buildroot}
 mkdir -p %{buildroot}/etc/init.d
 install -m 755 alarm-server_run %{buildroot}/etc/init.d
 
+mkdir -p %{buildroot}/%{_sysconfdir}/rc.d/rc3.d
+mkdir -p %{buildroot}/%{_sysconfdir}/rc.d/rc5.d
+ln -s ../etc/init.d/alarm-server_run %{buildroot}/%{_sysconfdir}/rc.d/rc3.d/S80alarm-server
+ln -s ../etc/init.d/alarm-server_run %{buildroot}/%{_sysconfdir}/rc.d/rc5.d/S80alarm-server
+
 
 %post -p /sbin/ldconfig
 
 %postun -p /sbin/ldconfig
 
-%post -n alarm-server
-
-chmod 755 /usr/bin/alarm-server
-chmod 755 /etc/init.d/alarm-server_run
-
-mkdir -p /etc/rc.d/rc3.d
-mkdir -p /etc/rc.d/rc5.d
-ln -s /etc/init.d/alarm-server_run /etc/rc.d/rc3.d/S80alarm-server
-ln -s /etc/init.d/alarm-server_run /etc/rc.d/rc5.d/S80alarm-server
-
-%post -n libalarm
-if [ ${USER} == "root" ]
-then
-	chown root:root /usr/lib/libalarm.so.0.0.0
-fi
-
-chmod 644 /usr/lib/libalarm.so.0.0.0
-
-
 %files -n alarm-server
 %manifest alarm-manager.manifest
-%{_bindir}/*
-/etc/init.d/alarm-server_run
+%attr(0755,root,root) %{_bindir}/alarm-server
+%attr(0755,root,root) %{_sysconfdir}/init.d/alarm-server_run
+%attr(0755,root,root) %{_sysconfdir}/rc.d/rc3.d/S80alarm-server
+%attr(0755,root,root) %{_sysconfdir}/rc.d/rc5.d/S80alarm-server
 
 %files -n libalarm
 %manifest alarm-manager.manifest
-%{_libdir}/*.so.*
+%attr(0644,root,root) %{_libdir}/libalarm.so.0.0.0
+%{_libdir}/libalarm.so.0
 
 
 %files -n libalarm-devel
 %manifest alarm-manager.manifest
 %{_includedir}/*.h
 %{_libdir}/pkgconfig/*.pc
-%{_libdir}/*.so
-
+%{_libdir}/libalarm.so
