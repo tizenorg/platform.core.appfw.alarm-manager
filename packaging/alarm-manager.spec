@@ -85,8 +85,8 @@ install -m 755 alarm-server_run %{buildroot}/etc/init.d
 
 mkdir -p %{buildroot}/%{_sysconfdir}/rc.d/rc3.d
 mkdir -p %{buildroot}/%{_sysconfdir}/rc.d/rc5.d
-ln -s ../etc/init.d/alarm-server_run %{buildroot}/%{_sysconfdir}/rc.d/rc3.d/S80alarm-server
-ln -s ../etc/init.d/alarm-server_run %{buildroot}/%{_sysconfdir}/rc.d/rc5.d/S80alarm-server
+ln -s ../init.d/alarm-server_run %{buildroot}/%{_sysconfdir}/rc.d/rc3.d/S80alarm-server
+ln -s ../init.d/alarm-server_run %{buildroot}/%{_sysconfdir}/rc.d/rc5.d/S80alarm-server
 
 install -d %{buildroot}%{_libdir}/systemd/user/tizen-middleware.target.wants
 install -m0644 %{SOURCE101} %{buildroot}%{_libdir}/systemd/user/
