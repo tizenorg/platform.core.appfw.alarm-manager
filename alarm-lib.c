@@ -190,7 +190,7 @@ static int __sub_init()
 	g_thread_init(NULL);
 	dbus_g_thread_init();
 
-	alarm_context.bus = dbus_g_bus_get(DBUS_BUS_SYSTEM, &error);
+	alarm_context.bus = dbus_g_bus_get(DBUS_BUS_SESSION, &error);
 	if (alarm_context.bus == NULL) {
 		ALARM_MGR_EXCEPTION_PRINT("dbus bus get failed\n");
 

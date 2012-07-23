@@ -2344,7 +2344,7 @@ static bool __initialize_dbus()
 	dbus_g_object_type_install_info(ALARM_MANAGER_TYPE_OBJECT,
 					&dbus_glib_alarm_manager_object_info);
 
-	connection = dbus_g_bus_get(DBUS_BUS_SYSTEM, &error);
+	connection = dbus_g_bus_get(DBUS_BUS_SESSION, &error);
 	if (!connection) {
 
 		ALARM_MGR_EXCEPTION_PRINT("dbus_g_bus_get failed\n");

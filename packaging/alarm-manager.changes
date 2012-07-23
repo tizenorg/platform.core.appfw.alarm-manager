@@ -1,3 +1,6 @@
+* Mon Jul 23 2012 Patrick McCarty <patrick.mccarty@linux.intel.com> f7983c6
+- Fix crash when switching to Timer tab in Clock app
+
 * Thu Jun 28 2012 Patrick McCarty <patrick.mccarty@linux.intel.com> - 0.4.46
 - Fix initscript symlinks for alarm-server
 
