@@ -92,6 +92,9 @@ install -d %{buildroot}%{_libdir}/systemd/user/tizen-middleware.target.wants
 install -m0644 %{SOURCE101} %{buildroot}%{_libdir}/systemd/user/
 ln -sf ../alarm-server.service %{buildroot}%{_libdir}/systemd/user/tizen-middleware.target.wants/alarm-server.service
 
+install -d %{buildroot}%{_sysconfdir}/udev/rules.d
+install -m0644 rules/90-alarm-server.rules %{buildroot}%{_sysconfdir}/udev/rules.d/90-alarm-server.rules
+
 
 %preun
 if [ $1 == 0 ]; then
@@ -115,6 +118,7 @@ systemctl daemon-reload
 %attr(0755,root,root) %{_sysconfdir}/init.d/alarm-server_run
 %attr(0755,root,root) %{_sysconfdir}/rc.d/rc3.d/S80alarm-server
 %attr(0755,root,root) %{_sysconfdir}/rc.d/rc5.d/S80alarm-server
+%config %{_sysconfdir}/udev/rules.d/90-alarm-server.rules
 %{_libdir}/systemd/user/tizen-middleware.target.wants/alarm-server.service
 %{_libdir}/systemd/user/alarm-server.service
 

@@ -1,0 +1,1 @@
+KERNEL=="rtc[0-9]*", GROUP="system_time"
