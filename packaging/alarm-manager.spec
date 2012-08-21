@@ -1,6 +1,6 @@
 Name:       alarm-manager
 Summary:    Alarm library
-Version:    0.4.46
+Version:    0.4.52
 Release:    1
 Group:      System/Libraries
 License:    Apache License, Version 2.0
@@ -54,6 +54,9 @@ Alarm server library (devel)
 %prep
 %setup -q
 
+# HACK_removed_dbus_glib_alarm_manager_object_info.diff
+#%patch0 -p1
+
 %build
 
 export LDFLAGS+=" -Wl,--rpath=%{_libdir} -Wl,--as-needed"
@@ -83,6 +86,9 @@ install -m 755 alarm-server_run %{buildroot}/etc/init.d
 
 %post -n alarm-server
 
+heynotitool set setting_time_changed -a
+vconftool set -t int db/system/timechange 0 -i
+
 chmod 755 /usr/bin/alarm-server
 chmod 755 /etc/init.d/alarm-server_run
 
@@ -92,11 +98,6 @@ ln -s /etc/init.d/alarm-server_run /etc/rc.d/rc3.d/S80alarm-server
 ln -s /etc/init.d/alarm-server_run /etc/rc.d/rc5.d/S80alarm-server
 
 %post -n libalarm
-if [ ${USER} == "root" ]
-then
-	chown root:root /usr/lib/libalarm.so.0.0.0
-fi
-
 chmod 644 /usr/lib/libalarm.so.0.0.0
 
 

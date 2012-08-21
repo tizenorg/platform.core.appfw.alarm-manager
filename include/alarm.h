@@ -1296,6 +1296,42 @@ int main(int argc,char **argv {
  */
 void *alarmmgr_get_alarm_appsvc_info(alarm_id_t alarm_id, int *return_code);
 
+
+
+/**
+ * This function sets power RTC (which can power on the system).
+ * @param	[in]		alarm_date_t		time
+ *
+ * @return	This function returns the result. On success, ALARMMGR_RESULT_SUCCESS will be returned
+ *		else, appropriate error no will be returned.
+ * @pre None.
+ * @post None.
+ * @see None
+ * @remark  None.
+ *
+ * @par Sample code:
+ * @code
+#include <alarm.h>
+
+ ...
+
+alarm_date_t alarm_date={2012,04,05,10,10,00};
+
+int main(int argc,char **argv {
+	int return_code = 0;
+	return_code = alarmmgr_set_rtc_time(&alarm_date);
+	if (return_code != ALARMMGR_RESULT_SUCCESS){
+		printf("Error returned is %d\n",return_code);
+	}
+	return 0;
+
+ }
+ * @endcode
+ * @limo
+ */
+int alarmmgr_set_rtc_time(alarm_date_t *time);
+
+
 /**
  * @}
  */

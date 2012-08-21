@@ -45,6 +45,8 @@
 #define MAX_SERVICE_NAME_LEN 256
 #define MAX_PKG_NAME_LEN MAX_SERVICE_NAME_LEN-8
 
+#define SYSTEM_TIME_CHANGED "setting_time_changed"
+
 #ifdef LOG_TAG
 #undef LOG_TAG
 #endif
@@ -140,6 +142,8 @@ bool _send_alarm_power_off(alarm_context_t context, int *error_code);
 bool _remove_from_scheduled_alarm_list(int pid, alarm_id_t alarm_id);
 bool _load_alarms_from_registry();
 bool _alarm_find_mintime_power_on(time_t *min_time);
+bundle *_send_alarm_get_appsvc_info(alarm_context_t context, alarm_id_t alarm_id, int *error_code);
+bool _send_alarm_set_rtc_time(alarm_context_t context, alarm_date_t *time, int *error_code);
 
 /*  alarm manager*/
 typedef struct {

@@ -35,7 +35,10 @@
 #include<dbus/dbus.h>
 #include<dbus/dbus-glib-lowlevel.h>
 #include<glib.h>
+#if !GLIB_CHECK_VERSION (2, 31, 0)
 #include <glib/gmacros.h>
+#else
+#endif
 
 /*#include "global-gconf.h"*/
 #include"alarm.h"
@@ -720,6 +723,8 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 	__alarm_info->quark_bundle=g_quark_from_string(bundle_data);
 	__alarm_info->quark_app_service_name = g_quark_from_string("null");
 	__alarm_info->quark_dst_service_name = g_quark_from_string("null");
+	__alarm_info->quark_app_service_name_mod = g_quark_from_string("null");
+	__alarm_info->quark_dst_service_name_mod = g_quark_from_string("null");
 
 	__alarm_set_start_and_end_time(alarm_info, __alarm_info);
 	memcpy(&(__alarm_info->alarm_info), alarm_info, sizeof(alarm_info_t));
@@ -1613,6 +1618,12 @@ static void __on_system_time_changed(keynode_t *node, void *data)
 			    alarm_context.c_due_time);
 
 	_set_time(_time);
+
+	vconf_set_dbl(VCONFKEY_SYSTEM_TIMEDIFF, diff_time);
+
+	if (heynoti_publish(SYSTEM_TIME_CHANGED))
+		ALARM_MGR_EXCEPTION_PRINT("alarm-server: Unable to publish heynoti for system time change\n");
+
 	__alarm_update_due_time_of_all_items_in_list(diff_time);
 
 	ALARM_MGR_LOG_PRINT("2.alarm_context.c_due_time is %d\n",
@@ -1634,6 +1645,134 @@ this value to 0(zero)
 	return;
 }
 
+gboolean alarm_manager_alarm_set_rtc_time(void *pObject, int pid,
+				int year, int mon, int day,
+				int hour, int min, int sec, char *e_cookie,
+				int *return_code){
+	guchar *cookie = NULL;
+	gsize size;
+	int retval = 0;
+	gboolean result = true;
+	gid_t call_gid;
+
+	const char *rtc = power_rtc;
+	int fd = 0;
+	struct rtc_time rtc_tm = {0,};
+	struct rtc_wkalrm rtc_wk;
+	struct tm *alarm_tm = NULL;
+	struct tm due_tm = {0,};
+
+
+	if (return_code){
+		*return_code = ALARMMGR_RESULT_SUCCESS;
+	}
+
+	cookie = g_base64_decode(e_cookie, &size);
+	if (NULL == cookie)
+	{
+		if (return_code)
+			*return_code = ERR_ALARM_NO_PERMISSION;
+		ALARM_MGR_EXCEPTION_PRINT("Unable to decode cookie!!!\n");
+		return true;
+	}
+
+	call_gid = security_server_get_gid("alarm");
+
+	ALARM_MGR_LOG_PRINT("call_gid : %d\n", call_gid);
+
+	retval = security_server_check_privilege((const char *)cookie, call_gid);
+	if (retval < 0) {
+		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
+			ALARM_MGR_EXCEPTION_PRINT(
+				"%s", "access has been denied\n");
+		}
+		ALARM_MGR_EXCEPTION_PRINT("Error has occurred in security_server_check_privilege()\n");
+		if (return_code)
+			*return_code = ERR_ALARM_NO_PERMISSION;
+	}
+	else {
+
+		/*extract day of the week, day in the year &
+		daylight saving time from system*/
+		time_t ctime;
+		ctime = time(NULL);
+		alarm_tm = localtime(&ctime);
+
+		alarm_tm->tm_year = year;
+		alarm_tm->tm_mon = mon;
+		alarm_tm->tm_mday = day;
+		alarm_tm->tm_hour = hour;
+		alarm_tm->tm_min = min;
+		alarm_tm->tm_sec = sec;
+
+		/*convert to calendar time representation*/
+		time_t rtc_time = mktime(alarm_tm);
+
+		/*convert to Coordinated Universal Time (UTC)*/
+		gmtime_r(&rtc_time, &due_tm);
+
+		fd = open(rtc, O_RDONLY);
+		if (fd == -1) {
+			ALARM_MGR_EXCEPTION_PRINT("RTC open failed.\n");
+			if (return_code)
+				*return_code = ERR_ALARM_SYSTEM_FAIL;
+			return result;
+		}
+
+		/* Read the RTC time/date */
+		retval = ioctl(fd, RTC_RD_TIME, &rtc_tm);
+		if (retval == -1) {
+			ALARM_MGR_EXCEPTION_PRINT("RTC_RD_TIME ioctl failed");
+			close(fd);
+			if (return_code)
+				*return_code = ERR_ALARM_SYSTEM_FAIL;
+			return result;
+		}
+
+		rtc_tm.tm_mday = due_tm.tm_mday;
+		rtc_tm.tm_mon = due_tm.tm_mon;
+		rtc_tm.tm_year = due_tm.tm_year;
+		rtc_tm.tm_hour = due_tm.tm_hour;
+		rtc_tm.tm_min = due_tm.tm_min;
+		rtc_tm.tm_sec = due_tm.tm_sec;
+
+		memcpy(&rtc_wk.time, &rtc_tm, sizeof(rtc_tm));
+
+		rtc_wk.enabled = 1;
+		rtc_wk.pending = 0;
+
+		retval = ioctl(fd, RTC_WKALM_SET, &rtc_wk);
+		if (retval == -1) {
+			if (errno == ENOTTY) {
+				ALARM_MGR_EXCEPTION_PRINT("\nAlarm IRQs not"
+							  "supported.\n");
+			}
+			ALARM_MGR_EXCEPTION_PRINT("RTC_ALM_SET ioctl");
+			close(fd);
+			if (return_code)
+				*return_code = ERR_ALARM_SYSTEM_FAIL;
+		}
+		else{
+			ALARM_MGR_LOG_PRINT("[alarm-server]RTC alarm is setted");
+			/* Enable alarm interrupts */
+			retval = ioctl(fd, RTC_AIE_ON, 0);
+			if (retval == -1) {
+				ALARM_MGR_EXCEPTION_PRINT("RTC_AIE_ON ioctl failed");
+				if (return_code)
+					*return_code = ERR_ALARM_SYSTEM_FAIL;
+			}
+			close(fd);
+		}
+	}
+
+	if (cookie){
+		g_free(cookie);
+		cookie = NULL;
+	}
+
+	return result;
+
+}
 
 gboolean alarm_manager_alarm_create_appsvc(void *pObject, int pid,
 				    int start_year,

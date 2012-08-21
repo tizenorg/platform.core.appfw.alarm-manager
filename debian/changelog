@@ -1,7 +1,792 @@
+alarm-manager (0.4.51) unstable; urgency=low
+
+  * set a vconf when time is changed
+  * Git: slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.51
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 04 Jun 2012 19:10:36 +0900
+
+alarm-manager (0.4.50) unstable; urgency=low
+
+  * Add vconf key set
+  * Git: slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.50
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 17 May 2012 19:44:25 +0900
+
+alarm-manager (0.4.49) unstable; urgency=low
+
+  * Support API for power-on rtc
+  * Git: slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.49
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Wed, 13 Apr 2012 10:15:00 +0900
+
+alarm-manager (0.4.48) unstable; urgency=low
+
+  * allow "setting_time_changed" heynoti publication by application
+  * Git: slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.48
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 12 Apr 2012 21:45:11 +0900
+
+alarm-manager (0.4.47) unstable; urgency=low
+
+  * Support "setting_time_changed" heynoti publication upon system time change, cleanup
+  * Git: slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.47
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Wed, 28 Mar 2012 18:10:16 +0900
+
 alarm-manager (0.4.46) unstable; urgency=low
 
-  * Initial release
-  * Git: pkgs/a/alarm-manager
+  * Removed tel_set_misc_timezone_info API
+  * Git: slp/pkgs/a/alarm-manager
   * Tag: alarm-manager_0.4.46
 
  -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 26 Mar 2012 13:43:41 +0900
+
+alarm-manager (0.4.45) unstable; urgency=low
+
+  * Changed prefix
+  * Git: slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.45
+
+ -- jaeho81.lee <jaeho81.lee@samsung.com>  Fri, 16 Mar 2012 10:25:31 +0900
+
+alarm-manager (0.4.44) unstable; urgency=low
+
+  * Fix a thread bug
+  * Git: slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.44
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 28 Feb 2012 18:16:26 +0900
+
+alarm-manager (0.4.43) unstable; urgency=low
+
+  * API to get appsvc bundle information
+  * Git: slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.43
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Wed, 08 Feb 2012 14:30:00 +0900
+
+alarm-manager (0.4.42) unstable; urgency=low
+
+  * Clenup, bug fix.
+  * Git: slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.42
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 02 Feb 2012 14:30:00 +0900
+
+alarm-manager (0.4.41) unstable; urgency=low
+
+  * Fixed alarm information API error no.
+  * Git: slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.41
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 17 Jan 2012 14:30:00 +0900
+
+alarm-manager (0.4.40) unstable; urgency=low
+
+  * Added test pgm which covers TS
+  * Git: slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.40
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 19 Dec 2011 19:00:00 +0900
+
+alarm-manager (0.4.39) unstable; urgency=low
+
+  * Cleaning, Remove unused files & postinst files
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.39
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 06 Dec 2011 10:30:00 +0900
+
+alarm-manager (0.4.38) unstable; urgency=low
+
+  * Changed boilerplate
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.38
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 05 Dec 2011 16:32:01 +0900
+
+alarm-manager (0.4.37) unstable; urgency=low
+
+  * Fixed Klockwork reported defects
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.37
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Wed, 30 Nov 2011 22:00:00 +0900
+
+alarm-manager (0.4.36) unstable; urgency=low
+
+  * Fixed Klockwork reported defects
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.36
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 08 Nov 2011 10:00:00 +0900
+
+alarm-manager (0.4.35) unstable; urgency=low
+
+  * Changed Boilerplate as per the guideline
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.35
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Fri, 21 Oct 2011 11:50:00 +0900
+
+alarm-manager (0.4.34) unstable; urgency=low
+
+  * Fix GCC Warning & Set Alarm RTC upon Alarm manager initialization
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.34
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Wed, 12 Oct 2011 10:15:00 +0900
+
+alarm-manager (0.4.33) unstable; urgency=low
+
+  * Add app-svc support
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.33
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 03 Oct 2011 11:10:35 +0900
+
+alarm-manager (0.4.32) unstable; urgency=low
+
+  * Remove tapi-priv dependency
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.32 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 29 Sep 2011 21:20:21 +0900
+
+alarm-manager (0.4.31) unstable; urgency=low
+
+  * Fix prevent issues
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.31 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Fri, 26 Aug 2011 15:10:35 +0900
+
+alarm-manager (0.4.30) unstable; urgency=low
+
+  * Apply code cleanup
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.30 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 11 Aug 2011 10:57:15 +0900
+
+alarm-manager (0.4.29) unstable; urgency=low
+
+  * About time change
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.29
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 04 Aug 2011 11:33:17 +0900
+
+alarm-manager (0.4.28) unstable; urgency=low
+
+  * Apply code cleanup
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.28 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 01 Aug 2011 21:08:40 +0900
+
+alarm-manager (0.4.27) unstable; urgency=low
+
+  * Code cleanup
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.27 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Wed, 13 Jul 2011 16:02:25 +0900
+
+alarm-manager (0.4.26) unstable; urgency=low
+
+  * Fix wrong alarm bug
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.26 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 05 Jul 2011 17:32:06 +0900
+
+alarm-manager (0.4.25) unstable; urgency=low
+
+  * Fix prevent defects
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.25 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 13 Jun 2011 16:04:43 +0900
+
+alarm-manager (0.4.24) unstable; urgency=low
+
+  * about TC
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.24 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 26 Apr 2011 13:29:56 +0900
+
+alarm-manager (0.4.23) unstable; urgency=low
+
+  * about time change
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.23
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 19 Apr 2011 16:05:35 +0900
+
+alarm-manager (0.4.22) unstable; urgency=low
+
+  * change of system FW
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.22
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Wed, 09 Mar 2011 14:17:26 +0900
+
+alarm-manager (0.4.21) unstable; urgency=low
+
+  * reupload
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.21
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 07 Mar 2011 19:39:16 +0900
+
+alarm-manager (0.4.20) unstable; urgency=low
+
+  * about initialize db
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.20
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 07 Mar 2011 16:47:30 +0900
+
+alarm-manager (0.4.19) unstable; urgency=low
+
+  * about alarmmgr_init() & gconf -> sqlite
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.19
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 07 Mar 2011 14:54:32 +0900
+
+alarm-manager (0.4.18) unstable; urgency=low
+
+  * about pm
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.18 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 08 Feb 2011 11:30:27 +0900
+
+alarm-manager (0.4.17) unstable; urgency=low
+
+  * add fini API
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.17 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 25 Jan 2011 17:36:31 +0900
+
+alarm-manager (0.4.16) unstable; urgency=low
+
+  * modify TC
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.16 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 24 Jan 2011 16:35:40 +0900
+
+alarm-manager (0.4.15) unstable; urgency=low
+
+  * prevent
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.15 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 20 Jan 2011 13:26:57 +0900
+
+alarm-manager (0.4.14) unstable; urgency=low
+
+  * about tet_testlist
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.14 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 17 Jan 2011 13:58:07 +0900
+
+alarm-manager (0.4.13) unstable; urgency=low
+
+  * bug fix
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.13 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Wed, 05 Jan 2011 17:05:07 +0900
+
+alarm-manager (0.4.12) unstable; urgency=low
+
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.12
+
+  commit a6dae1529f48318d914a151f63482082376d4cc5
+    about interval 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 04 Jan 2011 18:18:50 +0900
+
+alarm-manager (0.4.11) unstable; urgency=low
+
+  * change repository path
+  * Git: 165.213.180.234:/slp/pkgs/a/alarm-manager
+  * Tag: alarm-manager_0.4.11 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 28 Dec 2010 13:24:14 +0900
+
+alarm-manager (0.4.10) unstable; urgency=low
+
+  * modify TC
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.4.10 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 28 Dec 2010 10:48:18 +0900
+
+alarm-manager (0.4.9) unstable; urgency=low
+
+  * modify ltmain.sh
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.4.9 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 06 Dec 2010 15:42:55 +0900
+
+alarm-manager (0.4.8) unstable; urgency=low
+
+  * as-needed
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.4.8
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Sat, 27 Nov 2010 11:54:08 +0900
+
+alarm-manager (0.4.4) unstable; urgency=low
+
+  * modify PG
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.4.4
+
+ -- Newton Lee <newton.lee@samsung.com>  Fri, 26 Nov 2010 17:14:05 +0900
+
+alarm-manager (0.4.2-7) unstable; urgency=low
+
+  * modify PG
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.4.2-7 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 18 Nov 2010 14:03:11 +0900
+
+alarm-manager (0.4.2-6) unstable; urgency=low
+
+  * modify PG
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.4.2-6 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 16 Nov 2010 15:37:39 +0900
+
+alarm-manager (0.4.2-5) unstable; urgency=low
+
+  * modify PG
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.4.2-5 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 16 Nov 2010 14:50:19 +0900
+
+alarm-manager (0.4.2-4) unstable; urgency=low
+
+  * about license
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.4.2-4
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 26 Oct 2010 22:50:57 +0900
+
+alarm-manager (0.4.2-3) unstable; urgency=low
+
+  * add link file(rc5.d) 
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.4.2-3 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Wed, 20 Oct 2010 10:41:56 +0900
+
+alarm-manager (0.4.2-2) unstable; urgency=low
+
+  * add PG
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.4.2-2 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Fri, 08 Oct 2010 21:28:59 +0900
+
+alarm-manager (0.4.2-1) unstable; urgency=low
+
+  * modify TC
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.4.2-1 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 05 Oct 2010 13:48:25 +0900
+
+alarm-manager (0.4.1-5) unstable; urgency=low
+
+  * bug fix (about destination)
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.4.1-5 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 04 Oct 2010 17:33:40 +0900
+
+alarm-manager (0.4.1-4) unstable; urgency=low
+
+  * add TC
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.4.1-4
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 28 Sep 2010 14:04:57 +0900
+
+alarm-manager (0.4.1-3) unstable; urgency=low
+
+  * modify a bug
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.4.1-3 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 13 Sep 2010 18:02:28 +0900
+
+alarm-manager (0.4.1-2) unstable; urgency=low
+
+  * modify doxygen
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.4.1-2
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 02 Sep 2010 14:02:23 +0900
+
+alarm-manager (0.4.1-1) unstable; urgency=low
+
+  * APIs change
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.4.1-1
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 02 Sep 2010 14:02:07 +0900
+
+alarm-manager (0.4.0-0) unstable; urgency=low
+
+  * APIs change
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.4.0-0 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Wed, 25 Aug 2010 10:43:15 +0900
+
+alarm-manager (0.3.2-7) unstable; urgency=low
+
+  * alarmring
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.3.2-7 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Sat, 07 Aug 2010 16:53:01 +0900
+
+alarm-manager (0.3.2-6) unstable; urgency=low
+
+  * new aul
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.3.2-6
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 05 Aug 2010 14:32:55 +0900
+
+alarm-manager (0.3.2-5) unstable; urgency=low
+
+  * Release 0.3.2-5
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.3.2-5
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 29 Jul 2010 21:27:30 +0900
+
+alarm-manager (0.3.2-4) unstable; urgency=low
+
+  * buf fix : alarmring doesn't expire.
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.3.2-4 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 22 Jul 2010 16:37:05 +0900
+
+alarm-manager (0.3.2-3) unstable; urgency=low
+
+  * remove alarmmgr_check_next_duetime
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.3.2-3 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 19 Jul 2010 15:10:05 +0900
+
+alarm-manager (0.3.2-2) unstable; urgency=low
+
+  * change alarmmgr_set_cb return value
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.3.2-2 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Fri, 16 Jul 2010 11:29:13 +0900
+
+alarm-manager (0.3.2-1) unstable; urgency=low
+
+  * rollback prototype of alarmmgr_set_cb
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.3.2-1 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Fri, 16 Jul 2010 09:58:54 +0900
+
+alarm-manager (0.3.1-13) unstable; urgency=low
+
+  * rollback prototype of alarmmgr_set_cb
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.3.1-13 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 15 Jul 2010 18:11:32 +0900
+
+alarm-manager (0.3.1-12) unstable; urgency=low
+
+  * rollback prototype of alarmmgr_set_cb
+  * Git: 165.213.180.234:/git/slp/pkgs/alarm-manager
+  * Tag: alarm-manager_0.3.1-12 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 15 Jul 2010 17:07:54 +0900
+
+alarm-manager (0.3.1-11) unstable; urgency=low
+
+  * rollback prototype of alarmmgr_set_cb
+  * Git: 165.213.180.234:/git/slp2.0/slp2.0-pkgs/alarm-manager-0
+  * Tag: alarm-manager_0.3.1-11 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 15 Jul 2010 15:55:30 +0900
+
+alarm-manager (0.3.1-10) unstable; urgency=low
+
+  * EXPORT_API 
+  * Git: 165.213.180.234:/git/slp2.0/slp2.0-pkgs/alarm-manager-0
+  * Tag: alarm-manager_0.3.1-10
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 15 Jul 2010 11:14:14 +0900
+
+alarm-manager (0.3.1-9) unstable; urgency=low
+
+  * Add XB-Generate-Docs tag for doxygen
+  * Git: 165.213.180.234:/git/slp2.0/slp2.0-pkgs/alarm-manager-0
+  * Tag: alarm-manager_0.3.1-9
+
+ -- Sangjung Woo <sangjung.woo@samsung.com>  Mon, 05 July 2010 11:01:42 +0900
+
+alarm-manager (0.3.1-8) unstable; urgency=low
+
+  * re-build
+  * Git: 165.213.180.234:/git/slp2.0/slp2.0-pkgs/alarm-manager-0
+  * Tag: alarm-manager_0.3.1-8 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Fri, 18 Jun 2010 11:01:42 +0900
+
+alarm-manager (0.3.1-7) unstable; urgency=low
+
+  * remove deprecated functions
+  * Git: 165.213.180.234:/git/slp2.0/slp2.0-pkgs/alarm-manager-0
+  * Tag: alarm-manager_0.3.1-7 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 17 Jun 2010 10:44:54 +0900
+
+alarm-manager (0.3.1-6) unstable; urgency=low
+
+  * buf fix about auto power on alarm
+  * Git: 165.213.180.234:/git/slp2.0/slp2.0-pkgs/alarm-manager-0
+  * Tag: alarm-manager_0.3.1-6 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Wed, 09 Jun 2010 21:09:32 +0900
+
+alarm-manager (0.3.1-5) unstable; urgency=low
+
+  * add an org.tizen.timer exception
+  * Git: 165.213.180.234:/git/slp2.0/slp2.0-pkgs/alarm-manager-0
+  * Tag: alarm-manager_0.3.1-5 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 03 Jun 2010 18:34:53 +0900
+
+alarm-manager (0.3.1-4) unstable; urgency=low
+
+  * buf fix (memory corruption)
+  * Git: 165.213.180.234:/git/slp2.0/slp2.0-pkgs/alarm-manager-0
+  * Tag: alarm-manager_0.3.1-4 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 03 Jun 2010 16:49:18 +0900
+
+alarm-manager (0.3.1-3) unstable; urgency=low
+
+  * buf fix (timer case)
+  * Git: 165.213.180.234:/git/slp2.0/slp2.0-pkgs/alarm-manager-0
+  * Tag: alarm-manager_0.3.1-3
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 03 Jun 2010 10:48:55 +0900
+
+alarm-manager (0.3.1-2) unstable; urgency=low
+
+  * modify doxygen
+  * Git: 165.213.180.234:/git/slp2.0/slp2.0-pkgs/alarm-manager-0
+  * Tag: alarm-manager_0.3.1-2
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Fri, 28 May 2010 15:49:19 +0900
+
+alarm-manager (0.3.1-1) unstable; urgency=low
+
+  * modify APIs
+  * Git: 165.213.180.234:/git/slp2.0/slp2.0-pkgs/alarm-manager-0
+  * Tag: alarm-manager_0.3.1-1 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Wed, 26 May 2010 09:42:16 +0900
+
+alarm-manager (0.2.8-10) unstable; urgency=low
+
+  * modify .postinst file
+  * Git: 165.213.180.234:/git/slp2.0/slp2.0-pkgs/alarm-manager-0
+  * Tag: alarm-manager_0.2.8-10 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Wed, 19 May 2010 11:26:14 +0900
+
+alarm-manager (0.2.8-9) unstable; urgency=low
+
+  * add .postinst file (chown & chmod)
+  * Git: 165.213.180.234:/git/slp2.0/slp2.0-pkgs/alarm-manager-0
+  * Tag: alarm-manager_0.2.8-9 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Wed, 21 Apr 2010 14:55:19 +0900
+
+alarm-manager (0.2.8-8) unstable; urgency=low
+
+  * add HIBERNATION_LEAVE cb 
+  * Git: 165.213.180.234:/git/slp2.0/slp2.0-pkgs/alarm-manager-0
+  * Tag: alarm-manager_0.2.8-8 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Fri, 16 Apr 2010 14:12:23 +0900
+
+alarm-manager (0.2.8-7) unstable; urgency=low
+
+  * add S80alarm-server
+  * Git: 165.213.180.234:/git/slp2.0/slp2.0-pkgs/alarm-manager-0
+  * Tag: alarm-manager_0.2.8-7
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 08 Apr 2010 19:45:37 +0900
+
+alarm-manager (0.2.8-6) unstable; urgency=low
+
+  * add S80alarm-server
+  * Git: 165.213.180.234:/git/slp2.0/slp2.0-pkgs/alarm-manager-0
+  * Tag: alarm-manager_0.2.8-6
+
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 08 Apr 2010 15:11:53 +0900
+
+alarm-manager (0.2.8-5) unstable; urgency=low
+
+  * /proc/<pid>/exe ->  /proc/<pid>/cmdline
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Fri, 02 Apr 2010 14:05:12 +0900
+
+alarm-manager (0.2.8-4) unstable; urgency=low
+
+  * remove telephony header file 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 30 Mar 2010 17:15:57 +0900
+
+alarm-manager (0.2.8-3) unstable; urgency=low
+
+  * Toolchain Upgrade
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 25 Mar 2010 15:29:27 +0900
+
+alarm-manager (0.2.8-2) unstable; urgency=low
+
+  * rtc1 : RTC_ALM_SET -> RTC_WKALM_SET
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 15 Mar 2010 16:03:25 +0900
+
+alarm-manager (0.2.8-1) unstable; urgency=low
+
+  * sync rtc0 & rtc1
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 02 Mar 2010 18:38:24 +0900
+
+alarm-manager (0.2.7-1) unstable; urgency=low
+
+  * bug fix : alarm ring BS
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 23 Feb 2010 10:10:52 +0900
+
+alarm-manager (0.2.6-1) unstable; urgency=low
+
+  * enable power on alarm
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Mon, 22 Feb 2010 19:24:21 +0900
+
+alarm-manager (0.2.5-1) unstable; urgency=low
+
+  * modify pm api
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Fri, 19 Feb 2010 10:11:48 +0900
+
+alarm-manager (0.2.4-1) unstable; urgency=low
+
+  * add dlog_init 
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Fri, 29 Jan 2010 15:39:15 +0900
+
+alarm-manager (0.2.3-2) unstable; urgency=low
+
+  * add alarm-manager-dbg pkg
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Thu, 28 Jan 2010 16:30:50 +0900
+
+alarm-manager (0.2.3-1) unstable; urgency=low
+
+  * remove SLP prefix
+
+ -- Jaeho Lee <jaeho81.lee@samsung.com>  Tue, 26 Jan 2010 19:47:22 +0900
+
+alarm-manager (0.2.2-3) unstable; urgency=low
+
+  * modify doxygen 
+
+ -- hojun Lee <rcn95@samsung.com>  Fri, 22 Jan 2010 22:39:55 -0800
+
+alarm-manager (0.2.2-2) unstable; urgency=low
+
+  * build error : undefined symbol _dlog 
+
+ -- jaeho Lee <jaeho81.lee@samsung.com>  Mon, 18 Jan 2010 19:26:37 +0900
+
+alarm-manager (0.2.2-1) unstable; urgency=low
+
+  * edit doxygen document
+
+ -- jaeho Lee <jaeho81.lee@samsung.com>  Mon, 18 Jan 2010 15:16:12 +0900
+
+alarm-manager (0.2.1-1) unstable; urgency=low
+
+  * add dbg pkg & adjust dlog
+
+ -- jaeho Lee <jaeho81.lee@samsung.com>  Mon, 18 Jan 2010 12:10:53 +0900
+
+alarm-manager (0.2.0-3) unstable; urgency=low
+
+  * change doxygen comment 
+
+ -- jaeho Lee <jaeho81.lee@samsung.com>  Fri, 15 Jan 2010 13:55:35 +0900
+
+alarm-manager (0.2.0-2) unstable; urgency=low
+
+  * fix debian/control file 
+
+ -- jaeho Lee <jaeho81.lee@samsung.com>  Thu, 24 Dec 2009 16:28:43 +0900
+
+alarm-manager (0.2.0-1) unstable; urgency=low
+
+  * replace limo alarm-manager with slp alarm-manager
+
+ -- jaeho Lee <jaeho81.lee@samsung.com>  Wed, 23 Dec 2009 16:29:45 +0900
+
+alarm-manager (0.1.0-3) unstable; urgency=low
+
+  * modified x1, sl notation
+
+ -- jeesun Kim <iamjs.kim@samsung.com>  Fri, 20 Nov 2009 21:31:31 +0900
+
+alarm-manager (0.1.0-2) unstable; urgency=low
+
+  * modified depends
+
+ -- jeesun Kim <iamjs.kim@samsung.com>  Mon, 16 Nov 2009 16:23:16 +0900
+
+alarm-manager (0.1.0-1) unstable; urgency=low
+
+  * Initial Release.
+
+ -- jeesun Kim <iamjs.kim@samsung.com>  Fri, 16 Nov 2009 09:34:39 +0900

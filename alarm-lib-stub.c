@@ -309,6 +309,73 @@ bundle *_send_alarm_get_appsvc_info(alarm_context_t context, alarm_id_t alarm_id
 	return b;
 }
 
+
+bool _send_alarm_set_rtc_time(alarm_context_t context, alarm_date_t *time, int *error_code){
+
+	GError *error = NULL;
+	int return_code = 0;
+
+	char cookie[256] = {0,};
+	char *e_cookie = NULL;
+	int size = 0;
+	int retval = 0;
+
+	size = security_server_get_cookie_size();
+	retval = security_server_request_cookie(cookie, size);
+
+	if (retval < 0) {
+		ALARM_MGR_EXCEPTION_PRINT(
+			"security_server_request_cookie failed\n");
+		if (error_code)
+			*error_code = -1; /*TODO: define error*/
+		return false;
+	}
+
+	e_cookie = g_base64_encode((const guchar *)cookie, size);
+
+	if (NULL == e_cookie)
+	{
+		ALARM_MGR_EXCEPTION_PRINT(
+			"g_base64_encode failed\n");
+		if (error_code)
+			*error_code = -1; /*TODO: define error*/
+		return false;
+	}
+
+	if (!org_tizen_alarm_manager_alarm_set_rtc_time
+	    (context.proxy, context.pid,
+		time->year, time->month, time->day,
+		 time->hour, time->min, time->sec,
+		  e_cookie, &return_code, &error)) {
+		/* dbus-glib error */
+		/*error_code should be set */
+		ALARM_MGR_EXCEPTION_PRINT(
+		"org_tizen_alarm_manager_alarm_set_rtc_time() failed. "
+		     "return_code[%d]\n", return_code);
+		if (error_code)
+			*error_code = ERR_ALARM_SYSTEM_FAIL; /*-1 means that system
+								failed internally.*/
+		if (e_cookie)
+			g_free(e_cookie);
+
+		return false;
+	}
+	if (e_cookie)
+	{
+		g_free(e_cookie);
+		e_cookie = NULL;
+	}
+
+	if (return_code != 0) {
+		if (error_code)
+			*error_code = return_code;
+		return false;
+	}
+
+	return true;
+
+}
+
 bool _send_alarm_delete(alarm_context_t context, alarm_id_t alarm_id,
 			int *error_code)
 {

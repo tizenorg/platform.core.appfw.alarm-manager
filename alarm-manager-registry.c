@@ -33,7 +33,10 @@
 #include<dbus/dbus.h>
 #include<glib.h>
 #include <db-util.h>
+#if !GLIB_CHECK_VERSION (2, 31, 0)
 #include <glib/gmacros.h>
+#else
+#endif
 
 #include"alarm.h"
 #include"alarm-internal.h"
@@ -124,7 +127,7 @@ bool _update_alarms(__alarm_info_t *__alarm_info)
 			pid=%d, app_unique_name='%s', app_service_name='%s', app_service_name_mod='%s',\
 			bundle='%s', year=%d, month=%d, day=%d, hour=%d, min=%d, sec=%d,\
 			day_of_week=%d, repeat=%d, alarm_type=%d,\
-			reserved_info=%d, dst_service_name='%s', dst_service_name_mod='%s',\
+			reserved_info=%d, dst_service_name='%s', dst_service_name_mod='%s'\
 			where alarm_id=%d",\
 			(int)__alarm_info->start,
 			(int)__alarm_info->end,
@@ -136,7 +139,7 @@ bool _update_alarms(__alarm_info_t *__alarm_info)
 			(char *)g_quark_to_string(
 				__alarm_info->quark_app_service_name_mod),
 			(char *)g_quark_to_string(
-				__alarm_info->quark_bundle),				
+				__alarm_info->quark_bundle),
 			start->year,
 			start->month,
 			start->day,

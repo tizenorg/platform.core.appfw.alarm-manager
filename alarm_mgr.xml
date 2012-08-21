@@ -119,5 +119,16 @@
       <arg type="i" name="alarm_info_reserved_info" direction="out" />
       <arg type="i" name="return_code" direction="out" />
     </method>
+	<method name="alarm_set_rtc_time">
+      <arg type="i" name="pid" direction="in" />
+      <arg type="i" name="alarm_info_year" direction="in" />
+      <arg type="i" name="alarm_info_month" direction="in" />
+      <arg type="i" name="alarm_info_day" direction="in" />
+      <arg type="i" name="alarm_info_hour" direction="in" />
+      <arg type="i" name="alarm_info_min" direction="in" />
+      <arg type="i" name="alarm_info_sec" direction="in" />
+      <arg type="s" name="cookie" direction="in" />
+      <arg type="i" name="return_code" direction="out" />
+    </method>
   </interface>
 </node>

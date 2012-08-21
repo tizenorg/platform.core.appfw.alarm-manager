@@ -551,6 +551,44 @@ EXPORT_API void *alarmmgr_get_alarm_appsvc_info(alarm_id_t alarm_id, int *return
 
 }
 
+EXPORT_API int alarmmgr_set_rtc_time(alarm_date_t *time){
+
+	int ret = 0;
+	int error_code = 0;
+
+	if (!time){
+		ALARM_MGR_EXCEPTION_PRINT("Invalid parameter time\n");
+		return ERR_ALARM_INVALID_PARAM;
+	}
+
+	ret = __sub_init();
+	if (ret < 0){
+		return ret;
+	}
+
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarmmgr_set_rtc_time() is called\n");
+
+	if (!__alarm_validate_date(time, &error_code)) {
+		ALARM_MGR_EXCEPTION_PRINT("RTC date error\n");
+		return error_code;
+	}
+
+	if (!__alarm_validate_time(time, &error_code)) {
+		ALARM_MGR_EXCEPTION_PRINT("RTC time error\n");
+		return error_code;
+	}
+
+	time->year-=1900;
+	time->month-=1;
+
+	if (!_send_alarm_set_rtc_time
+		(alarm_context, time, &error_code)){
+			return error_code;
+	}
+
+	return ALARMMGR_RESULT_SUCCESS;
+
+}
 
 EXPORT_API int alarmmgr_add_alarm_appsvc_with_localtime(alarm_entry_t *alarm, void *bundle_data, alarm_id_t *alarm_id)
 {
@@ -645,6 +683,9 @@ EXPORT_API int alarmmgr_add_alarm_with_localtime(alarm_entry_t *alarm,
 	}
 
 	alarm_info = (alarm_info_t *) alarm;
+	if (alarm_info == NULL || alarm_id == NULL) {
+		return ERR_ALARM_INVALID_PARAM;
+	}
 
 	int error_code;
 	alarm_mode_t *mode = &alarm_info->mode;
@@ -660,9 +701,6 @@ EXPORT_API int alarmmgr_add_alarm_with_localtime(alarm_entry_t *alarm,
 			    alarm_info->start.year, alarm_info->start.month,
 			    alarm_info->start.day);
 
-	if (alarm_info == NULL || alarm_id == NULL) {
-		return ERR_ALARM_INVALID_PARAM;
-	}
 	/* TODO: This should be changed to > ALARM_REPEAT_MODE_MAX ? */
 	if (mode->repeat >= ALARM_REPEAT_MODE_MAX) {
 		return ERR_ALARM_INVALID_PARAM;
