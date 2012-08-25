@@ -77,6 +77,10 @@ GSList *g_scheduled_alarm_list = NULL;
 
 GSList *g_expired_alarm_list = NULL;
 
+#ifndef RTC_WKALM_BOOT_SET
+#define RTC_WKALM_BOOT_SET _IOW('p', 0x80, struct rtc_wkalrm)
+#endif
+
 #ifdef __ALARM_BOOT
 bool enable_power_on_alarm;
 bool alarm_boot;
@@ -1741,7 +1745,7 @@ gboolean alarm_manager_alarm_set_rtc_time(void *pObject, int pid,
 		rtc_wk.enabled = 1;
 		rtc_wk.pending = 0;
 
-		retval = ioctl(fd, RTC_WKALM_SET, &rtc_wk);
+		retval = ioctl(fd, RTC_WKALM_BOOT_SET, &rtc_wk);
 		if (retval == -1) {
 			if (errno == ENOTTY) {
 				ALARM_MGR_EXCEPTION_PRINT("\nAlarm IRQs not"
