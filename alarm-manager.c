@@ -1388,7 +1388,7 @@ static void __alarm_expired()
 				{
 					snprintf(alarm_id_val,31,"%d",alarm_id);
 
-					if (bundle_add(b,"http://tizen.org/appsvc/data/alarm_id", alarm_id_val)){
+					if (bundle_add(b,"http://tizen.org/appcontrol/data/alarm_id", alarm_id_val)){
 						ALARM_MGR_EXCEPTION_PRINT("Unable to add alarm id to the bundle\n");
 					}
 					else
