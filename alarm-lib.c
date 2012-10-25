@@ -250,7 +250,7 @@ int alarmmgr_check_next_duetime()
 	return ALARMMGR_RESULT_SUCCESS;
 }
 
-EXPORT_API int alarmmgr_init(const char *pkg_name)
+EXPORT_API int alarmmgr_init(const char *appid)
 {
 	DBusError derror;
 	int request_name_result = 0;
@@ -261,10 +261,10 @@ EXPORT_API int alarmmgr_init(const char *pkg_name)
 	int i = 0;
 	int j = 0;
 
-	if (pkg_name == NULL)
+	if (appid == NULL)
 		return ERR_ALARM_INVALID_PARAM;
 
-	if (strlen(pkg_name) >= MAX_PKG_NAME_LEN)
+	if (strlen(appid) >= MAX_PKG_NAME_LEN)
 		return ERR_ALARM_INVALID_PARAM;
 
 	if (b_initialized) {
@@ -279,7 +279,7 @@ EXPORT_API int alarmmgr_init(const char *pkg_name)
 		return ret;
 
 	memset(service_name_mod, 'a', MAX_SERVICE_NAME_LEN-1);
-	strncpy(service_name, pkg_name, MAX_PKG_NAME_LEN);
+	strncpy(service_name, appid, MAX_PKG_NAME_LEN);
 
 	j=0;
 
@@ -1022,6 +1022,16 @@ EXPORT_API int alarmmgr_enum_alarm_ids(alarm_enum_fn_t fn, void *user_param)
 	if (return_code != 0) {
 		return return_code;
 	} else {
+		if (error != NULL) {
+			ALARM_MGR_LOG_PRINT(
+				"Alarm server not ready dbus error message %s\n", error->message);
+			return ERR_ALARM_SYSTEM_FAIL;
+		}
+		if (NULL == alarm_array) {
+			ALARM_MGR_LOG_PRINT(
+				"alarm server not initilized\n");
+			return ERR_ALARM_SYSTEM_FAIL;
+		}
 		for (i = 0; i < alarm_array->len && i < maxnum_of_ids; i++) {
 			alarm_id = g_array_index(alarm_array, alarm_id_t, i);
 			(*fn) (alarm_id, user_param);

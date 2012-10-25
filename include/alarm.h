@@ -271,7 +271,32 @@ typedef struct alarm_info_t alarm_entry_t;
  * @endcode
  * @limo
  */
-int alarmmgr_init(const char *pkg_name);
+int alarmmgr_init(const char *appid);
+
+/**
+ *
+ * This function de-initializes alarm library. It un-registers the application's service name and dis-connects from system bus.
+ *
+ * @param       None
+ *
+ * @return 	None
+ *
+ * @pre		Alarm manager is initialized
+ * @post 	Alarm manager is de-initialized
+ * @remark An application must call this function once it is done with alarmmanger usage
+ * @par Sample code:
+ * @code
+#include <alarm.h>
+
+...
+{
+	// Initialize alarmmanager
+	// Set alarm
+
+        alarmmgr_fini() ;
+}
+ * @endcode
+ */
 
 void alarmmgr_fini();
 

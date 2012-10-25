@@ -1352,11 +1352,11 @@ static void __alarm_expired()
 
 	interval = difftime(alarm_context.c_due_time, current_time);
 	ALARM_MGR_LOG_PRINT("[alarm-server]: c_due_time(%d), "
-		"current_time(%d), interval(%d)\n", alarm_context.c_due_time, 
+		"current_time(%d), interval(%d)\n", alarm_context.c_due_time,
 		current_time, interval);
 
-	if (alarm_context.c_due_time <= current_time - 1) {
-		ALARM_MGR_LOG_PRINT("Wrong alarm is expired\n");
+	if (alarm_context.c_due_time > current_time) {
+		ALARM_MGR_LOG_PRINT("[alarm-server]: False Alarm\n");
 		goto done;
 	}
 
@@ -1464,7 +1464,7 @@ static void __alarm_expired()
 			     dbus_g_connection_get_connection(alarm_context.bus),
 			     destination_app_service_name, NULL) == FALSE) {
 				__expired_alarm_t *expire_info;
-				char pkg_name[MAX_SERVICE_NAME_LEN] = { 0, };
+				char appid[MAX_SERVICE_NAME_LEN] = { 0, };
 				char alarm_id_str[32] = { 0, };
 
 				expire_info = malloc(sizeof(__expired_alarm_t));
@@ -1483,22 +1483,22 @@ static void __alarm_expired()
 				if (strncmp
 			    		(g_quark_to_string(__alarm_info->quark_dst_service_name),
 					     "null",4) == 0) {
-					strncpy(pkg_name,g_quark_to_string(__alarm_info->quark_app_service_name),strlen(g_quark_to_string(__alarm_info->quark_app_service_name))-6);
+					strncpy(appid,g_quark_to_string(__alarm_info->quark_app_service_name),strlen(g_quark_to_string(__alarm_info->quark_app_service_name))-6);
 				}
 				else
 				{
-					strncpy(pkg_name,g_quark_to_string(__alarm_info->quark_dst_service_name),strlen(g_quark_to_string(__alarm_info->quark_dst_service_name))-6);
+					strncpy(appid,g_quark_to_string(__alarm_info->quark_dst_service_name),strlen(g_quark_to_string(__alarm_info->quark_dst_service_name))-6);
 				}
 
 				snprintf(alarm_id_str, 31, "%d", alarm_id);
 
-				ALARM_MGR_LOG_PRINT("before aul_launch pkg_name(%s) "
-					"alarm_id_str(%s)\n", pkg_name, alarm_id_str);
+				ALARM_MGR_LOG_PRINT("before aul_launch appid(%s) "
+					"alarm_id_str(%s)\n", appid, alarm_id_str);
 
 				bundle *kb;
 				kb = bundle_create();
 				bundle_add(kb, "__ALARM_MGR_ID", alarm_id_str);
-				aul_launch_app(pkg_name, kb);
+				aul_launch_app(appid, kb);
 				bundle_free(kb);
 			} else {
 				ALARM_MGR_LOG_PRINT(
