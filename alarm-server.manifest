@@ -1,0 +1,11 @@
+<manifest>
+	<define>
+		<domain name="alarm-server"/>
+		<provide>
+			<label name="alarm-server::db"/>
+		</provide>
+	</define>
+	<request>
+		<domain name="alarm-server"/>
+	</request>
+</manifest>
