@@ -1,7 +1,7 @@
 Name:       alarm-manager
 Summary:    Alarm library
 Version:    0.4.57
-Release:    4
+Release:    5
 Group:      System/Libraries
 License:    Apache License, Version 2.0
 Source0:    %{name}-%{version}.tar.gz
@@ -107,6 +107,7 @@ chmod 644 /usr/lib/libalarm.so.0.0.0
 /etc/init.d/alarm-server_run
 
 %files -n libalarm
+%manifest alarm-lib.manifest
 %{_libdir}/*.so.*
 
 
