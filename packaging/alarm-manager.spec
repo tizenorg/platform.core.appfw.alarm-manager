@@ -1,7 +1,7 @@
 Name:       alarm-manager
 Summary:    Alarm library
-Version:    0.4.57
-Release:    6
+Version:    0.4.58
+Release:    1
 Group:      System/Libraries
 License:    Apache License, Version 2.0
 Source0:    %{name}-%{version}.tar.gz
@@ -88,6 +88,7 @@ install -m 755 alarm-server_run %{buildroot}/etc/init.d
 
 heynotitool set setting_time_changed -a
 vconftool set -t int db/system/timechange 0 -i
+vconftool set -t int memory/system/timechanged 0 -i -g 5000
 
 chmod 755 /usr/bin/alarm-server
 chmod 755 /etc/init.d/alarm-server_run
