@@ -91,12 +91,12 @@ install -m0644 %{SOURCE101} %{buildroot}%{_libdir}/systemd/system/
 ln -sf ../alarm-server.service %{buildroot}%{_libdir}/systemd/system/multi-user.target.wants/alarm-server.service
 
 
-%preun
+%preun -n alarm-server
 if [ $1 == 0 ]; then
     systemctl stop alarm-server.service
 fi
 
-%post
+%post -n alarm-server
 /sbin/ldconfig
 
 heynotitool set setting_time_changed -a
@@ -108,7 +108,7 @@ if [ $1 == 1 ]; then
     systemctl restart alarm-server.service
 fi
 
-%postun
+%postun -n alarm-server
 /sbin/ldconfig
 systemctl daemon-reload
 if [ "$1" == 1 ]; then
