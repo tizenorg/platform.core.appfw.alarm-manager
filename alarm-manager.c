@@ -1626,9 +1626,6 @@ static void __on_system_time_changed(keynode_t *node, void *data)
 	vconf_set_dbl(VCONFKEY_SYSTEM_TIMEDIFF, diff_time);
 	vconf_set_int(VCONFKEY_SYSTEM_TIME_CHANGED,(int)diff_time);
 
-	if (heynoti_publish(SYSTEM_TIME_CHANGED))
-		ALARM_MGR_EXCEPTION_PRINT("alarm-server: Unable to publish heynoti for system time change\n");
-
 	__alarm_update_due_time_of_all_items_in_list(diff_time);
 
 	ALARM_MGR_LOG_PRINT("2.alarm_context.c_due_time is %d\n",
