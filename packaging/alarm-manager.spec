@@ -5,8 +5,13 @@ Release:    1
 Group:      System/Libraries
 License:    Apache License, Version 2.0
 Source0:    %{name}-%{version}.tar.gz
+Source101:  packaging/alarm-server.service
+
 Requires(post): /sbin/ldconfig
+Requires(post): /usr/bin/systemctl
 Requires(postun): /sbin/ldconfig
+Requires(postun): /usr/bin/systemctl
+Requires(preun): /usr/bin/systemctl
 
 BuildRequires: pkgconfig(dbus-1)
 BuildRequires: pkgconfig(glib-2.0)
@@ -79,40 +84,54 @@ rm -rf %{buildroot}
 mkdir -p %{buildroot}/etc/init.d
 install -m 755 alarm-server_run %{buildroot}/etc/init.d
 
+mkdir -p %{buildroot}/%{_sysconfdir}/rc.d/rc3.d
+mkdir -p %{buildroot}/%{_sysconfdir}/rc.d/rc5.d
+ln -s ../init.d/alarm-server_run %{buildroot}/%{_sysconfdir}/rc.d/rc3.d/S80alarm-server
+ln -s ../init.d/alarm-server_run %{buildroot}/%{_sysconfdir}/rc.d/rc5.d/S80alarm-server
 
-%post -p /sbin/ldconfig
+install -d %{buildroot}%{_libdir}/systemd/system/multi-user.target.wants
+install -m0644 %{SOURCE101} %{buildroot}%{_libdir}/systemd/system/
+ln -sf ../alarm-server.service %{buildroot}%{_libdir}/systemd/system/multi-user.target.wants/alarm-server.service
 
-%postun -p /sbin/ldconfig
+
+%preun -n alarm-server
+if [ $1 == 0 ]; then
+    systemctl stop alarm-server.service
+fi
 
 %post -n alarm-server
+/sbin/ldconfig
 
 vconftool set -t int db/system/timechange 0 -i
 vconftool set -t int memory/system/timechanged 0 -i -g 5000
 
-chmod 755 /usr/bin/alarm-server
-chmod 755 /etc/init.d/alarm-server_run
+systemctl daemon-reload
+if [ $1 == 1 ]; then
+    systemctl restart alarm-server.service
+fi
 
-mkdir -p /etc/rc.d/rc3.d
-mkdir -p /etc/rc.d/rc5.d
-ln -s /etc/init.d/alarm-server_run /etc/rc.d/rc3.d/S80alarm-server
-ln -s /etc/init.d/alarm-server_run /etc/rc.d/rc5.d/S80alarm-server
-
-%post -n libalarm
-chmod 644 /usr/lib/libalarm.so.0.0.0
-
+%postun -n alarm-server
+/sbin/ldconfig
+systemctl daemon-reload
+if [ "$1" == 1 ]; then
+    systemctl restart net-config.service
+fi
 
 %files -n alarm-server
 %manifest alarm-server.manifest
-%{_bindir}/*
-/etc/init.d/alarm-server_run
+%attr(0755,root,root) %{_bindir}/alarm-server
+%attr(0755,root,root) %{_sysconfdir}/init.d/alarm-server_run
+%attr(0755,root,root) %{_sysconfdir}/rc.d/rc3.d/S80alarm-server
+%attr(0755,root,root) %{_sysconfdir}/rc.d/rc5.d/S80alarm-server
+%{_libdir}/systemd/system/multi-user.target.wants/alarm-server.service
+%{_libdir}/systemd/system/alarm-server.service
 
 %files -n libalarm
 %manifest alarm-lib.manifest
-%{_libdir}/*.so.*
-
+%attr(0644,root,root) %{_libdir}/libalarm.so.0.0.0
+%{_libdir}/libalarm.so.0
 
 %files -n libalarm-devel
 %{_includedir}/*.h
 %{_libdir}/pkgconfig/*.pc
-%{_libdir}/*.so
-
+%{_libdir}/libalarm.so
