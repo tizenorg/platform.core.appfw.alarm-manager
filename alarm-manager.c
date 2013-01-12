@@ -1054,6 +1054,7 @@ static bool __alarm_update(int pid, char *app_service_name, alarm_id_t alarm_id,
 		return true;
 	}else if (difftime(due_time, current_time)< 0){
 		ALARM_MGR_EXCEPTION_PRINT("[alarm-server]: Expired Due Time.[Due time=%d, Current Time=%d]!!!Do not add to schedule list\n", due_time, current_time);
+		free(__alarm_info);
 		return true;
 	} else {
 		char due_time_r[100] = { 0 };
@@ -1474,7 +1475,7 @@ static void __alarm_expired()
 				}
 				strncpy(expire_info->service_name,
 					destination_app_service_name,
-					MAX_SERVICE_NAME_LEN);
+					MAX_SERVICE_NAME_LEN-1);
 				expire_info->alarm_id = alarm_id;
 				g_expired_alarm_list =
 				    g_slist_append(g_expired_alarm_list, expire_info);

@@ -1,6 +1,6 @@
 Name:       alarm-manager
 Summary:    Alarm library
-Version:    0.4.59
+Version:    0.4.60
 Release:    1
 Group:      System/Libraries
 License:    Apache License, Version 2.0
