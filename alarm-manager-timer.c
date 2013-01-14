@@ -139,7 +139,8 @@ int _set_sys_time(time_t _time)
 {
 	struct tm *_tm;
 	struct tm result;
-	_tm = gmtime_r(&_time, &result);
+	/* Ignore return value of gmtime_r(). */
+	(void) gmtime_r(&_time, &result);
 
 	stime(&_time);
 

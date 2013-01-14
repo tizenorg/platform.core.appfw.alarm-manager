@@ -180,8 +180,8 @@ static void __rtc_set()
 	}
 
 	ALARM_MGR_LOG_PRINT("\n\nCurrent RTC date/time is %d-%d-%d, "
-		"%02d:%02d:%02d.\n", rtc_tm.tm_mday, rtc_tm.tm_mon + 1, 
-		rtc_tm.tm_year + 1900, rtc_tm.tm_hour, rtc_tm.tm_min, 
+		"%02d:%02d:%02d.\n", rtc_tm.tm_mday, rtc_tm.tm_mon + 1,
+		rtc_tm.tm_year + 1900, rtc_tm.tm_hour, rtc_tm.tm_min,
 		rtc_tm.tm_sec);
 
 	ALARM_MGR_LOG_PRINT("alarm_context.c_due_time is %d\n", \
@@ -202,8 +202,8 @@ static void __rtc_set()
 		rtc_wk.pending = 0;
 
 		ALARM_MGR_LOG_PRINT("\n\nSetted RTC Alarm date/time is "
-			"%d-%d-%d, %02d:%02d:%02d.\n", rtc_tm.tm_mday, 
-			rtc_tm.tm_mon + 1, rtc_tm.tm_year + 1900, 
+			"%d-%d-%d, %02d:%02d:%02d.\n", rtc_tm.tm_mday,
+			rtc_tm.tm_mon + 1, rtc_tm.tm_year + 1900,
 			rtc_tm.tm_hour, rtc_tm.tm_min, rtc_tm.tm_sec);
 
 		retval = ioctl(fd, RTC_WKALM_SET, &rtc_wk);
@@ -241,11 +241,11 @@ int _set_rtc_time(time_t _time)
 	int fd1 = 0;
 	int retval0 = 0;
 	int retval1 = 0;
-	struct rtc_time rtc_tm;
+	struct rtc_time rtc_tm = { 0, };
 	const char *rtc0 = power_rtc;
 	const char *rtc1 = default_rtc;
-	struct tm *_tm;
-	struct tm time_r;
+	struct tm *_tm = NULL;
+	struct tm time_r = { 0, };
 
 	fd0 = open(rtc0, O_RDONLY);
 	fd1 = open(rtc1, O_RDONLY);
@@ -263,7 +263,7 @@ int _set_rtc_time(time_t _time)
 	memset(&rtc_tm, 0, sizeof(struct rtc_time));
 
 
-	_tm = gmtime_r(&_time, &time_r);
+	(void) gmtime_r(&_time, &time_r);
 
 	/* Write the RTC time/date 2008:05:21 19:20:00 */
 
@@ -274,25 +274,29 @@ int _set_rtc_time(time_t _time)
 	rtc_tm.tm_hour = time_r.tm_hour;
 	rtc_tm.tm_min = time_r.tm_min;
 	rtc_tm.tm_sec = 0;
-	
+
 
 	retval0 = ioctl(fd0, RTC_SET_TIME, &rtc_tm);
 
 	if (retval0 == -1) {
-		close(fd0);
+		if (fd0 != -1)
+			close(fd0);
 		ALARM_MGR_LOG_PRINT("error to ioctl fd0.");
 		perror("\t");
 	}
-	close(fd0);
+	if (fd0 != -1)
+		close(fd0);
 
 	retval1 = ioctl(fd1, RTC_SET_TIME, &rtc_tm);
 
 	if (retval1 == -1) {
-		close(fd1);
+		if (fd1 != -1)
+			close(fd1);
 		ALARM_MGR_LOG_PRINT("error to ioctl fd1.");
 		perror("\t");
 	}
-	close(fd1);
+	if (fd1 != -1)
+		close(fd1);
 
 	return 1;
 }
@@ -344,7 +348,7 @@ static bool __alarm_add_to_list(__alarm_info_t *__alarm_info,
 	for (iter = alarm_context.alarms; iter != NULL;
 	     iter = g_slist_next(iter)) {
 		entry = iter->data;
-		/*ALARM_MGR_LOG_PRINT("[alarm-server]: alarm_id(%d)\n", 
+		/*ALARM_MGR_LOG_PRINT("[alarm-server]: alarm_id(%d)\n",
 		   entry->alarm_id); */
 	}
 
@@ -498,12 +502,12 @@ static bool alarm_get_tz_info(int *gmt_idx, int *dst)
 	GConfValue *value1 = NULL;
 	GConfValue *value2 = NULL;
 	GConfClient* gConfClient = NULL;
-	GError* err = NULL;		
-	
+	GError* err = NULL;
+
 	gConfClient = gconf_client_get_default();
 
 	if(gConfClient) {
-		value1 = gconf_client_get(gConfClient, SETTINGS_CLOCKTIMEZONE, 
+		value1 = gconf_client_get(gConfClient, SETTINGS_CLOCKTIMEZONE,
 									&err);
 		if (err) {
 			ALARM_MGR_LOG_PRINT("__on_system_time_changed:
@@ -514,8 +518,8 @@ static bool alarm_get_tz_info(int *gmt_idx, int *dst)
 		}
 		*gmt_idx = gconf_value_get_int(value1);
 		ALARM_MGR_LOG_PRINT("gconf return gmt_idx =%d\n ", *gmt_idx);
-	
-		value2 = gconf_client_get(gConfClient, 
+
+		value2 = gconf_client_get(gConfClient,
 			SETTINGS_DAYLIGHTSTATUS, &err);
 		if (err) {
 			ALARM_MGR_LOG_PRINT("__on_system_time_changed:
@@ -523,10 +527,10 @@ static bool alarm_get_tz_info(int *gmt_idx, int *dst)
 		g_error_free(err);
 		err = NULL;
 	}
-	
+
 	*dst = gconf_value_get_int(value2);
 	ALARM_MGR_LOG_PRINT("gconf return dst =%d\n ", *dst);
-	
+
 	if(gConfClient != NULL) {
 		g_object_unref(gConfClient);
 		gConfClient = NULL;
@@ -534,7 +538,7 @@ static bool alarm_get_tz_info(int *gmt_idx, int *dst)
 	}
 	else
 		ALARM_MGR_LOG_PRINT("check the gconf setting failed!!!!! \n ");
-	
+
 	if(value1) {
 		gconf_value_free(value1);
 		value1 = NULL;
@@ -557,7 +561,7 @@ static bool __alarm_update_due_time_of_all_items_in_list(double diff_time)
 	__alarm_info_t *entry = NULL;
 	struct tm *p_time = NULL ;
 	struct tm due_time_result ;
-	struct tm fixed_time ;
+	struct tm fixed_time = { 0, };
 
 	for (iter = alarm_context.alarms; iter != NULL;
 	     iter = g_slist_next(iter)) {
@@ -568,7 +572,7 @@ static bool __alarm_update_due_time_of_all_items_in_list(double diff_time)
 
 			entry->due_time += diff_time;
 
-			alarm_date_t *start = &alarm_info->start; /**< start 
+			alarm_date_t *start = &alarm_info->start; /**< start
 							time of the alarm */
 			alarm_date_t *end = &alarm_info->end;;
 						/**< end time of the alarm */
@@ -587,7 +591,7 @@ static bool __alarm_update_due_time_of_all_items_in_list(double diff_time)
 				end->month = p_time->tm_mon + 1;
 				end->day = p_time->tm_mday;
 
-				
+
 				memset(&fixed_time, 0, sizeof(fixed_time));
 				fixed_time.tm_year = p_time->tm_year;
 				fixed_time.tm_mon = p_time->tm_mon;
@@ -625,7 +629,7 @@ static bool __alarm_update_due_time_of_all_items_in_list(double diff_time)
 
 		ALARM_MGR_LOG_PRINT("alarm[%d] with duetime(%u) at "
 		"current(%u)\n", entry->alarm_id, due_time, current_time);
-		if (due_time == 0) {	/* 0 means this alarm has been 
+		if (due_time == 0) {	/* 0 means this alarm has been
 					   disabled */
 			continue;
 		}
@@ -673,7 +677,7 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 	if (__alarm_info == NULL) {
 		ALARM_MGR_EXCEPTION_PRINT("Caution!! app_pid=%d, malloc "
 					  "failed. it seems to be OOM\n", pid);
-		*error_code = -1;	/* -1 means that system 
+		*error_code = -1;	/* -1 means that system
 					   failed internally. */
 		return false;
 	}
@@ -718,7 +722,7 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 		ALARM_MGR_EXCEPTION_PRINT("Caution!! app_pid(%d) seems to be "
 					  "killed, so we failed to get proc file(%s) and do not create "
 					  "alarm_info\n", pid, proc_file);
-		*error_code = -1;	/*-1 means that system failed 
+		*error_code = -1;	/*-1 means that system failed
 							internally.*/
 		free(__alarm_info);
 		return false;
@@ -817,7 +821,7 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
 	if (__alarm_info == NULL) {
 		ALARM_MGR_EXCEPTION_PRINT("Caution!! app_pid=%d, malloc "
 					  "failed. it seems to be OOM\n", pid);
-		*error_code = -1;	/* -1 means that system 
+		*error_code = -1;	/* -1 means that system
 					   failed internally. */
 		return false;
 	}
@@ -862,7 +866,7 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
 		ALARM_MGR_EXCEPTION_PRINT("Caution!! app_pid(%d) seems to be "
 					  "killed, so we failed to get proc file(%s) and do not create "
 					  "alarm_info\n", pid, proc_file);
-		*error_code = -1;	/*-1 means that system failed 
+		*error_code = -1;	/*-1 means that system failed
 							internally.*/
 		free(__alarm_info);
 		return false;
@@ -948,7 +952,7 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
 	/*alarm boot */
 	if (enable_power_on_alarm) {
 		/* orginally first arg's value was 21(app_id, WAKEUP_ALARM_APP_ID) in a
-		 * platform with app-server.because __alarm_power_on(..) fuction don't 
+		 * platform with app-server.because __alarm_power_on(..) fuction don't
 		 * use first parameter internally, we set this value to 0(zero)
 		 */
 		__alarm_power_on(0, enable_power_on_alarm, NULL);
@@ -970,7 +974,7 @@ static bool __alarm_update(int pid, char *app_service_name, alarm_id_t alarm_id,
 	if (__alarm_info == NULL) {
 		ALARM_MGR_EXCEPTION_PRINT("Caution!! app_pid=%d, "
 			"malloc failed. it seems to be OOM\n", pid);
-		*error_code = -1;	/*-1 means that system failed 
+		*error_code = -1;	/*-1 means that system failed
 						internally.*/
 		return false;
 	}
@@ -1002,8 +1006,8 @@ static bool __alarm_update(int pid, char *app_service_name, alarm_id_t alarm_id,
 		"(%d) does not exist. so this value is invalid id.", alarm_id);
 		return false;
 	}
-	/* ALARM_MGR_LOG_PRINT("[alarm-server]:request_pid=%d, alarm_id=%d, 
-	 * app_unique_name=%s, app_service_name=%s, dst_service_name=%s, 
+	/* ALARM_MGR_LOG_PRINT("[alarm-server]:request_pid=%d, alarm_id=%d,
+	 * app_unique_name=%s, app_service_name=%s, dst_service_name=%s,
 	 * c_due_time=%d", pid, alarm_id, g_quark_to_string
 	 * (__alarm_info->quark_app_unique_name), g_quark_to_string
 	 * (__alarm_info->quark_app_service_name), g_quark_to_string
@@ -1025,7 +1029,7 @@ static bool __alarm_update(int pid, char *app_service_name, alarm_id_t alarm_id,
 #ifdef __ALARM_BOOT
 		/*alarm boot */
 		if (enable_power_on_alarm) {
-			/* orginally first arg's value was 21(app_id, WAKEUP_ALARM_APP_ID) in 
+			/* orginally first arg's value was 21(app_id, WAKEUP_ALARM_APP_ID) in
 			 * a platform with app-server.because __alarm_power_on(..) fuction don't
 			 * use first parameter internally, we set this value to 0(zero)
 			 */
@@ -1088,13 +1092,14 @@ static bool __alarm_update(int pid, char *app_service_name, alarm_id_t alarm_id,
 #ifdef __ALARM_BOOT
 	/*alarm boot */
 	if (enable_power_on_alarm) {
-		/* orginally first arg's value was 21(app_id, WAKEUP_ALARM_APP_ID) 
-		 * in a platform with app-server.because __alarm_power_on(..) fuction 
+		/* orginally first arg's value was 21(app_id, WAKEUP_ALARM_APP_ID)
+		 * in a platform with app-server.because __alarm_power_on(..) fuction
 		 * don't use first parameter internally, we set this value to 0(zero)
 		 */
 		__alarm_power_on(0, enable_power_on_alarm, NULL);
 	}
 #endif
+	free(__alarm_info);
 
 	return true;
 }
@@ -1125,8 +1130,8 @@ static bool __alarm_delete(int pid, alarm_id_t alarm_id, int *error_code)
 #ifdef __ALARM_BOOT
 	/*alarm boot */
 	if (enable_power_on_alarm) {
-		/* orginally first arg's value was 21(app_id, WAKEUP_ALARM_APP_ID) in a 
-		 * platform with app-server.because __alarm_power_on(..) fuction don't 
+		/* orginally first arg's value was 21(app_id, WAKEUP_ALARM_APP_ID) in a
+		 * platform with app-server.because __alarm_power_on(..) fuction don't
 		 * use first parameter internally, we set this value to 0(zero)
 		 */
 		__alarm_power_on(0, enable_power_on_alarm, NULL);
@@ -1141,9 +1146,9 @@ static bool __alarm_power_on(int app_id, bool on_off, int *error_code)
 #ifdef __ALARM_BOOT
 	time_t min_time = 0;
 	time_t current_time = 0;
-	struct tm *temp_info;
+	struct tm *temp_info = NULL;
 	struct rtc_time rtc_tm = { 0, };
-	struct tm min_time_r;
+	struct tm min_time_r = { 0, };
 	int fd = 0;
 	int retval;
 
@@ -1194,7 +1199,7 @@ static bool __alarm_power_on(int app_id, bool on_off, int *error_code)
 			/*set_info.time_zone = 0; */
 			/*set_info.u_interval.day_of_week = 0; */
 
-			/*ALARM_MGR_LOG_PRINT("####__alarm_power_on : %d %d 
+			/*ALARM_MGR_LOG_PRINT("####__alarm_power_on : %d %d
 			%d %d %d\n",set_info.year,set_info.month,set_info.day,
 			set_info.hour,set_info.minute); */
 
@@ -1203,7 +1208,7 @@ static bool __alarm_power_on(int app_id, bool on_off, int *error_code)
 			ALARM_MGR_LOG_PRINT("\n\nSetted RTC Alarm date/time is "
 					    "%d-%d-%d, %02d:%02d:%02d.\n",
 					    rtc_tm.tm_mday, rtc_tm.tm_mon + 1,
-				rtc_tm.tm_year + 1900, rtc_tm.tm_hour, 
+				rtc_tm.tm_year + 1900, rtc_tm.tm_hour,
 				rtc_tm.tm_min, rtc_tm.tm_sec);
 
 			retval = ioctl(fd, RTC_ALM_SET, &rtc_tm);
@@ -1313,12 +1318,12 @@ static void __alarm_send_noti_to_application(const char *app_service_name,
 
 	dbus_message_set_no_reply(message, TRUE);
 	/*      if(service_name[0]==':') */
-	/* we don't need auto activation in a case that 
+	/* we don't need auto activation in a case that
 	   destination_app_service_name starts with a charactor like (:) */
 	dbus_message_set_auto_start(message, FALSE);
 
 	dbus_message_iter_init_append(message, &iter);
-	if (!dbus_message_iter_append_basic 
+	if (!dbus_message_iter_append_basic
 		(&iter, DBUS_TYPE_INT32, &alarm_id)) {
 		dbus_message_unref(message);
 		ALARM_MGR_EXCEPTION_PRINT("[alarm server] "
@@ -1416,23 +1421,23 @@ static void __alarm_expired()
 				"null, so we send expired alarm to %s(%u)\n",\
 					g_quark_to_string(
 					__alarm_info->quark_app_service_name),
-					__alarm_info->quark_app_service_name); 
+					__alarm_info->quark_app_service_name);
 					destination_app_service_name = g_quark_to_string(
 					__alarm_info->quark_app_service_name_mod);
 			} else {
 				ALARM_MGR_LOG_PRINT("[alarm-server]:destination "
 						    ":%s(%u)\n",
 					g_quark_to_string(
-					__alarm_info->quark_dst_service_name), 
+					__alarm_info->quark_dst_service_name),
 					__alarm_info->quark_dst_service_name);
 					destination_app_service_name = g_quark_to_string(
 						__alarm_info->quark_dst_service_name_mod);
 			}
 
 #ifdef __ALARM_BOOT
-			/* orginally this code had if(__alarm_info->app_id==21) in a 
+			/* orginally this code had if(__alarm_info->app_id==21) in a
 			   platform with app-server. */
-			/*if(__alarm_info->quark_dst_service_name  == 
+			/*if(__alarm_info->quark_dst_service_name  ==
 			   g_quark_from_string (WAKEUP_ALARM_APP_ID)) */
 			if (strcmp
 			    (g_quark_to_string(__alarm_info->quark_dst_service_name),
@@ -1448,8 +1453,8 @@ static void __alarm_expired()
 			}
 #endif
 
-			/* 
-			 * we should consider a situation that 
+			/*
+			 * we should consider a situation that
 			 * destination_app_service_name is owner_name like (:xxxx) and
 			 * application's pid which registered this alarm was killed.In that case,
 			 * we don't need to send the expire event because the process was killed.
@@ -1458,7 +1463,7 @@ static void __alarm_expired()
 			ALARM_MGR_LOG_PRINT("[alarm-server]: "
 					    "destination_app_service_name :%s, app_pid=%d\n",
 					    destination_app_service_name, app_pid);
-			/* the following is a code that checks the above situation. 
+			/* the following is a code that checks the above situation.
 			   please verify this code. */
 
 			if (dbus_bus_name_has_owner(
@@ -1473,6 +1478,7 @@ static void __alarm_expired()
 					ALARM_MGR_ASSERT_PRINT("[alarm-server]:Malloc failed!Can't notify alarm expiry info\n");
 					goto done;
 				}
+				bzero(expire_info, sizeof (expire_info));
 				strncpy(expire_info->service_name,
 					destination_app_service_name,
 					MAX_SERVICE_NAME_LEN-1);
@@ -1510,9 +1516,9 @@ static void __alarm_expired()
 		}
 		ALARM_MGR_LOG_PRINT("after __alarm_send_noti_to_application\n");
 
-/*		if( !(__alarm_info->alarm_info.alarm_type 
+/*		if( !(__alarm_info->alarm_info.alarm_type
 					& ALARM_TYPE_VOLATILE) ) {
-			__alarm_remove_from_list(__alarm_info->pid, 
+			__alarm_remove_from_list(__alarm_info->pid,
 							alarm_id, NULL);
 		}
 		else */
@@ -1556,8 +1562,8 @@ static gboolean __alarm_handler_idle()
 #ifdef __ALARM_BOOT
 	/*alarm boot */
 	if (enable_power_on_alarm) {
-		/* orginally first arg's value was 21(app_id, WAKEUP_ALARM_APP_ID) 
-		 *in a platform with app-server.because __alarm_power_on(..) fuction 
+		/* orginally first arg's value was 21(app_id, WAKEUP_ALARM_APP_ID)
+		 *in a platform with app-server.because __alarm_power_on(..) fuction
 		 *don't use first parameter internally, we set this value to 0(zero)
 		 */
 		__alarm_power_on(0, enable_power_on_alarm, NULL);
@@ -1639,7 +1645,7 @@ static void __on_system_time_changed(keynode_t *node, void *data)
 	if (enable_power_on_alarm) {
 /* orginally first arg's value was 21(app_id, WAKEUP_ALARM_
 APP_ID) in a platform with app-server. because _alarm_power_
-on(..) fuction don't use first parameter internally, we set 
+on(..) fuction don't use first parameter internally, we set
 this value to 0(zero)
 */
 		__alarm_power_on(0, enable_power_on_alarm, NULL);
@@ -1821,7 +1827,7 @@ gboolean alarm_manager_alarm_create_appsvc(void *pObject, int pid,
 		ALARM_MGR_EXCEPTION_PRINT("Unable to decode cookie!!!\n");
 		return false;
 	}
-	
+
 	call_gid = security_server_get_gid("alarm");
 
 	ALARM_MGR_LOG_PRINT("call_gid : %d\n", call_gid);
@@ -2009,7 +2015,7 @@ gboolean alarm_manager_alarm_get_number_of_ids(void *pObject, int pid,
 					       int *return_code)
 {
 	GSList *gs_iter = NULL;
-	GQuark quark_app_unique_name;	/* the fullpath of pid(pid) is 
+	GQuark quark_app_unique_name;	/* the fullpath of pid(pid) is
 					   converted  to quark value. */
 	char proc_file[256] = { 0 };
 	char process_name[512] = { 0 };
@@ -2059,7 +2065,7 @@ gboolean alarm_manager_alarm_get_number_of_ids(void *pObject, int pid,
 		ALARM_MGR_EXCEPTION_PRINT("Caution!! app_pid(%d) seems to be "
 					  "killed, so we failed to get proc file(%s) \n",
 					  pid, proc_file);
-		*return_code = -1;	/* -1 means that system 
+		*return_code = -1;	/* -1 means that system
 					   failed internally. */
 		return true;
 	}
@@ -2379,7 +2385,7 @@ static void __initialize_alarm_list()
 	/*alarm boot */
 	if (enable_power_on_alarm) {
 		/* orginally first arg's value was 21(app_id, WAKEUP_ALARM_APP_ID) in a
-		 * platform with app-server. because __alarm_power_on(..) fuction don't 
+		 * platform with app-server. because __alarm_power_on(..) fuction don't
 		 * use first parameter internally, we set this value to 0(zero)
 		 */
 		__alarm_power_on(0, enable_power_on_alarm, NULL);
@@ -2596,7 +2602,7 @@ static bool __initialize_db()
 	    sqlite3_exec(alarmmgr_db, QUERY_CREATE_TABLE_ALARMMGR, NULL, NULL,\
 			 &error_message)) {
 		ALARM_MGR_EXCEPTION_PRINT("Don't execute query = %s, "
-		"error message = %s\n", QUERY_CREATE_TABLE_ALARMMGR, 
+		"error message = %s\n", QUERY_CREATE_TABLE_ALARMMGR,
 					  error_message);
 		return false;
 	}
@@ -2651,7 +2657,7 @@ static void __initialize()
 	close(fd2);
 
 	__initialize_timer();
-	if (__initialize_dbus() == false) {	/* because dbus's initialize 
+	if (__initialize_dbus() == false) {	/* because dbus's initialize
 					failed, we cannot continue any more. */
 		ALARM_MGR_EXCEPTION_PRINT("because __initialize_dbus failed, "
 					  "alarm-server cannot be runned.\n");
