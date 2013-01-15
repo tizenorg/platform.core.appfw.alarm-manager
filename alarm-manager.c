@@ -692,7 +692,15 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 	snprintf(proc_file, 512, "/proc/%d/cmdline", pid);
 
 	fd = open(proc_file, O_RDONLY);
-	if (fd > 0) {
+	if (fd < 0) {		/* failure */
+		ALARM_MGR_EXCEPTION_PRINT("Caution!! app_pid(%d) seems to be "
+					  "killed, so we failed to get proc file(%s) and do not create "
+					  "alarm_info\n", pid, proc_file);
+		*error_code = -1;	/*-1 means that system failed
+							internally.*/
+		free(__alarm_info);
+		return false;
+	} else {
 		ret = read(fd, process_name, 512);
 		close(fd);
 		if (ret <=0)
@@ -718,14 +726,6 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 		}
 		__alarm_info->quark_app_unique_name =
 		    g_quark_from_string(app_name);
-	} else {		/* failure */
-		ALARM_MGR_EXCEPTION_PRINT("Caution!! app_pid(%d) seems to be "
-					  "killed, so we failed to get proc file(%s) and do not create "
-					  "alarm_info\n", pid, proc_file);
-		*error_code = -1;	/*-1 means that system failed
-							internally.*/
-		free(__alarm_info);
-		return false;
 	}
 
 	__alarm_info->quark_bundle=g_quark_from_string(bundle_data);
@@ -838,7 +838,17 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
 	int ret;
 	int i = 0;
 	fd = open(proc_file, O_RDONLY);
-	if (fd > 0) {
+	if (fd < 0) {	/* failure */
+		__alarm_info->quark_app_unique_name =
+		    g_quark_from_string("unknown");
+		ALARM_MGR_EXCEPTION_PRINT("Caution!! app_pid(%d) seems to be "
+					  "killed, so we failed to get proc file(%s) and do not create "
+					  "alarm_info\n", pid, proc_file);
+		*error_code = -1;	/*-1 means that system failed
+							internally.*/
+		free(__alarm_info);
+		return false;
+	} else {
 		ret = read(fd, process_name, 512);
 		close(fd);
 		while (process_name[i] != '\0') {
@@ -859,17 +869,6 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
 		}
 		__alarm_info->quark_app_unique_name =
 		    g_quark_from_string(app_name);
-	} else {		/* failure */
-
-		__alarm_info->quark_app_unique_name =
-		    g_quark_from_string("unknown");
-		ALARM_MGR_EXCEPTION_PRINT("Caution!! app_pid(%d) seems to be "
-					  "killed, so we failed to get proc file(%s) and do not create "
-					  "alarm_info\n", pid, proc_file);
-		*error_code = -1;	/*-1 means that system failed
-							internally.*/
-		free(__alarm_info);
-		return false;
 	}
 
 	__alarm_info->quark_app_service_name =
@@ -1146,7 +1145,6 @@ static bool __alarm_power_on(int app_id, bool on_off, int *error_code)
 #ifdef __ALARM_BOOT
 	time_t min_time = 0;
 	time_t current_time = 0;
-	struct tm *temp_info = NULL;
 	struct rtc_time rtc_tm = { 0, };
 	struct tm min_time_r = { 0, };
 	int fd = 0;
@@ -1173,7 +1171,7 @@ static bool __alarm_power_on(int app_id, bool on_off, int *error_code)
 			if (min_time <= current_time)
 				min_time = current_time + 5;
 
-			temp_info = gmtime_r(&min_time, &min_time_r);
+			gmtime_r(&min_time, &min_time_r);
 
 			ALARM_MGR_LOG_PRINT("__alarm_power_on : %d %d %d %d "
 						"%d\n", \
@@ -1478,7 +1476,7 @@ static void __alarm_expired()
 					ALARM_MGR_ASSERT_PRINT("[alarm-server]:Malloc failed!Can't notify alarm expiry info\n");
 					goto done;
 				}
-				bzero(expire_info, sizeof (expire_info));
+				memset(expire_info, '\0', MAX_SERVICE_NAME_LEN);
 				strncpy(expire_info->service_name,
 					destination_app_service_name,
 					MAX_SERVICE_NAME_LEN-1);
@@ -2037,7 +2035,17 @@ gboolean alarm_manager_alarm_get_number_of_ids(void *pObject, int pid,
 	int ret;
 	int i = 0;
 	fd = open(proc_file, O_RDONLY);
-	if (fd > 0) {
+	if (fd < 0) {		/* failure */
+		quark_app_unique_name = g_quark_from_string("unknown");
+		memcpy(app_name, "unknown", strlen("unknown") + 1);
+
+		ALARM_MGR_EXCEPTION_PRINT("Caution!! app_pid(%d) seems to be "
+					  "killed, so we failed to get proc file(%s) \n",
+					  pid, proc_file);
+		*return_code = -1;	/* -1 means that system
+					   failed internally. */
+		return true;
+	} else {
 		ret = read(fd, process_name, 512);
 		close(fd);
 		while (process_name[i] != '\0') {
@@ -2057,17 +2065,6 @@ gboolean alarm_manager_alarm_get_number_of_ids(void *pObject, int pid,
 			word = strtok_r(NULL, "/", &proc_name_ptr);
 		}
 		quark_app_unique_name = g_quark_from_string(app_name);
-	} else {		/* failure */
-
-		quark_app_unique_name = g_quark_from_string("unknown");
-		memcpy(app_name, "unknown", strlen("unknown") + 1);
-
-		ALARM_MGR_EXCEPTION_PRINT("Caution!! app_pid(%d) seems to be "
-					  "killed, so we failed to get proc file(%s) \n",
-					  pid, proc_file);
-		*return_code = -1;	/* -1 means that system
-					   failed internally. */
-		return true;
 	}
 
 	ALARM_MGR_LOG_PRINT("called for  app(pid:%d, name=%s)\n",
@@ -2137,7 +2134,16 @@ gboolean alarm_manager_alarm_get_list_of_ids(void *pObject, int pid,
 	snprintf(proc_file, 256, "/proc/%d/cmdline", pid);
 
 	fd = open(proc_file, O_RDONLY);
-	if (fd > 0) {
+	if (fd < 0) {		/* failure */
+		quark_app_unique_name = g_quark_from_string("unknown");
+		memcpy(app_name, "unknown", strlen("unknown") + 1);
+
+		ALARM_MGR_EXCEPTION_PRINT("Caution!! app_pid(%d) seems to be "
+		"killed, so we failed to get proc file(%s)\n", pid, proc_file);
+		*return_code = -1;
+		/* -1 means that system failed internally. */
+		return true;
+	} else {
 		ret = read(fd, process_name, 512);
 		close(fd);
 		while (process_name[i] != '\0') {
@@ -2157,16 +2163,6 @@ gboolean alarm_manager_alarm_get_list_of_ids(void *pObject, int pid,
 			word = strtok_r(NULL, "/", &proc_name_ptr);
 		}
 		quark_app_unique_name = g_quark_from_string(app_name);
-	} else {		/* failure */
-
-		quark_app_unique_name = g_quark_from_string("unknown");
-		memcpy(app_name, "unknown", strlen("unknown") + 1);
-
-		ALARM_MGR_EXCEPTION_PRINT("Caution!! app_pid(%d) seems to be "
-		"killed, so we failed to get proc file(%s)\n", pid, proc_file);
-		*return_code = -1;
-		/* -1 means that system failed internally. */
-		return true;
 	}
 
 	ALARM_MGR_LOG_PRINT("called for  app(pid:%d, name=%s)\n",
