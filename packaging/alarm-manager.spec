@@ -41,7 +41,7 @@ Alarm Server
 %package -n libalarm
 Summary:    Alarm server libraries
 Group:      Development/Libraries
-Requires:   alarm-server = %{version}-%{release}
+Requires:   alarm-server = %{?epoch:%{epoch}:}%{version}-%{release}
 
 %description -n libalarm
 Alarm server library
@@ -50,7 +50,7 @@ Alarm server library
 %package -n libalarm-devel
 Summary:    Alarm server libraries(devel)
 Group:      Development/Libraries
-Requires:   libalarm = %{version}-%{release}
+Requires:   libalarm = %{?epoch:%{epoch}:}%{version}-%{release}
 
 
 %description -n libalarm-devel
