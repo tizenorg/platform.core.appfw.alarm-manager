@@ -2407,7 +2407,7 @@ static void __hibernation_leave_callback()
 
 static bool __initialize_noti()
 {
-
+	int ret = -1;
 	int fd = heynoti_init();
 	if (fd < 0) {
 		ALARM_MGR_EXCEPTION_PRINT("fail to heynoti_init\n");
@@ -2415,7 +2415,10 @@ static bool __initialize_noti()
 	}
 	heynoti_subscribe(fd, "HIBERNATION_LEAVE", __hibernation_leave_callback,
 			  NULL);
-	heynoti_attach_handler(fd);
+	ret = heynoti_attach_handler(fd);
+	if(ret<0) {
+		ALARM_MGR_EXCEPTION_PRINT("heynoti_attach_handler fail");
+	}
 
 	if (vconf_notify_key_changed
 	    (VCONFKEY_SYSTEM_TIMECHANGE, __on_system_time_changed, NULL) < 0) {
