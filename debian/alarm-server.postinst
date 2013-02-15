@@ -1,0 +1,4 @@
+#!/bin/sh
+heynotitool set setting_time_changed -a
+vconftool set -t int db/system/timechange 0 -i
+vconftool set -t double memory/system/timediff 0 -i
