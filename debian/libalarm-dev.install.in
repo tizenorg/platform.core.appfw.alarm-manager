@@ -1,0 +1,2 @@
+@PREFIX@/include/*
+@PREFIX@/lib/pkgconfig/*.pc
