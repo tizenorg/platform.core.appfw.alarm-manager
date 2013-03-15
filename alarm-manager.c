@@ -1652,6 +1652,38 @@ this value to 0(zero)
 	return;
 }
 
+static void __on_time_zone_changed(keynode_t *node, void *data)
+{
+	double diff_time = 0;
+
+	_alarm_disable_timer(alarm_context);
+
+	tzset();
+
+	ALARM_MGR_LOG_PRINT("[alarm-server] time zone has been changed\n");
+	ALARM_MGR_LOG_PRINT("1.alarm_context.c_due_time is %d\n", alarm_context.c_due_time);
+
+	__alarm_update_due_time_of_all_items_in_list(diff_time);
+
+	ALARM_MGR_LOG_PRINT("2.alarm_context.c_due_time is %d\n", alarm_context.c_due_time);
+	_clear_scheduled_alarm_list();
+	_alarm_schedule();
+	__rtc_set();
+#ifdef __ALARM_BOOT
+	/*alarm boot */
+	if (enable_power_on_alarm) {
+/* orginally first arg's value was 21(app_id, WAKEUP_ALARM_
+APP_ID) in a platform with app-server. because _alarm_power_
+on(..) fuction don't use first parameter internally, we set
+this value to 0(zero)
+*/
+		__alarm_power_on(0, enable_power_on_alarm, NULL);
+	}
+#endif
+	return;
+}
+
+
 gboolean alarm_manager_alarm_set_rtc_time(void *pObject, int pid,
 				int year, int mon, int day,
 				int hour, int min, int sec, char *e_cookie,
@@ -2426,6 +2458,12 @@ static bool __initialize_noti()
 			"Failed to add callback for time changing event\n");
 	}
 	/*system state change noti Ã³¸® */
+
+	if (vconf_notify_key_changed
+	    (VCONFKEY_SETAPPL_TIMEZONE_ID, __on_time_zone_changed, NULL) < 0) {
+		ALARM_MGR_LOG_PRINT(
+			"Failed to add callback for time changing event\n");
+	}
 
 	return true;
 }
