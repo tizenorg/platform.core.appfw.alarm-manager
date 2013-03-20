@@ -595,6 +595,7 @@ EXPORT_API int alarmmgr_add_alarm_appsvc_with_localtime(alarm_entry_t *alarm, vo
 	alarm_info_t *alarm_info = NULL;	/* = (alarm_info_t*)alarm; */
 	const char *operation = NULL;
 	int error_code = 0;
+	char *appid = NULL;
 
 	bundle *b=(bundle *)bundle_data;
 
@@ -622,6 +623,14 @@ EXPORT_API int alarmmgr_add_alarm_appsvc_with_localtime(alarm_entry_t *alarm, vo
 	}
 
 	alarm_info = (alarm_info_t *) alarm;
+
+	appid = appsvc_get_appid(b);
+
+	if (NULL == appid && (alarm_info->alarm_type & ALARM_TYPE_NOLAUNCH) )
+	{
+		ALARM_MGR_EXCEPTION_PRINT("Invalid parameter\n");
+		return ERR_ALARM_INVALID_PARAM;
+	}
 
 	if (alarm_info == NULL || alarm_id == NULL) {
 		ALARM_MGR_EXCEPTION_PRINT("Invalid parameter\n");
@@ -779,6 +788,7 @@ EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 	struct tm duetime_tm;
 	alarm_info_t alarm_info;
 	const char *operation = NULL;
+	char *appid = NULL;
 
 	bundle *b=(bundle *)bundle_data;
 
@@ -792,6 +802,14 @@ EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 	if (NULL == operation)
 	{
 		ALARM_MGR_EXCEPTION_PRINT("Invalid parameter bundle [appsvc operation not present]\n");
+		return ERR_ALARM_INVALID_PARAM;
+	}
+
+	appid = appsvc_get_appid(b);
+
+	if (NULL == appid && (alarm_type & ALARM_TYPE_NOLAUNCH) )
+	{
+		ALARM_MGR_EXCEPTION_PRINT("Invalid parameter\n");
 		return ERR_ALARM_INVALID_PARAM;
 	}
 

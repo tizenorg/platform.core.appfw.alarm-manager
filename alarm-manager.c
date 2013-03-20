@@ -1346,6 +1346,7 @@ static void __alarm_expired()
 	char alarm_id_val[32]={0,};
 	int b_len = 0;
 	bundle *b = NULL;
+	char *appid = NULL;
 
 	ALARM_MGR_LOG_PRINT("[alarm-server]: Enter \n");
 
@@ -1397,13 +1398,21 @@ static void __alarm_expired()
 					}
 					else
 					{
-						if ( appsvc_run_service(b, 0, NULL, NULL) < 0)
+						appid = appsvc_get_appid(b);
+						if( (__alarm_info->alarm_info.alarm_type & ALARM_TYPE_NOLAUNCH) && !aul_app_is_running(appid))
 						{
-							ALARM_MGR_EXCEPTION_PRINT("Unable to run app svc\n");
+							ALARM_MGR_EXCEPTION_PRINT("This alarm is ignored\n");
 						}
 						else
 						{
-							ALARM_MGR_LOG_PRINT("Successfuly ran app svc\n");
+							if ( appsvc_run_service(b, 0, NULL, NULL) < 0)
+							{
+								ALARM_MGR_EXCEPTION_PRINT("Unable to run app svc\n");
+							}
+							else
+							{
+								ALARM_MGR_LOG_PRINT("Successfuly ran app svc\n");
+							}
 						}
 					}
 					bundle_free(b);
