@@ -6,6 +6,7 @@ Group:      System/Libraries
 License:    Apache License, Version 2.0
 Source0:    %{name}-%{version}.tar.gz
 Source101:  packaging/alarm-server.service
+Source102:  packaging/60-alarm-manager-rtc.rules
 
 Requires(post): /sbin/ldconfig
 Requires(post): /usr/bin/systemctl
@@ -93,6 +94,8 @@ install -d %{buildroot}%{_libdir}/systemd/system/multi-user.target.wants
 install -m0644 %{SOURCE101} %{buildroot}%{_libdir}/systemd/system/
 ln -sf ../alarm-server.service %{buildroot}%{_libdir}/systemd/system/multi-user.target.wants/alarm-server.service
 
+mkdir -p %{buildroot}/%{_sysconfdir}/udev/rules.d
+install -m0644  %{SOURCE102} %{buildroot}%{_sysconfdir}/udev/rules.d/
 
 %preun -n alarm-server
 if [ $1 == 0 ]; then
@@ -125,6 +128,11 @@ fi
 %attr(0755,root,root) %{_sysconfdir}/rc.d/rc5.d/S80alarm-server
 %{_libdir}/systemd/system/multi-user.target.wants/alarm-server.service
 %{_libdir}/systemd/system/alarm-server.service
+%ifarch %{arm}
+ %exclude %{_sysconfdir}/udev/rules.d/60-alarm-manager-rtc.rules
+%else
+ %{_sysconfdir}/udev/rules.d/60-alarm-manager-rtc.rules
+%endif
 
 %files -n libalarm
 %manifest alarm-lib.manifest
