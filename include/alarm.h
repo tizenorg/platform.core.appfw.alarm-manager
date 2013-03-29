@@ -217,6 +217,7 @@ typedef enum {
 
 #define ALARM_TYPE_DEFAULT	0x0	/*< non volatile */
 #define ALARM_TYPE_VOLATILE	0x02	/*< volatile */
+#define ALARM_TYPE_NOLAUNCH 0x04	/*<without launch */
 
 
 /**
