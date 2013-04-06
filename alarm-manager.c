@@ -1480,6 +1480,11 @@ static void __alarm_expired()
 				char appid[MAX_SERVICE_NAME_LEN] = { 0, };
 				char alarm_id_str[32] = { 0, };
 
+				if (__alarm_info->alarm_info.alarm_type & ALARM_TYPE_WITHCB) {
+					__alarm_remove_from_list(__alarm_info->pid, alarm_id, NULL);
+					goto done;
+				}
+
 				expire_info = malloc(sizeof(__expired_alarm_t));
 				if (G_UNLIKELY(NULL == expire_info)){
 					ALARM_MGR_ASSERT_PRINT("[alarm-server]:Malloc failed!Can't notify alarm expiry info\n");

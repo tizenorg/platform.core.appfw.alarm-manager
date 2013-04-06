@@ -104,6 +104,8 @@ typedef enum
 }alarm_type_t;
 */
 #define	ALARM_TYPE_RELATIVE		0x80000000	/**< relative  */
+#define	ALARM_TYPE_WITHCB		0x40000000	/**< withcb  */
+
 
 /**
 * This struct has the information of an alarm
