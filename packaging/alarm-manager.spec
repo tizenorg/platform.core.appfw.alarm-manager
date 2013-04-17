@@ -1,6 +1,6 @@
 Name:       alarm-manager
 Summary:    Alarm library
-Version:    0.4.66
+Version:    0.4.67
 Release:    1
 Group:      System/Libraries
 License:    Apache License, Version 2.0
@@ -105,7 +105,8 @@ fi
 %post -n alarm-server
 /sbin/ldconfig
 
-vconftool set -t int db/system/timechange 0 -i
+vconftool set -t int db/system/timechange 0
+vconftool set -t double db/system/timechange_external 0
 vconftool set -t int memory/system/timechanged 0 -i -g 5000
 
 systemctl daemon-reload

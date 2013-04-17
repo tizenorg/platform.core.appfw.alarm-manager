@@ -134,6 +134,7 @@ static void __alarm_handler(int sigNum, siginfo_t *pSigInfo, void *pUContext);
 static void __clean_registry();
 static bool __alarm_manager_reset();
 static void __on_system_time_changed(keynode_t *node, void *data);
+static void __on_system_time_external_changed(keynode_t *node, void *data);
 static void __initialize_timer();
 static void __initialize_alarm_list();
 static void __initialize_scheduled_alarm_lsit();
@@ -1361,7 +1362,12 @@ static void __alarm_expired()
 		current_time, interval);
 
 	if (alarm_context.c_due_time > current_time) {
-		ALARM_MGR_LOG_PRINT("[alarm-server]: False Alarm\n");
+		ALARM_MGR_LOG_PRINT("[alarm-server]: False Alarm (time changed to past)\n");
+		goto done;
+	}
+	// 3 seconds is maximum permitted delay from timer expire to this function
+	if (alarm_context.c_due_time + 3 < current_time) {
+		ALARM_MGR_LOG_PRINT("[alarm-server]: False Alarm (time changed to future)\n");
 		goto done;
 	}
 
@@ -1636,6 +1642,50 @@ static void __on_system_time_changed(keynode_t *node, void *data)
 			    alarm_context.c_due_time);
 
 	_set_time(_time);
+
+	vconf_set_dbl(VCONFKEY_SYSTEM_TIMEDIFF, diff_time);
+	vconf_set_int(VCONFKEY_SYSTEM_TIME_CHANGED,(int)diff_time);
+
+	__alarm_update_due_time_of_all_items_in_list(diff_time);
+
+	ALARM_MGR_LOG_PRINT("2.alarm_context.c_due_time is %d\n",
+			    alarm_context.c_due_time);
+	_clear_scheduled_alarm_list();
+	_alarm_schedule();
+	__rtc_set();
+#ifdef __ALARM_BOOT
+	/*alarm boot */
+	if (enable_power_on_alarm) {
+/* orginally first arg's value was 21(app_id, WAKEUP_ALARM_
+APP_ID) in a platform with app-server. because _alarm_power_
+on(..) fuction don't use first parameter internally, we set
+this value to 0(zero)
+*/
+		__alarm_power_on(0, enable_power_on_alarm, NULL);
+	}
+#endif
+	return;
+}
+
+static void __on_system_time_external_changed(keynode_t *node, void *data)
+{
+	double diff_time;
+
+	_alarm_disable_timer(alarm_context);
+
+	if (node) {
+		diff_time = vconf_keynode_get_dbl(node);
+	} else {
+		vconf_get_dbl(VCONFKEY_SYSTEM_TIMECHANGE_EXTERNAL, &diff_time);
+	}
+
+	tzset();
+
+	ALARM_MGR_ASSERT_PRINT("diff_time is %f\n", diff_time);
+
+	ALARM_MGR_LOG_PRINT("[alarm-server] System time has been changed externally\n");
+	ALARM_MGR_LOG_PRINT("1.alarm_context.c_due_time is %d\n",
+			    alarm_context.c_due_time);
 
 	vconf_set_dbl(VCONFKEY_SYSTEM_TIMEDIFF, diff_time);
 	vconf_set_int(VCONFKEY_SYSTEM_TIME_CHANGED,(int)diff_time);
@@ -2471,7 +2521,13 @@ static bool __initialize_noti()
 	if (vconf_notify_key_changed
 	    (VCONFKEY_SETAPPL_TIMEZONE_ID, __on_time_zone_changed, NULL) < 0) {
 		ALARM_MGR_LOG_PRINT(
-			"Failed to add callback for time changing event\n");
+			"Failed to add callback for time zone changing event\n");
+	}
+
+	if (vconf_notify_key_changed
+	    (VCONFKEY_SYSTEM_TIMECHANGE_EXTERNAL, __on_system_time_external_changed, NULL) < 0) {
+		ALARM_MGR_LOG_PRINT(
+			"Failed to add callback for time external changing event\n");
 	}
 
 	return true;
