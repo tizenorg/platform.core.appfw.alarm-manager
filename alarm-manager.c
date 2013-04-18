@@ -1670,6 +1670,7 @@ this value to 0(zero)
 static void __on_system_time_external_changed(keynode_t *node, void *data)
 {
 	double diff_time;
+	time_t cur_time = 0;
 
 	_alarm_disable_timer(alarm_context);
 
@@ -1686,6 +1687,10 @@ static void __on_system_time_external_changed(keynode_t *node, void *data)
 	ALARM_MGR_LOG_PRINT("[alarm-server] System time has been changed externally\n");
 	ALARM_MGR_LOG_PRINT("1.alarm_context.c_due_time is %d\n",
 			    alarm_context.c_due_time);
+
+	// set rtc time only because the linux time is set externally
+	time(&cur_time);
+	_set_rtc_time(cur_time);
 
 	vconf_set_dbl(VCONFKEY_SYSTEM_TIMEDIFF, diff_time);
 	vconf_set_int(VCONFKEY_SYSTEM_TIME_CHANGED,(int)diff_time);
