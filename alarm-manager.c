@@ -274,7 +274,7 @@ int _set_rtc_time(time_t _time)
 	rtc_tm.tm_year = time_r.tm_year;
 	rtc_tm.tm_hour = time_r.tm_hour;
 	rtc_tm.tm_min = time_r.tm_min;
-	rtc_tm.tm_sec = 0;
+	rtc_tm.tm_sec = time_r.tm_sec;
 
 
 	retval0 = ioctl(fd0, RTC_SET_TIME, &rtc_tm);
