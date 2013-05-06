@@ -41,6 +41,7 @@
 #include "alarm-stub.h"
 #include <bundle.h>
 #include <appsvc.h>
+#include <aul.h>
 
 #define MAX_KEY_SIZE 256
 
@@ -62,12 +63,74 @@ static int __alarmmgr_init_appsvc(void);
 bool alarm_power_off(int *error_code);
 int alarmmgr_check_next_duetime(void);
 
+typedef struct _alarm_cb_info_t {
+	int alarm_id;
+	alarm_cb_t cb_func;
+	void *priv_data;
+	struct _alarm_cb_info_t *next;
+} alarm_cb_info_t;
 
+static alarm_cb_info_t *alarmcb_head = NULL;
+
+static void __add_resultcb(int alarm_id, alarm_cb_t cb_func,
+			 void *data)
+{
+	alarm_cb_info_t *info;
+
+	info = (alarm_cb_info_t *) malloc(sizeof(alarm_cb_info_t));
+	if(info == NULL)
+		return;
+	info->alarm_id = alarm_id;
+	info->cb_func = cb_func;
+	info->priv_data = data;
+
+	info->next = alarmcb_head;
+	alarmcb_head = info;
+}
+
+static alarm_cb_info_t *__find_resultcb(int alarm_id)
+{
+	alarm_cb_info_t *tmp;
+
+	tmp = alarmcb_head;
+	while (tmp) {
+		if (tmp->alarm_id == alarm_id)
+			return tmp;
+		tmp = tmp->next;
+	}
+	return NULL;
+}
+
+static void __remove_resultcb(alarm_cb_info_t *info)
+{
+	alarm_cb_info_t *tmp;
+
+	if (alarmcb_head == NULL || info == NULL)
+		return;
+
+	if (alarmcb_head == info) {
+		alarmcb_head = info->next;
+		free(info);
+		return;
+	}
+
+	tmp = alarmcb_head;
+	while (tmp) {
+		if (tmp->next == info) {
+			tmp->next = info->next;
+			free(info);
+			return;
+		}
+		tmp = tmp->next;
+	}
+}
 
 static DBusHandlerResult __expire_alarm_filter(DBusConnection *connection,
 					       DBusMessage *message,
 					       void *user_data)
 {
+	alarm_cb_info_t *info;
+
 	if (dbus_message_get_type(message) == DBUS_MESSAGE_TYPE_METHOD_CALL) {
 		const char *method_name = dbus_message_get_member(message);
 		/*"alarm_expired" */
@@ -100,12 +163,18 @@ static DBusHandlerResult __expire_alarm_filter(DBusConnection *connection,
 				/* alarm_context.alarm_handler(alarm_id); */
 				alarm_context.alarm_handler(alarm_id,
 					alarm_context.user_param);
+			info = __find_resultcb(alarm_id);
+
+			if( info && info->cb_func ) {
+				info->cb_func(alarm_id, info->priv_data);
+			//	__remove_resultcb(info);
+			}
+
 			return DBUS_HANDLER_RESULT_HANDLED;
 		}
 	}
 
 	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-
 }
 
 static int __alarm_validate_date(alarm_date_t *date, int *error_code)
@@ -972,10 +1041,81 @@ EXPORT_API int alarmmgr_add_alarm(int alarm_type, time_t trigger_at_time,
 	return ALARMMGR_RESULT_SUCCESS;
 }
 
+EXPORT_API int alarmmgr_add_alarm_withcb(int alarm_type, time_t trigger_at_time,
+				  time_t interval, alarm_cb_t handler, void *user_param, alarm_id_t *alarm_id)
+{
+	char dst_service_name[MAX_SERVICE_NAME_LEN] = { 0 };
+	char dst_service_name_mod[MAX_SERVICE_NAME_LEN] = { 0 };
+	int i = 0;
+	int j = 0;
+	int error_code;
+	time_t current_time;
+	struct tm duetime_tm;
+	alarm_info_t alarm_info;
+	int ret;
+	char appid[256];
+
+	aul_app_get_appid_bypid(getpid(), appid, sizeof(appid));
+
+	ret = alarmmgr_init(appid);
+	if (ret < 0)
+		return ret;
+
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarmmgr_add_alarm_withcb() is called\n");
+
+	ALARM_MGR_LOG_PRINT("interval(%d)", interval);
+
+	if (alarm_id == NULL) {
+		return ERR_ALARM_INVALID_PARAM;
+	}
+
+	if (trigger_at_time < 0) {
+		return ERR_ALARM_INVALID_PARAM;
+	}
+
+	alarm_info.alarm_type = alarm_type;
+	alarm_info.alarm_type |= ALARM_TYPE_RELATIVE;
+	alarm_info.alarm_type |= ALARM_TYPE_WITHCB;
+
+	time(&current_time);
+
+	current_time += trigger_at_time;
+
+	localtime_r(&current_time, &duetime_tm);
+
+	alarm_info.start.year = duetime_tm.tm_year + 1900;
+	alarm_info.start.month = duetime_tm.tm_mon + 1;
+	alarm_info.start.day = duetime_tm.tm_mday;
+
+	alarm_info.end.year = 0;
+	alarm_info.end.month = 0;
+	alarm_info.end.day = 0;
+
+	alarm_info.start.hour = duetime_tm.tm_hour;
+	alarm_info.start.min = duetime_tm.tm_min;
+	alarm_info.start.sec = duetime_tm.tm_sec;
+
+	if (interval <= 0) {
+		alarm_info.mode.repeat = ALARM_REPEAT_MODE_ONCE;
+		alarm_info.mode.u_interval.interval = 0;
+	} else {
+		alarm_info.mode.repeat = ALARM_REPEAT_MODE_REPEAT;
+		alarm_info.mode.u_interval.interval = interval;
+	}
+
+	if (!_send_alarm_create(alarm_context, &alarm_info, alarm_id, "null","null", &error_code)) {
+		return error_code;
+	}
+	__add_resultcb(*alarm_id, handler, user_param);
+
+	return ALARMMGR_RESULT_SUCCESS;
+}
+
 EXPORT_API int alarmmgr_remove_alarm(alarm_id_t alarm_id)
 {
 	int error_code;
 	int ret;
+	alarm_cb_info_t *info;
 
 	ret = __sub_init();
 	if (ret < 0)
@@ -989,6 +1129,9 @@ EXPORT_API int alarmmgr_remove_alarm(alarm_id_t alarm_id)
 
 	if (!_send_alarm_delete(alarm_context, alarm_id, &error_code))
 		return error_code;
+
+	info = __find_resultcb(alarm_id);
+	__remove_resultcb(info);
 
 	return ALARMMGR_RESULT_SUCCESS;
 }

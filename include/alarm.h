@@ -1357,6 +1357,8 @@ int main(int argc,char **argv {
  */
 int alarmmgr_set_rtc_time(alarm_date_t *time);
 
+int alarmmgr_add_alarm_withcb(int alarm_type, time_t trigger_at_time,
+				  time_t interval, alarm_cb_t handler, void *user_param, alarm_id_t *alarm_id);
 
 /**
  * @}
