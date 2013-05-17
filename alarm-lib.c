@@ -256,7 +256,6 @@ static int __sub_init()
 		return ALARMMGR_RESULT_SUCCESS;
 	}
 
-	g_thread_init(NULL);
 	dbus_g_thread_init();
 
 	alarm_context.bus = dbus_g_bus_get(DBUS_BUS_SYSTEM, &error);
@@ -583,7 +582,6 @@ static int __alarmmgr_init_appsvc(void)
 		return ALARMMGR_RESULT_SUCCESS;
 	}
 
-	g_thread_init(NULL);
 	
 	dbus_g_thread_init();
 
