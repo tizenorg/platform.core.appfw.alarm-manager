@@ -38,6 +38,7 @@
 #include"alarm-internal.h"
 #define WAKEUP_ALARM_APP_ID "org.tizen.alarm.ALARM"	/*alarm ui
 							   application's alarm's dbus_service name instead of 21 value */
+#define DST_TIME_DIFF 1
 
 extern __alarm_server_context_t alarm_context;
 extern GSList *g_scheduled_alarm_list;
@@ -185,14 +186,12 @@ static time_t __alarm_next_duetime_once(__alarm_info_t *__alarm_info)
 	time_t due_time = 0;
 	time_t current_time = 0;
 	struct tm duetime_tm;
-	int wday;
 
 	alarm_info_t *alarm_info = &__alarm_info->alarm_info;
 	alarm_date_t *start = &alarm_info->start;
 
 	time(&current_time);
 	localtime_r(&current_time, &duetime_tm);
-	wday = duetime_tm.tm_wday;
 	duetime_tm.tm_hour = start->hour;
 	duetime_tm.tm_min = start->min;
 	duetime_tm.tm_sec = start->sec;
@@ -259,14 +258,12 @@ static time_t __alarm_next_duetime_annually(__alarm_info_t *__alarm_info)
 	time_t due_time = 0;
 	time_t current_time = 0;
 	struct tm duetime_tm;
-	int wday;
 
 	alarm_info_t *alarm_info = &__alarm_info->alarm_info;
 	alarm_date_t *start = &alarm_info->start;
 
 	time(&current_time);
 	localtime_r(&current_time, &duetime_tm);
-	wday = duetime_tm.tm_wday;
 	duetime_tm.tm_hour = start->hour;
 	duetime_tm.tm_min = start->min;
 	duetime_tm.tm_sec = start->sec;
@@ -294,14 +291,12 @@ static time_t __alarm_next_duetime_monthly(__alarm_info_t *__alarm_info)
 	time_t due_time = 0;
 	time_t current_time = 0;
 	struct tm duetime_tm;
-	int wday;
 
 	alarm_info_t *alarm_info = &__alarm_info->alarm_info;
 	alarm_date_t *start = &alarm_info->start;
 
 	time(&current_time);
 	localtime_r(&current_time, &duetime_tm);
-	wday = duetime_tm.tm_wday;
 	duetime_tm.tm_hour = start->hour;
 	duetime_tm.tm_min = start->min;
 	duetime_tm.tm_sec = start->sec;
@@ -374,13 +369,11 @@ static time_t __alarm_next_duetime_weekly(__alarm_info_t *__alarm_info)
 	if (current_time >= due_time
 	    || !(mode->u_interval.day_of_week & 1 << wday)) {
 		int day = wday + 1;
-		int next_week = 0;
 		int interval = 1;
 		/*this week */
 
 		if (day == 7) {
 			day = 0;
-			next_week = 1;
 		}
 
 		while (!(mode->u_interval.day_of_week & 1 << day)
@@ -390,7 +383,6 @@ static time_t __alarm_next_duetime_weekly(__alarm_info_t *__alarm_info)
 
 			if (day == 7) {
 				day = 0;
-				next_week = 1;
 			}
 
 		}
@@ -404,14 +396,19 @@ static time_t __alarm_next_duetime_weekly(__alarm_info_t *__alarm_info)
 
 time_t _alarm_next_duetime(__alarm_info_t *__alarm_info)
 {
-
+	int is_dst=0;
 	time_t current_time = 0;
 	time_t due_time = 0;
+	struct tm *cur_tm = NULL ;
+	struct tm *due_tm = NULL ;
 
 	alarm_info_t *alarm_info = &__alarm_info->alarm_info;
 	alarm_mode_t *mode = &alarm_info->mode;
 
 	time(&current_time);
+	cur_tm = localtime(&current_time);
+	if (cur_tm->tm_isdst > 0)
+		is_dst = 1;
 
 	ALARM_MGR_LOG_PRINT("mode->repeat is %d\n", mode->repeat);
 
@@ -430,6 +427,16 @@ time_t _alarm_next_duetime(__alarm_info_t *__alarm_info)
 					  mode->repeat);
 		return 0;
 	}
+
+	due_tm = localtime(&due_time);
+	if (is_dst==0 && due_tm->tm_isdst==1){
+			ALARM_MGR_LOG_PRINT("DST alarm found, enable\n");
+			due_tm->tm_hour = due_tm->tm_hour - DST_TIME_DIFF;
+	} else if (is_dst==1 && due_tm->tm_isdst==0){
+			ALARM_MGR_LOG_PRINT("DST alarm found. disable\n");
+			due_tm->tm_hour = due_tm->tm_hour + DST_TIME_DIFF;
+	}
+    due_time = mktime(due_tm);
 
 	ALARM_MGR_LOG_PRINT("due_time %d\n", due_time);
 

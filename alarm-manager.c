@@ -154,6 +154,7 @@ static void __rtc_set()
 #ifdef __WAKEUP_USING_RTC__
 
 	const char *rtc = default_rtc;
+	const char *rtc0 = power_rtc;
 	int fd = 0;
 	struct rtc_time rtc_tm;
 	struct rtc_wkalrm rtc_wk;
@@ -168,8 +169,11 @@ static void __rtc_set()
 
 	fd = open(rtc, O_RDONLY);
 	if (fd == -1) {
-		ALARM_MGR_EXCEPTION_PRINT("RTC open failed.\n");
-		return;
+		fd = open(rtc0, O_RDONLY);
+		if (fd == -1) {
+			ALARM_MGR_EXCEPTION_PRINT("RTC open failed.\n");
+			return;
+		}
 	}
 
 	/* Read the RTC time/date */
@@ -189,7 +193,7 @@ static void __rtc_set()
 			    alarm_context.c_due_time);
 
 	if (alarm_context.c_due_time != -1) {
-		time_t due_time = alarm_context.c_due_time - 1;
+		time_t due_time = alarm_context.c_due_time;
 		gmtime_r(&due_time, &due_tm);
 
 		rtc_tm.tm_mday = due_tm.tm_mday;
@@ -245,7 +249,6 @@ int _set_rtc_time(time_t _time)
 	struct rtc_time rtc_tm = { 0, };
 	const char *rtc0 = power_rtc;
 	const char *rtc1 = default_rtc;
-	struct tm *_tm = NULL;
 	struct tm time_r = { 0, };
 
 	fd0 = open(rtc0, O_RDONLY);
@@ -258,7 +261,7 @@ int _set_rtc_time(time_t _time)
 
 	if (fd1 == -1) {
 		ALARM_MGR_LOG_PRINT("error to open /dev/rtc1.");
-		perror("\t");
+//		perror("\t");
 	}
 
 	memset(&rtc_tm, 0, sizeof(struct rtc_time));
@@ -288,17 +291,17 @@ int _set_rtc_time(time_t _time)
 	if (fd0 != -1)
 		close(fd0);
 
-	retval1 = ioctl(fd1, RTC_SET_TIME, &rtc_tm);
+	if (fd1 != -1) {
+		retval1 = ioctl(fd1, RTC_SET_TIME, &rtc_tm);
 
-	if (retval1 == -1) {
-		if (fd1 != -1)
-			close(fd1);
-		ALARM_MGR_LOG_PRINT("error to ioctl fd1.");
-		perror("\t");
-	}
-	if (fd1 != -1)
+		if (retval1 == -1) {
+			if (fd1 != -1)
+				close(fd1);
+			ALARM_MGR_LOG_PRINT("error to ioctl fd1.");
+			perror("\t");
+		}
 		close(fd1);
-
+	}
 	return 1;
 }
 
@@ -851,6 +854,13 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
 		return false;
 	} else {
 		ret = read(fd, process_name, 512);
+		if (ret < 0 ) {
+			*error_code = -1;	/*-1 means that system failed
+							internally.*/
+			free(__alarm_info);
+			close(fd);
+			return false;
+		}
 		close(fd);
 		while (process_name[i] != '\0') {
 			if (process_name[i] == ' ') {
@@ -1362,12 +1372,14 @@ static void __alarm_expired()
 		current_time, interval);
 
 	if (alarm_context.c_due_time > current_time) {
-		ALARM_MGR_LOG_PRINT("[alarm-server]: False Alarm (time changed to past)\n");
+		ALARM_MGR_EXCEPTION_PRINT("[alarm-server]: False Alarm. due time is (%d) seconds future\n",
+			alarm_context.c_due_time - current_time);
 		goto done;
 	}
 	// 3 seconds is maximum permitted delay from timer expire to this function
 	if (alarm_context.c_due_time + 3 < current_time) {
-		ALARM_MGR_LOG_PRINT("[alarm-server]: False Alarm (time changed to future)\n");
+		ALARM_MGR_EXCEPTION_PRINT("[alarm-server]: False Alarm. due time is (%d) seconds past\n",
+			current_time - alarm_context.c_due_time);
 		goto done;
 	}
 
@@ -1640,7 +1652,7 @@ static void __on_system_time_changed(keynode_t *node, void *data)
 
 	tzset();
 
-	ALARM_MGR_ASSERT_PRINT("diff_time is %f\n", diff_time);
+	ALARM_MGR_EXCEPTION_PRINT("New time is %s, diff_time is %f\n", ctime(&_time), diff_time);
 
 	ALARM_MGR_LOG_PRINT("[alarm-server] System time has been changed\n");
 	ALARM_MGR_LOG_PRINT("1.alarm_context.c_due_time is %d\n",
@@ -1648,7 +1660,6 @@ static void __on_system_time_changed(keynode_t *node, void *data)
 
 	_set_time(_time);
 
-	vconf_set_dbl(VCONFKEY_SYSTEM_TIMEDIFF, diff_time);
 	vconf_set_int(VCONFKEY_SYSTEM_TIME_CHANGED,(int)diff_time);
 
 	__alarm_update_due_time_of_all_items_in_list(diff_time);
@@ -1686,18 +1697,17 @@ static void __on_system_time_external_changed(keynode_t *node, void *data)
 	}
 
 	tzset();
+	time(&cur_time);
 
-	ALARM_MGR_ASSERT_PRINT("diff_time is %f\n", diff_time);
+	ALARM_MGR_EXCEPTION_PRINT("diff_time is %f, New time is %s\n", diff_time, ctime(&cur_time));
 
 	ALARM_MGR_LOG_PRINT("[alarm-server] System time has been changed externally\n");
 	ALARM_MGR_LOG_PRINT("1.alarm_context.c_due_time is %d\n",
 			    alarm_context.c_due_time);
 
 	// set rtc time only because the linux time is set externally
-	time(&cur_time);
 	_set_rtc_time(cur_time);
 
-	vconf_set_dbl(VCONFKEY_SYSTEM_TIMEDIFF, diff_time);
 	vconf_set_int(VCONFKEY_SYSTEM_TIME_CHANGED,(int)diff_time);
 
 	__alarm_update_due_time_of_all_items_in_list(diff_time);
@@ -2148,6 +2158,12 @@ gboolean alarm_manager_alarm_get_number_of_ids(void *pObject, int pid,
 		return true;
 	} else {
 		ret = read(fd, process_name, 512);
+		if (ret <0 ) {
+			*return_code = -1;	/* -1 means that system
+					   failed internally. */
+			close(fd);
+			return false;
+		}
 		close(fd);
 		while (process_name[i] != '\0') {
 			if (process_name[i] == ' ') {
@@ -2246,6 +2262,12 @@ gboolean alarm_manager_alarm_get_list_of_ids(void *pObject, int pid,
 		return true;
 	} else {
 		ret = read(fd, process_name, 512);
+		if (ret <0 ) {
+			*return_code = -1;
+			/* -1 means that system failed internally. */
+			close(fd);
+			return true;
+		}
 		close(fd);
 		while (process_name[i] != '\0') {
 			if (process_name[i] == ' ') {
@@ -2414,6 +2436,39 @@ gboolean alarm_manager_alarm_get_info(void *pObject, int pid,
 		*alarm_type = alarm_info->alarm_type;
 		*reserved_info = alarm_info->reserved_info;
 
+		*return_code = 0;
+	}
+	return true;
+}
+
+gboolean alarm_manager_alarm_get_next_duetime(void *pObject, int pid,
+				      alarm_id_t alarm_id, time_t* duetime,
+					int *return_code)
+{
+	ALARM_MGR_LOG_PRINT("called for  pid(%d) and alarm_id(%d)\n", pid,
+			    alarm_id);
+
+	GSList *gs_iter = NULL;
+	__alarm_info_t *entry = NULL;
+
+	*return_code = 0;
+
+	for (gs_iter = alarm_context.alarms; gs_iter != NULL;
+	     gs_iter = g_slist_next(gs_iter)) {
+		entry = gs_iter->data;
+		if (entry->alarm_id == alarm_id) {
+			break;
+		}
+	}
+
+	if (entry == NULL)
+	{
+		ALARM_MGR_EXCEPTION_PRINT("alarm id(%d) was not found\n",
+					  alarm_id);
+		*return_code = ERR_ALARM_INVALID_ID;
+	} else {
+		ALARM_MGR_LOG_PRINT("alarm was found\n");
+		*duetime = _alarm_next_duetime(entry);
 		*return_code = 0;
 	}
 	return true;
@@ -2758,15 +2813,38 @@ static void __initialize()
 		return;
 	}
 	retval = ioctl(fd, RTC_RD_TIME, &rtc_tm);
+	if (retval == -1) {
+		ALARM_MGR_EXCEPTION_PRINT("RTC_RD_TIME ioctl failed");
+		close(fd);
+		return;
+	}
 	close(fd);
 
 	fd2 = open(default_rtc, O_RDWR);
-	if (fd2 < 0) {
-		ALARM_MGR_EXCEPTION_PRINT("cannot open /dev/rtc1\n");
-		return;
+	if (fd2 >= 0) {
+		retval = ioctl(fd2, RTC_SET_TIME, &rtc_tm);
+		if (retval == -1) {
+			ALARM_MGR_EXCEPTION_PRINT("RTC_SET_TIME ioctl failed");
+			close(fd2);
+			return;
+		}
+		close(fd2);
+//		ALARM_MGR_EXCEPTION_PRINT("cannot open /dev/rtc1\n");
+//		return;
+	} else {
+		fd = open(power_rtc, O_RDWR);
+		if (fd < 0) {
+			ALARM_MGR_EXCEPTION_PRINT("cannot open /dev/rtc0\n");
+			return;
+		}
+		retval = ioctl(fd, RTC_SET_TIME, &rtc_tm);
+		if (retval == -1) {
+			ALARM_MGR_EXCEPTION_PRINT("RTC_SET_TIME ioctl failed");
+			close(fd);
+			return;
+		}
+		close(fd);
 	}
-	retval = ioctl(fd2, RTC_SET_TIME, &rtc_tm);
-	close(fd2);
 
 	__initialize_timer();
 	if (__initialize_dbus() == false) {	/* because dbus's initialize

@@ -62,7 +62,7 @@
 	<method name="alarm_check_next_duetime">
       <arg type="i" name="pid" direction="in" />
       <arg type="i" name="alarm_info_return_code" direction="out" />
-    </method>    
+    </method>
 	<method name="alarm_update">
 	  <arg type="i" name="pid" direction="in" />
 	  <arg type="s" name="app_service_name" direction="in" />
@@ -129,6 +129,12 @@
       <arg type="i" name="alarm_info_sec" direction="in" />
       <arg type="s" name="cookie" direction="in" />
       <arg type="i" name="return_code" direction="out" />
+    </method>
+	<method name="alarm_get_next_duetime">
+	  <arg type="i" name="pid" direction="in" />
+	  <arg type="i" name="alarm_id" direction="in" />
+	  <arg type="i" name="duetime" direction="out" />
+	  <arg type="i" name="return_code" direction="out" />
     </method>
   </interface>
 </node>
