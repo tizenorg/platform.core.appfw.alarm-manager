@@ -329,6 +329,7 @@ EXPORT_API int alarmmgr_init(const char *appid)
 	int ret;
 	int i = 0;
 	int j = 0;
+	int len = 0;
 
 	if (appid == NULL)
 		return ERR_ALARM_INVALID_PARAM;
@@ -348,7 +349,10 @@ EXPORT_API int alarmmgr_init(const char *appid)
 		return ret;
 
 	memset(service_name_mod, 'a', MAX_SERVICE_NAME_LEN-1);
-	strncpy(service_name, appid, MAX_PKG_NAME_LEN);
+
+	len = strlen("ALARM.");
+	strncpy(service_name, "ALARM.", len);
+	strncpy(service_name + len, appid, strlen(appid));
 
 	j=0;
 
@@ -365,10 +369,8 @@ EXPORT_API int alarmmgr_init(const char *appid)
                 j++;
         }
 
-	strncat(service_name, ".ALARM", strlen(".ALARM"));
-
-	strncat(service_name_mod, ".ALARM", strlen(".ALARM"));
-
+	ALARM_MGR_LOG_PRINT("[alarm-lib]: service_name %s\n", service_name);
+	ALARM_MGR_LOG_PRINT("[alarm-lib]: service_name_mod %s\n", service_name_mod);
 
 	dbus_error_init(&derror);
 
