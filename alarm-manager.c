@@ -1780,7 +1780,6 @@ gboolean alarm_manager_alarm_set_rtc_time(void *pObject, int pid,
 	gsize size;
 	int retval = 0;
 	gboolean result = true;
-	gid_t call_gid;
 
 	const char *rtc = power_rtc;
 	int fd = 0;
@@ -1803,21 +1802,22 @@ gboolean alarm_manager_alarm_set_rtc_time(void *pObject, int pid,
 		return true;
 	}
 
-	call_gid = security_server_get_gid("alarm");
-
-	ALARM_MGR_LOG_PRINT("call_gid : %d\n", call_gid);
-
-	retval = security_server_check_privilege((const char *)cookie, call_gid);
+	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
 	if (retval < 0) {
 		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
 			ALARM_MGR_EXCEPTION_PRINT(
-				"%s", "access has been denied\n");
+				"%s", "Write access has been denied by smack\n");
 		}
+#ifdef __ALLOW_NO_PRIVILEGE
 		ALARM_MGR_EXCEPTION_PRINT("Error has occurred in security_server_check_privilege()\n");
 		if (return_code)
 			*return_code = ERR_ALARM_NO_PERMISSION;
+#endif
 	}
-	else {
+#ifdef __ALLOW_NO_PRIVILEGE
+	else
+#endif
+	{
 
 		/*extract day of the week, day in the year &
 		daylight saving time from system*/
@@ -1916,7 +1916,6 @@ gboolean alarm_manager_alarm_create_appsvc(void *pObject, int pid,
 	guchar *cookie = NULL;
 	gsize size;
 	int retval = 0;
-	gid_t call_gid;
 	gboolean result = true;
 
 	alarm_info.start.year = start_year;
@@ -1946,21 +1945,22 @@ gboolean alarm_manager_alarm_create_appsvc(void *pObject, int pid,
 		return false;
 	}
 
-	call_gid = security_server_get_gid("alarm");
-
-	ALARM_MGR_LOG_PRINT("call_gid : %d\n", call_gid);
-
-	retval = security_server_check_privilege((const char *)cookie, call_gid);
+	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
 	if (retval < 0) {
 		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
 			ALARM_MGR_EXCEPTION_PRINT(
-				"%s", "access has been denied\n");
+				"%s", "Write access has been denied by smack\n");
 		}
+#ifdef __ALLOW_NO_PRIVILEGE
 		ALARM_MGR_EXCEPTION_PRINT("Error has occurred in security_server_check_privilege()\n");
 		*return_code = -1;
 		result = false;
+#endif
 	}
-	else {
+#ifdef __ALLOW_NO_PRIVILEGE
+	else
+#endif
+	{
 		result = __alarm_create_appsvc(&alarm_info, alarm_id, pid,
 			       bundle_data, return_code);
 		if (false == result)
@@ -1992,7 +1992,6 @@ gboolean alarm_manager_alarm_create(void *pObject, int pid,
 	guchar *cookie;
 	gsize size;
 	int retval;
-	gid_t call_gid;
 
 	alarm_info.start.year = start_year;
 	alarm_info.start.month = start_month;
@@ -2014,22 +2013,23 @@ gboolean alarm_manager_alarm_create(void *pObject, int pid,
 	*return_code = 0;
 
 	cookie = g_base64_decode(e_cookie, &size);
-	call_gid = security_server_get_gid("alarm");
 
-	ALARM_MGR_LOG_PRINT("call_gid : %d\n", call_gid);
-
-	retval = security_server_check_privilege((const char *)cookie, call_gid);
+	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
 	if (retval < 0) {
 		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
 			ALARM_MGR_EXCEPTION_PRINT(
-				"%s", "access has been denied\n");
+				"%s", "Write access has been denied by smack\n");
 		}
+#ifdef __ALLOW_NO_PRIVILEGE
 		ALARM_MGR_EXCEPTION_PRINT("%s", "Error has occurred\n");
 
 		*return_code = -1;
+#endif
 	}
-
-	else {
+#ifdef __ALLOW_NO_PRIVILEGE
+	else
+#endif
+	{
 		/* return valule and return_code should be checked */
 		__alarm_create(&alarm_info, alarm_id, pid, app_service_name,app_service_name_mod,
 			       reserved_service_name, reserved_service_name_mod, return_code);
@@ -2046,25 +2046,25 @@ gboolean alarm_manager_alarm_delete(void *pObject, int pid, alarm_id_t alarm_id,
 	guchar *cookie;
 	gsize size;
 	int retval;
-	gid_t call_gid;
 
 	cookie = g_base64_decode(e_cookie, &size);
-	call_gid = security_server_get_gid("alarm");
 
-	ALARM_MGR_LOG_PRINT("call_gid : %d\n", call_gid);
-
-	retval = security_server_check_privilege((const char *)cookie, call_gid);
+	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
 	if (retval < 0) {
 		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
-			ALARM_MGR_EXCEPTION_PRINT("%s",
-						  "access has been denied\n");
+			ALARM_MGR_EXCEPTION_PRINT(
+				"%s", "Write access has been denied by smack\n");
 		}
+#ifdef __ALLOW_NO_PRIVILEGE
 		ALARM_MGR_EXCEPTION_PRINT("%s", "Error has occurred\n");
 
 		*return_code = -1;
+#endif
 	}
-
-	else {
+#ifdef __ALLOW_NO_PRIVILEGE
+	else
+#endif
+	{
 		__alarm_delete(pid, alarm_id, return_code);
 	}
 
@@ -2329,7 +2329,6 @@ gboolean alarm_manager_alarm_get_appsvc_info(void *pObject, int pid, alarm_id_t 
 	guchar *cookie = NULL;
 	gsize size;
 	int retval = 0;
-	gid_t call_gid;
 
 	ALARM_MGR_LOG_PRINT("called for  pid(%d) and alarm_id(%d)\n", pid,
 			    alarm_id);
@@ -2342,16 +2341,14 @@ gboolean alarm_manager_alarm_get_appsvc_info(void *pObject, int pid, alarm_id_t 
 		ALARM_MGR_EXCEPTION_PRINT("Unable to decode cookie!!!\n");
 		return true;
 	}
-	call_gid = security_server_get_gid("alarm");
 
-	ALARM_MGR_LOG_PRINT("call_gid : %d\n", call_gid);
-
-	retval = security_server_check_privilege((const char *)cookie, call_gid);
+	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "r");
 	if (retval < 0) {
 		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
 			ALARM_MGR_EXCEPTION_PRINT(
-				"%s", "access has been denied\n");
+				"%s", "Read access has been denied by smack\n");
 		}
+#ifdef __ALLOW_NO_PRIVILEGE
 		ALARM_MGR_EXCEPTION_PRINT("%s", "Error has occurred\n");
 
 		if (return_code)
@@ -2361,6 +2358,7 @@ gboolean alarm_manager_alarm_get_appsvc_info(void *pObject, int pid, alarm_id_t 
 			g_free(cookie);
 
 		return true;
+#endif
 	}
 
 	if (return_code)

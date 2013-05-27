@@ -3,6 +3,7 @@
 		<domain name="alarm-server"/>
 		<provide>
 			<label name="alarm-server::db"/>
+			<label name="alarm-server::alarm"/>
 		</provide>
 	</define>
 	<request>
