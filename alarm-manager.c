@@ -104,8 +104,8 @@ static const char power_rtc[] = "/dev/rtc0";
 
 #endif				/*__WAKEUP_USING_RTC__*/
 
-static bool __alarm_add_to_list(__alarm_info_t *__alarm_info,
-				alarm_id_t *alarm_id);
+static bool __alarm_add_to_list(__alarm_info_t *__alarm_info);
+static void __alarm_generate_alarm_id(__alarm_info_t *__alarm_info, alarm_id_t *alarm_id);
 static bool __alarm_update_in_list(int pid, alarm_id_t alarm_id,
 				   __alarm_info_t *__alarm_info,
 				   int *error_code);
@@ -137,7 +137,7 @@ static void __on_system_time_changed(keynode_t *node, void *data);
 static void __on_system_time_external_changed(keynode_t *node, void *data);
 static void __initialize_timer();
 static void __initialize_alarm_list();
-static void __initialize_scheduled_alarm_lsit();
+static void __initialize_scheduled_alarm_list();
 static void __hibernation_leave_callback();
 static bool __initialize_noti();
 
@@ -318,12 +318,9 @@ bool __alarm_clean_list()
 	return true;
 }
 
-static bool __alarm_add_to_list(__alarm_info_t *__alarm_info,
-				alarm_id_t *alarm_id)
+static void __alarm_generate_alarm_id(__alarm_info_t *__alarm_info, alarm_id_t *alarm_id)
 {
-
 	bool unique_id = false;
-	alarm_info_t *alarm_info = &__alarm_info->alarm_info;
 	__alarm_info_t *entry = NULL;
 
 	GSList *iter = NULL;
@@ -344,8 +341,20 @@ static bool __alarm_add_to_list(__alarm_info_t *__alarm_info,
 				unique_id = false;
 			}
 		}
-
 	}
+
+	*alarm_id = __alarm_info->alarm_id;
+
+	return;
+}
+
+static bool __alarm_add_to_list(__alarm_info_t *__alarm_info)
+{
+
+	alarm_info_t *alarm_info = &__alarm_info->alarm_info;
+	__alarm_info_t *entry = NULL;
+
+	GSList *iter = NULL;
 
 	/* list alarms */
 	ALARM_MGR_LOG_PRINT("[alarm-server]: before add\n");
@@ -370,8 +379,6 @@ static bool __alarm_add_to_list(__alarm_info_t *__alarm_info,
 	if (!(alarm_info->alarm_type & ALARM_TYPE_VOLATILE)) {
 		_save_alarms(__alarm_info);
 	}
-
-	*alarm_id = __alarm_info->alarm_id;
 
 	return true;
 }
@@ -474,9 +481,9 @@ static bool __alarm_set_start_and_end_time(alarm_info_t *alarm_info,
 		alarm_tm.tm_mon = start->month - 1;
 		alarm_tm.tm_mday = start->day;
 
-		alarm_tm.tm_hour = 0;
-		alarm_tm.tm_min = 0;
-		alarm_tm.tm_sec = 0;
+		alarm_tm.tm_hour = start->hour;
+		alarm_tm.tm_min = start->min;
+		alarm_tm.tm_sec = start->sec;
 
 		__alarm_info->start = mktime(&alarm_tm);
 	} else {
@@ -488,9 +495,9 @@ static bool __alarm_set_start_and_end_time(alarm_info_t *alarm_info,
 		alarm_tm.tm_mon = end->month - 1;
 		alarm_tm.tm_mday = end->day;
 
-		alarm_tm.tm_hour = 23;
-		alarm_tm.tm_min = 59;
-		alarm_tm.tm_sec = 59;
+		alarm_tm.tm_hour = end->hour;
+		alarm_tm.tm_min = end->min;
+		alarm_tm.tm_sec = end->sec;
 
 		__alarm_info->end = mktime(&alarm_tm);
 	} else {
@@ -740,6 +747,7 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 
 	__alarm_set_start_and_end_time(alarm_info, __alarm_info);
 	memcpy(&(__alarm_info->alarm_info), alarm_info, sizeof(alarm_info_t));
+	__alarm_generate_alarm_id(__alarm_info, alarm_id);
 
 	time(&current_time);
 
@@ -751,7 +759,7 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 	}
 
 	due_time = _alarm_next_duetime(__alarm_info);
-	if (__alarm_add_to_list(__alarm_info, alarm_id) == false) {
+	if (__alarm_add_to_list(__alarm_info) == false) {
 		free(__alarm_info);
 		*error_code = -1;
 		return false;
@@ -895,6 +903,7 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
 
 	__alarm_set_start_and_end_time(alarm_info, __alarm_info);
 	memcpy(&(__alarm_info->alarm_info), alarm_info, sizeof(alarm_info_t));
+	__alarm_generate_alarm_id(__alarm_info, alarm_id);
 
 	time(&current_time);
 
@@ -913,7 +922,7 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
 	}
 
 	due_time = _alarm_next_duetime(__alarm_info);
-	if (__alarm_add_to_list(__alarm_info, alarm_id) == false) {
+	if (__alarm_add_to_list(__alarm_info) == false) {
 		free(__alarm_info);
 		return false;
 	}
@@ -1376,8 +1385,8 @@ static void __alarm_expired()
 			alarm_context.c_due_time - current_time);
 		goto done;
 	}
-	// 3 seconds is maximum permitted delay from timer expire to this function
-	if (alarm_context.c_due_time + 3 < current_time) {
+	// 10 seconds is maximum permitted delay from timer expire to this function
+	if (alarm_context.c_due_time + 10 < current_time) {
 		ALARM_MGR_EXCEPTION_PRINT("[alarm-server]: False Alarm. due time is (%d) seconds past\n",
 			current_time - alarm_context.c_due_time);
 		goto done;
@@ -2545,7 +2554,7 @@ static void __initialize_alarm_list()
 #endif
 }
 
-static void __initialize_scheduled_alarm_lsit()
+static void __initialize_scheduled_alarm_list()
 {
 	_init_scheduled_alarm_list();
 }
@@ -2554,7 +2563,7 @@ static void __initialize_scheduled_alarm_lsit()
 static void __hibernation_leave_callback()
 {
 
-	__initialize_scheduled_alarm_lsit();
+	__initialize_scheduled_alarm_list();
 
 	__alarm_clean_list();
 
@@ -2853,7 +2862,7 @@ static void __initialize()
 					  "alarm-server cannot be runned.\n");
 		exit(1);
 	}
-	__initialize_scheduled_alarm_lsit();
+	__initialize_scheduled_alarm_list();
 	__initialize_db();
 	__initialize_alarm_list();
 	__initialize_noti();
