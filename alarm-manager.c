@@ -1380,7 +1380,7 @@ static void __alarm_expired()
 		"current_time(%d), interval(%d)\n", alarm_context.c_due_time,
 		current_time, interval);
 
-	if (alarm_context.c_due_time > current_time) {
+	if (alarm_context.c_due_time > current_time + 1) {
 		ALARM_MGR_EXCEPTION_PRINT("[alarm-server]: False Alarm. due time is (%d) seconds future\n",
 			alarm_context.c_due_time - current_time);
 		goto done;
