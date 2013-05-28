@@ -1,0 +1,44 @@
+* Tue May 28 2013 Xavier Roche <xavrock.os@gmail.com> accepted/tizen/20130520.103543@9995b34
+- Fix x86_64 build-install compliance
+- do not call deprecated functions
+- add AM_PROG_AR and AM_PROG_AR to satisfy new automake
+- Merge branch 'master' into tizen_2.1
+- Set rtc seconds value
+- set rtc time when time is changed externally
+- Support external time change
+- added new API
+- Adding rtc1->rtc0 symlink, so alarm-manager will work on PR3, which has only one rtc
+- Merge branch 'master' into tizen_2.1
+- Merge branch 'master' into tizen_2.1
+- Added a type
+- merge with master
+- Tizen 2.1 base
+- [systemd] Fix Smack labels for systemd units
+- add new vconf key to get a time-zone change
+- add smack label for booting
+- fixed prevent issue
+- Make sub-packages require paretns with the same epoch value
+- fixed prevent issue
+- fixed prevent issues
+- Fixed prevent issues
+- Merge branch 'systemd'
+- remove "SYSTEM_TIME_CHANGED" heynoti publish sig
+- Give alarm-server a low oom_adj value to avoid killed
+- Fix scripts which cause set date & time failure at first boot
+- Import systemd support patches from RSA
+- change setting time changed vconf key access right
+- update annotated tag info
+- add manifest file for smack rule on alarm-lib
+- add VCONFKEY_SYSTEM_TIME_CHANGED sig to publish time is changed
+- add manifest file for smack rule on alarm-server
+- use app_id instead of pack_name
+- changed operation string
+- tizen build
+- Upload Tizen2.0 source
+- upload tizen1.0 source
+- update for beta universally
+- bug fix
+- merged with private
+- Git init
+- Initial empty repository
+
