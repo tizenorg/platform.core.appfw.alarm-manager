@@ -813,8 +813,8 @@ EXPORT_API int alarmmgr_add_alarm_with_localtime(alarm_entry_t *alarm,
 
 	if (destination != NULL) {
 		memset(dst_service_name, 0,
-		       strlen(destination) + strlen(".ALARM") + 2);
-		snprintf(dst_service_name, MAX_SERVICE_NAME_LEN, "%s",
+		       strlen(destination) + strlen("ALARM.") + 2);
+		snprintf(dst_service_name, MAX_SERVICE_NAME_LEN, "ALARM.%s",
 			 destination);
 
 		memset(dst_service_name_mod,'a',MAX_SERVICE_NAME_LEN-1);
@@ -834,9 +834,6 @@ EXPORT_API int alarmmgr_add_alarm_with_localtime(alarm_entry_t *alarm,
 	                }
 	                j++;
 	        }
-
-		strncat(dst_service_name, ".ALARM", strlen(".ALARM"));
-		strncat(dst_service_name_mod, ".ALARM", strlen(".ALARM"));
 
 		if (!_send_alarm_create
 		    (alarm_context, alarm_info, alarm_id, dst_service_name, dst_service_name_mod,
@@ -1017,8 +1014,8 @@ EXPORT_API int alarmmgr_add_alarm(int alarm_type, time_t trigger_at_time,
 
 	if (destination != NULL) {
 		memset(dst_service_name, 0,
-		       strlen(destination) + strlen(".ALARM") + 2);
-		snprintf(dst_service_name, MAX_SERVICE_NAME_LEN, "%s",
+		       strlen(destination) + strlen("ALARM.") + 2);
+		snprintf(dst_service_name, MAX_SERVICE_NAME_LEN, "ALARM.%s",
 			 destination);
 		memset(dst_service_name_mod,'a',MAX_SERVICE_NAME_LEN-1);
 
@@ -1037,9 +1034,6 @@ EXPORT_API int alarmmgr_add_alarm(int alarm_type, time_t trigger_at_time,
 	                }
 	                j++;
 	        }
-
-		strncat(dst_service_name, ".ALARM", strlen(".ALARM"));
-		strncat(dst_service_name_mod, ".ALARM", strlen(".ALARM"));
 
 		if (!_send_alarm_create
 		    (alarm_context, &alarm_info, alarm_id, dst_service_name,dst_service_name_mod,
@@ -1135,7 +1129,7 @@ EXPORT_API int alarmmgr_remove_alarm(alarm_id_t alarm_id)
 	if (ret < 0)
 		return ret;
 
-	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarm_delete() is called\n");
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarm_delete(%d) is called\n", alarm_id);
 
 	if (alarm_id <= 0) {
 		return ERR_ALARM_INVALID_ID;
@@ -1300,8 +1294,8 @@ int alarmmgr_create(alarm_info_t *alarm_info, char *destination,
 
 	if (destination != NULL) {
 		memset(dst_service_name, 0,
-		       strlen(destination) + strlen(".ALARM") + 2);
-		snprintf(dst_service_name, MAX_SERVICE_NAME_LEN, "%s.ALARM",
+		       strlen(destination) + strlen("ALARM.") + 2);
+		snprintf(dst_service_name, MAX_SERVICE_NAME_LEN, "ALARM.%s",
 			 destination);
 		if (!_send_alarm_create
 		    (alarm_context, alarm_info, alarm_id, dst_service_name,"null",

@@ -1529,11 +1529,11 @@ static void __alarm_expired()
 				if (strncmp
 			    		(g_quark_to_string(__alarm_info->quark_dst_service_name),
 					     "null",4) == 0) {
-					strncpy(appid,g_quark_to_string(__alarm_info->quark_app_service_name),strlen(g_quark_to_string(__alarm_info->quark_app_service_name))-6);
+					strncpy(appid,g_quark_to_string(__alarm_info->quark_app_service_name)+6,strlen(g_quark_to_string(__alarm_info->quark_app_service_name))-6);
 				}
 				else
 				{
-					strncpy(appid,g_quark_to_string(__alarm_info->quark_dst_service_name),strlen(g_quark_to_string(__alarm_info->quark_dst_service_name))-6);
+					strncpy(appid,g_quark_to_string(__alarm_info->quark_dst_service_name)+6,strlen(g_quark_to_string(__alarm_info->quark_dst_service_name))-6);
 				}
 
 				snprintf(alarm_id_str, 31, "%d", alarm_id);
@@ -2629,6 +2629,8 @@ static DBusHandlerResult __alarm_server_filter(DBusConnection *connection,
 		for (entry = g_expired_alarm_list; entry; entry = entry->next) {
 			if (entry->data) {
 				expire_info = (__expired_alarm_t *) entry->data;
+
+				ALARM_MGR_LOG_PRINT("service_name(%s), service(%s)", expire_info->service_name, service);
 
 				if (strcmp(expire_info->service_name, service)
 				    == 0) {
