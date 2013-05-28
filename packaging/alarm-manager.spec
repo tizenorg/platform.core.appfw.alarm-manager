@@ -90,9 +90,9 @@ mkdir -p %{buildroot}/%{_sysconfdir}/rc.d/rc5.d
 ln -s ../init.d/alarm-server_run %{buildroot}/%{_sysconfdir}/rc.d/rc3.d/S80alarm-server
 ln -s ../init.d/alarm-server_run %{buildroot}/%{_sysconfdir}/rc.d/rc5.d/S80alarm-server
 
-install -d %{buildroot}%{_libdir}/systemd/system/multi-user.target.wants
-install -m0644 %{SOURCE101} %{buildroot}%{_libdir}/systemd/system/
-ln -sf ../alarm-server.service %{buildroot}%{_libdir}/systemd/system/multi-user.target.wants/alarm-server.service
+install -d %{buildroot}%{_unitdir}/multi-user.target.wants
+install -m0644 %{SOURCE101} %{buildroot}%{_unitdir}
+ln -sf ../alarm-server.service %{buildroot}%{_unitdir}/multi-user.target.wants/alarm-server.service
 
 mkdir -p %{buildroot}/%{_sysconfdir}/udev/rules.d
 install -m0644  %{SOURCE102} %{buildroot}%{_sysconfdir}/udev/rules.d/
@@ -127,8 +127,8 @@ fi
 %attr(0755,root,root) %{_sysconfdir}/init.d/alarm-server_run
 %attr(0755,root,root) %{_sysconfdir}/rc.d/rc3.d/S80alarm-server
 %attr(0755,root,root) %{_sysconfdir}/rc.d/rc5.d/S80alarm-server
-%{_libdir}/systemd/system/multi-user.target.wants/alarm-server.service
-%{_libdir}/systemd/system/alarm-server.service
+%{_unitdir}/multi-user.target.wants/alarm-server.service
+%{_unitdir}/alarm-server.service
 %ifarch %{arm}
  %exclude %{_sysconfdir}/udev/rules.d/60-alarm-manager-rtc.rules
 %else
