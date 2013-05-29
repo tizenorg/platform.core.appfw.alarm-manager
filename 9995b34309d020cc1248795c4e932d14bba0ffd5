@@ -1,0 +1,8 @@
+Change-Id: I9995b34309d020cc1248795c4e932d14bba0ffd5
+Code-Review+2: Anas Nashif
+Verified+1: Rusty Lynch <rusty.lynch@intel.com>
+Submitted-by: Rusty Lynch <rusty.lynch@intel.com>
+Submitted-at: Wed, 29 May 2013 00:14:55 -0700
+Reviewed-on: https://review.tizen.org/gerrit/3690
+Project: platform/core/appfw/alarm-manager
+Branch: refs/heads/tizen
