@@ -1,0 +1,8 @@
+Change-Id: I28c73d277b172b7195796a214b6a589c40cc9ed6
+Code-Review+2: Anas Nashif
+Verified+1: Xavier Roche <xavier.roche@eurogiciel.fr>
+Submitted-by: Anas Nashif
+Submitted-at: Thu, 30 May 2013 05:00:15 -0700
+Reviewed-on: https://review.tizen.org/gerrit/3765
+Project: platform/core/appfw/alarm-manager
+Branch: refs/heads/tizen
