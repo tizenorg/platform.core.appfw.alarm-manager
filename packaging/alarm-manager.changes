@@ -1,3 +1,6 @@
+* Mon Jun 03 2013 Xavier Roche <xavier.roche@eurogiciel.fr> accepted/tizen/20130520.103543@c4ad7ec
+- Adding Gthread dependency in .pc file
+
 * Tue May 28 2013 Xavier Roche <xavrock.os@gmail.com> accepted/tizen/20130520.103543@9995b34
 - Fix x86_64 build-install compliance
 
