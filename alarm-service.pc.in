@@ -8,5 +8,5 @@ Name: alarm-service
 Description: alarm library
 Version: @VERSION@
 Requires: dbus-1 dbus-glib-1 glib-2.0 gobject-2.0 dlog
-Libs: -L${libdir} -lalarm
+Libs: -L${libdir} -lalarm -lgthread-2.0
 Cflags: -I${includedir}
