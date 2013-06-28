@@ -7,6 +7,7 @@ License:    Apache License, Version 2.0
 Source0:    %{name}-%{version}.tar.gz
 Source101:  packaging/alarm-server.service
 Source102:  packaging/60-alarm-manager-rtc.rules
+Source1001: 	alarm-manager.manifest
 
 Requires(post): /sbin/ldconfig
 Requires(post): /usr/bin/systemctl
@@ -59,6 +60,7 @@ Alarm server library (devel)
 
 %prep
 %setup -q
+cp %{SOURCE1001} .
 
 # HACK_removed_dbus_glib_alarm_manager_object_info.diff
 #%patch0 -p1
@@ -122,7 +124,7 @@ if [ "$1" == 1 ]; then
 fi
 
 %files -n alarm-server
-%manifest alarm-server.manifest
+%manifest %{name}.manifest
 %attr(0755,root,root) %{_bindir}/alarm-server
 %attr(0755,root,root) %{_sysconfdir}/init.d/alarm-server_run
 %attr(0755,root,root) %{_sysconfdir}/rc.d/rc3.d/S80alarm-server
@@ -136,11 +138,12 @@ fi
 %endif
 
 %files -n libalarm
-%manifest alarm-lib.manifest
+%manifest %{name}.manifest
 %attr(0644,root,root) %{_libdir}/libalarm.so.0.0.0
 %{_libdir}/libalarm.so.0
 
 %files -n libalarm-devel
+%manifest %{name}.manifest
 %{_includedir}/*.h
 %{_libdir}/pkgconfig/*.pc
 %{_libdir}/libalarm.so
