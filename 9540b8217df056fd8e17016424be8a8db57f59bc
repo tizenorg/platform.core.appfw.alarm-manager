@@ -1,0 +1,8 @@
+Code-Review+2: Rusty Lynch <rusty.lynch@intel.com>
+Verified+1: Rusty Lynch <rusty.lynch@intel.com>
+Code-Review+1: Michael Demeter <michael.demeter@intel.com>
+Submitted-by: Rusty Lynch <rusty.lynch@intel.com>
+Submitted-at: Mon, 01 Jul 2013 15:29:58 -0700
+Reviewed-on: https://review.tizen.org/gerrit/5301
+Project: platform/core/appfw/alarm-manager
+Branch: refs/heads/tizen
