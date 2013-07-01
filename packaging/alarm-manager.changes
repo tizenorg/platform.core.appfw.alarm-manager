@@ -1,3 +1,6 @@
+* Mon Jul 01 2013 Rusty Lynch <rusty.lynch@intel.com> accepted/tizen/20130603.120957@99b463f
+- Add alarm-service dbus config
+
 * Mon Jun 03 2013 Xavier Roche <xavier.roche@eurogiciel.fr> accepted/tizen/20130520.103543@c4ad7ec
 - Adding Gthread dependency in .pc file
 

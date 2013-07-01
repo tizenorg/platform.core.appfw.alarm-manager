@@ -7,6 +7,7 @@ License:    Apache License, Version 2.0
 Source0:    %{name}-%{version}.tar.gz
 Source101:  packaging/alarm-server.service
 Source102:  packaging/60-alarm-manager-rtc.rules
+Source103:  packaging/alarm-service.conf
 
 Requires(post): /sbin/ldconfig
 Requires(post): /usr/bin/systemctl
@@ -97,6 +98,9 @@ ln -sf ../alarm-server.service %{buildroot}%{_unitdir}/multi-user.target.wants/a
 mkdir -p %{buildroot}/%{_sysconfdir}/udev/rules.d
 install -m0644  %{SOURCE102} %{buildroot}%{_sysconfdir}/udev/rules.d/
 
+mkdir -p %{buildroot}/%{_sysconfdir}/dbus-1/system.d
+install -m0644  %{SOURCE103} %{buildroot}%{_sysconfdir}/dbus-1/system.d/
+
 %preun -n alarm-server
 if [ $1 == 0 ]; then
     systemctl stop alarm-server.service
@@ -129,6 +133,7 @@ fi
 %attr(0755,root,root) %{_sysconfdir}/rc.d/rc5.d/S80alarm-server
 %{_unitdir}/multi-user.target.wants/alarm-server.service
 %{_unitdir}/alarm-server.service
+%{_sysconfdir}/dbus-1/system.d/alarm-service.conf
 %ifarch %{arm}
  %exclude %{_sysconfdir}/udev/rules.d/60-alarm-manager-rtc.rules
 %else
