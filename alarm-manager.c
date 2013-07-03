@@ -681,6 +681,10 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 	int fd = 0;
 	int ret = 0;
 	int i = 0;
+	bundle *b;
+	char caller_appid[512];
+	bundle_raw *b_data = NULL;
+	int datalen = 0;
 
 	__alarm_info_t *__alarm_info = NULL;
 
@@ -739,12 +743,25 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 		    g_quark_from_string(app_name);
 	}
 
-	__alarm_info->quark_bundle=g_quark_from_string(bundle_data);
+	b = bundle_decode((bundle_raw *)bundle_data, strlen(bundle_data));
+	ret = aul_app_get_appid_bypid(pid, caller_appid, 512);
+	if(ret == 0) {
+		bundle_add(b, "__ALARM_MGR_CALLER_APPID", caller_appid);
+	}
+	bundle_encode(b, &b_data, &datalen);
+
+	__alarm_info->quark_bundle=g_quark_from_string(b_data);
 	__alarm_info->quark_app_service_name = g_quark_from_string("null");
 	__alarm_info->quark_dst_service_name = g_quark_from_string("null");
 	__alarm_info->quark_app_service_name_mod = g_quark_from_string("null");
 	__alarm_info->quark_dst_service_name_mod = g_quark_from_string("null");
 
+	bundle_free(b);
+	if (b_data) {
+		free(b_data);
+		b_data = NULL;
+	}
+	
 	__alarm_set_start_and_end_time(alarm_info, __alarm_info);
 	memcpy(&(__alarm_info->alarm_info), alarm_info, sizeof(alarm_info_t));
 	__alarm_generate_alarm_id(__alarm_info, alarm_id);
