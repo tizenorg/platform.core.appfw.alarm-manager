@@ -2474,6 +2474,7 @@ gboolean alarm_manager_alarm_get_next_duetime(void *pObject, int pid,
 
 	GSList *gs_iter = NULL;
 	__alarm_info_t *entry = NULL;
+	__alarm_info_t *find_item = NULL;
 
 	*return_code = 0;
 
@@ -2481,18 +2482,19 @@ gboolean alarm_manager_alarm_get_next_duetime(void *pObject, int pid,
 	     gs_iter = g_slist_next(gs_iter)) {
 		entry = gs_iter->data;
 		if (entry->alarm_id == alarm_id) {
+			find_item = entry;
 			break;
 		}
 	}
 
-	if (entry == NULL)
+	if (find_item == NULL)
 	{
 		ALARM_MGR_EXCEPTION_PRINT("alarm id(%d) was not found\n",
 					  alarm_id);
 		*return_code = ERR_ALARM_INVALID_ID;
 	} else {
 		ALARM_MGR_LOG_PRINT("alarm was found\n");
-		*duetime = _alarm_next_duetime(entry);
+		*duetime = _alarm_next_duetime(find_item);
 		*return_code = 0;
 	}
 	return true;
