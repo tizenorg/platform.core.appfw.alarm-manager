@@ -8,6 +8,10 @@ Source0:    %{name}-%{version}.tar.gz
 Source101:  alarm-server.service
 Source102:  60-alarm-manager-rtc.rules
 Source103:  alarm-service.conf
+Source1001:	%{name}.manifest
+Source1002:	alarm-server.manifest
+Source1003:	libalarm.manifest
+Source1004:	libalarm-devel.manifest
 
 Requires(post): /sbin/ldconfig
 Requires(post): /usr/bin/systemctl
@@ -60,6 +64,7 @@ Alarm server library (devel)
 
 %prep
 %setup -q
+cp %{SOURCE1001} %{SOURCE1002} %{SOURCE1003} %{SOURCE1004} .
 
 # HACK_removed_dbus_glib_alarm_manager_object_info.diff
 #%patch0 -p1
@@ -141,11 +146,12 @@ fi
 %endif
 
 %files -n libalarm
-%manifest alarm-lib.manifest
+%manifest libalarm.manifest
 %attr(0644,root,root) %{_libdir}/libalarm.so.0.0.0
 %{_libdir}/libalarm.so.0
 
 %files -n libalarm-devel
+%manifest libalarm-devel.manifest
 %{_includedir}/*.h
 %{_libdir}/pkgconfig/*.pc
 %{_libdir}/libalarm.so
