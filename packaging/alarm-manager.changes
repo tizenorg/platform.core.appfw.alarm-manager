@@ -1,3 +1,7 @@
+* Tue Jul 30 2013 Philippe Coval <philippe.coval@eurogiciel.fr> submit/tizen/20130701.230928@15ffb04
+- packaging: append symlink to udev's rtc list
+  Bug-Tizen: TZPC-3515 (Date&Time is restored to default after reboot)	
+
 * Mon Jul 01 2013 Rusty Lynch <rusty.lynch@intel.com> accepted/tizen/20130603.120957@99b463f
 - Add alarm-service dbus config
 

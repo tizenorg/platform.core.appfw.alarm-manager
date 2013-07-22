@@ -1,1 +1,1 @@
-KERNEL=="rtc0" SYMLINK="rtc1"
+KERNEL=="rtc0" SYMLINK+="rtc1"
