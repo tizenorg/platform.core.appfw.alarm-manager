@@ -1063,7 +1063,9 @@ EXPORT_API int alarmmgr_add_alarm_withcb(int alarm_type, time_t trigger_at_time,
 	int ret;
 	char appid[256];
 
-	aul_app_get_appid_bypid(getpid(), appid, sizeof(appid));
+        ret = aul_app_get_appid_bypid(getpid(), appid, sizeof(appid));
+        if (ret != AUL_R_OK)
+        	return ERR_ALARM_SYSTEM_FAIL;
 
 	ret = alarmmgr_init(appid);
 	if (ret < 0)
