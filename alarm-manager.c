@@ -284,8 +284,6 @@ int _set_rtc_time(time_t _time)
 	retval0 = ioctl(fd0, RTC_SET_TIME, &rtc_tm);
 
 	if (retval0 == -1) {
-		if (fd0 != -1)
-			close(fd0);
 		ALARM_MGR_LOG_PRINT("error to ioctl fd0.");
 		perror("\t");
 	}
@@ -296,8 +294,6 @@ int _set_rtc_time(time_t _time)
 		retval1 = ioctl(fd1, RTC_SET_TIME, &rtc_tm);
 
 		if (retval1 == -1) {
-			if (fd1 != -1)
-				close(fd1);
 			ALARM_MGR_LOG_PRINT("error to ioctl fd1.");
 			perror("\t");
 		}
@@ -1535,7 +1531,7 @@ static void __alarm_expired()
 					ALARM_MGR_ASSERT_PRINT("[alarm-server]:Malloc failed!Can't notify alarm expiry info\n");
 					goto done;
 				}
-				memset(expire_info, '\0', MAX_SERVICE_NAME_LEN);
+				memset(expire_info, '\0', sizeof(__expired_alarm_t));
 				strncpy(expire_info->service_name,
 					destination_app_service_name,
 					MAX_SERVICE_NAME_LEN-1);
