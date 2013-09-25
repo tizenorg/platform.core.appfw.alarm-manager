@@ -96,7 +96,7 @@ bool _alarm_set_timer(__alarm_server_context_t *alarm_context, timer_t timer,
 	
 	extern int errno;
 
-	time(&current_time);
+	_alarm_time(&current_time);
 
 	interval = difftime(due_time, current_time);
 	ALARM_MGR_LOG_PRINT("[alarm-server][timer]: remain time from "
@@ -156,4 +156,15 @@ int _set_time(time_t _time)
 	 * send system noti that time has changed */
 
 	return 0;
+}
+
+time_t _alarm_time(time_t *tp)
+{
+	struct timespec tspec;
+
+	clock_gettime(CLOCK_REALTIME, &tspec);
+
+	*tp = tspec.tv_sec;
+
+	return *tp;
 }
