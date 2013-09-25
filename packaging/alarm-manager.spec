@@ -1,95 +1,74 @@
-Name:       alarm-manager
-Summary:    Alarm library
-Version:    0.4.84
-Release:    1
-Group:      System/Libraries
-License:    Apache License, Version 2.0
-Source0:    %{name}-%{version}.tar.gz
-Source101:  alarm-server.service
-Source102:  60-alarm-manager-rtc.rules
-Source103:  alarm-service.conf
+Name:           alarm-manager
+Version:        0.4.84
+Release:        1
+License:        Apache-2.0
+Summary:        Alarm library
+Group:          Application Framework/Libraries
+Source0:        %{name}-%{version}.tar.gz
+Source101:      alarm-server.service
+Source102:      60-alarm-manager-rtc.rules
+Source103:      alarm-service.conf
+Source1001:     %{name}.manifest
 
-Requires(post): /sbin/ldconfig
-Requires(post): /usr/bin/systemctl
-Requires(postun): /sbin/ldconfig
-Requires(postun): /usr/bin/systemctl
-Requires(preun): /usr/bin/systemctl
 
-BuildRequires: pkgconfig(dbus-1)
-BuildRequires: pkgconfig(glib-2.0)
-BuildRequires: pkgconfig(dbus-glib-1)
-BuildRequires: pkgconfig(pmapi)
-BuildRequires: pkgconfig(dlog)
-BuildRequires: pkgconfig(heynoti)
-BuildRequires: pkgconfig(aul)
-BuildRequires: pkgconfig(bundle)
-BuildRequires: pkgconfig(security-server)
-BuildRequires: pkgconfig(db-util)
-BuildRequires: pkgconfig(vconf)
-BuildRequires: pkgconfig(tapi)
-BuildRequires: pkgconfig(appsvc)
+BuildRequires:  pkgconfig(appsvc)
+BuildRequires:  pkgconfig(aul)
+BuildRequires:  pkgconfig(bundle)
+BuildRequires:  pkgconfig(db-util)
+BuildRequires:  pkgconfig(dbus-1)
+BuildRequires:  pkgconfig(dbus-glib-1)
+BuildRequires:  pkgconfig(dlog)
+BuildRequires:  pkgconfig(glib-2.0)
+BuildRequires:  pkgconfig(heynoti)
+BuildRequires:  pkgconfig(pmapi)
+BuildRequires:  pkgconfig(security-server)
+BuildRequires:  pkgconfig(tapi)
+BuildRequires:  pkgconfig(vconf)
 
 %description
 Alarm Server and devel libraries
 
 %package -n alarm-server
-Summary:    Alarm server (devel)
-Group:      Development/Libraries
+Summary:        Alarm server (devel)
+Requires(post): /usr/bin/systemctl
+Requires(postun): /usr/bin/systemctl
+Requires(preun): /usr/bin/systemctl
 
 %description -n alarm-server
 Alarm Server
 
-
 %package -n libalarm
-Summary:    Alarm server libraries
-Group:      Development/Libraries
-Requires:   alarm-server = %{?epoch:%{epoch}:}%{version}-%{release}
+Summary:        Alarm server libraries
+Requires:       alarm-server = %{version}-%{release}
 
 %description -n libalarm
 Alarm server library
 
-
 %package -n libalarm-devel
-Summary:    Alarm server libraries(devel)
-Group:      Development/Libraries
-Requires:   libalarm = %{?epoch:%{epoch}:}%{version}-%{release}
-
+Summary:        Alarm server libraries(devel)
+Requires:       libalarm = %{version}-%{release}
 
 %description -n libalarm-devel
 Alarm server library (devel)
 
 %prep
 %setup -q
+cp %{SOURCE1001} .
 
-# HACK_removed_dbus_glib_alarm_manager_object_info.diff
-#%patch0 -p1
 
 %build
-
-export LDFLAGS+=" -Wl,--rpath=%{_libdir} -Wl,--as-needed"
-
 %autogen --disable-static
-
 dbus-binding-tool --mode=glib-server --prefix=alarm_manager ./alarm_mgr.xml > ./include/alarm-skeleton.h
 dbus-binding-tool --mode=glib-client --prefix=alarm_manager ./alarm_mgr.xml > ./include/alarm-stub.h
 dbus-binding-tool --mode=glib-server --prefix=alarm_client ./alarm-expire.xml > ./include/alarm-expire-skeleton.h
 dbus-binding-tool --mode=glib-client --prefix=alarm_client ./alarm-expire.xml > ./include/alarm-expire-stub.h
 
 %configure --disable-static
-make %{?jobs:-j%jobs}
+make %{?_smp_mflags}
 
 
 %install
-rm -rf %{buildroot}
 %make_install
-
-mkdir -p %{buildroot}/etc/init.d
-install -m 755 alarm-server_run %{buildroot}/etc/init.d
-
-mkdir -p %{buildroot}/%{_sysconfdir}/rc.d/rc3.d
-mkdir -p %{buildroot}/%{_sysconfdir}/rc.d/rc5.d
-ln -s ../init.d/alarm-server_run %{buildroot}/%{_sysconfdir}/rc.d/rc3.d/S80alarm-server
-ln -s ../init.d/alarm-server_run %{buildroot}/%{_sysconfdir}/rc.d/rc5.d/S80alarm-server
 
 install -d %{buildroot}%{_unitdir}/multi-user.target.wants
 install -m0644 %{SOURCE101} %{buildroot}%{_unitdir}
@@ -107,7 +86,6 @@ if [ $1 == 0 ]; then
 fi
 
 %post -n alarm-server
-/sbin/ldconfig
 
 vconftool set -t int db/system/timechange 0
 vconftool set -t double db/system/timechange_external 0
@@ -119,18 +97,15 @@ if [ $1 == 1 ]; then
 fi
 
 %postun -n alarm-server
-/sbin/ldconfig
 systemctl daemon-reload
 if [ "$1" == 1 ]; then
     systemctl restart net-config.service
 fi
 
 %files -n alarm-server
-%manifest alarm-server.manifest
+%manifest %{name}.manifest
+%license LICENSE
 %attr(0755,root,root) %{_bindir}/alarm-server
-%attr(0755,root,root) %{_sysconfdir}/init.d/alarm-server_run
-%attr(0755,root,root) %{_sysconfdir}/rc.d/rc3.d/S80alarm-server
-%attr(0755,root,root) %{_sysconfdir}/rc.d/rc5.d/S80alarm-server
 %{_unitdir}/multi-user.target.wants/alarm-server.service
 %{_unitdir}/alarm-server.service
 %{_sysconfdir}/dbus-1/system.d/alarm-service.conf
@@ -140,12 +115,19 @@ fi
  %{_sysconfdir}/udev/rules.d/60-alarm-manager-rtc.rules
 %endif
 
+%post -n libalarm -p /sbin/ldconfig
+
+%postun -n libalarm -p /sbin/ldconfig
+
 %files -n libalarm
+%manifest %{name}.manifest
+%license LICENSE
 %manifest alarm-lib.manifest
 %attr(0644,root,root) %{_libdir}/libalarm.so.0.0.0
 %{_libdir}/libalarm.so.0
 
 %files -n libalarm-devel
+%manifest %{name}.manifest
 %{_includedir}/*.h
 %{_libdir}/pkgconfig/*.pc
 %{_libdir}/libalarm.so
