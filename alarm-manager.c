@@ -625,7 +625,7 @@ static bool __alarm_update_due_time_of_all_items_in_list(double diff_time)
 		ALARM_MGR_LOG_PRINT("entry->due_time is %d\n", entry->due_time);
 	}
 
-	time(&current_time);
+	_alarm_time(&current_time);
 
 	for (iter = alarm_context.alarms; iter != NULL;
 	     iter = g_slist_next(iter)) {
@@ -762,7 +762,7 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 	memcpy(&(__alarm_info->alarm_info), alarm_info, sizeof(alarm_info_t));
 	__alarm_generate_alarm_id(__alarm_info, alarm_id);
 
-	time(&current_time);
+	_alarm_time(&current_time);
 
 	if (alarm_context.c_due_time < current_time) {
 		ALARM_MGR_EXCEPTION_PRINT("Caution!! alarm_context.c_due_time "
@@ -918,7 +918,7 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
 	memcpy(&(__alarm_info->alarm_info), alarm_info, sizeof(alarm_info_t));
 	__alarm_generate_alarm_id(__alarm_info, alarm_id);
 
-	time(&current_time);
+	_alarm_time(&current_time);
 
 	ALARM_MGR_LOG_PRINT("[alarm-server]:pid=%d, app_unique_name=%s, "
 		"app_service_name=%s,dst_service_name=%s, c_due_time=%d", \
@@ -1022,7 +1022,7 @@ static bool __alarm_update(int pid, char *app_service_name, alarm_id_t alarm_id,
 	__alarm_set_start_and_end_time(alarm_info, __alarm_info);
 	memcpy(&(__alarm_info->alarm_info), alarm_info, sizeof(alarm_info_t));
 
-	time(&current_time);
+	_alarm_time(&current_time);
 
 	if (alarm_context.c_due_time < current_time) {
 		ALARM_MGR_EXCEPTION_PRINT("Caution!! alarm_context.c_due_time "
@@ -1199,7 +1199,7 @@ static bool __alarm_power_on(int app_id, bool on_off, int *error_code)
 
 			min_time = min_time - 60;
 
-			time(&current_time);
+			_alarm_time(&current_time);
 
 			if (min_time <= current_time)
 				min_time = current_time + 5;
@@ -1293,7 +1293,7 @@ static bool __alarm_check_next_duetime(int app_id, int *error_code)
 	time_t current_time;
 	time_t interval;
 
-	time(&current_time);
+	_alarm_time(&current_time);
 
 	interval = ab_due_time - current_time;
 
@@ -1386,7 +1386,7 @@ static void __alarm_expired()
 	time_t current_time;
 	double interval;
 
-	time(&current_time);
+	_alarm_time(&current_time);
 
 	interval = difftime(alarm_context.c_due_time, current_time);
 	ALARM_MGR_LOG_PRINT("[alarm-server]: c_due_time(%d), "
@@ -1669,7 +1669,7 @@ static void __on_system_time_changed(keynode_t *node, void *data)
 		vconf_get_int(VCONFKEY_SYSTEM_TIMECHANGE, (int *)&_time);
 	}
 
-	time(&before);
+	_alarm_time(&before);
 	diff_time = difftime(_time, before);
 
 	tzset();
@@ -1719,7 +1719,7 @@ static void __on_system_time_external_changed(keynode_t *node, void *data)
 	}
 
 	tzset();
-	time(&cur_time);
+	_alarm_time(&cur_time);
 
 	ALARM_MGR_EXCEPTION_PRINT("diff_time is %f, New time is %s\n", diff_time, ctime(&cur_time));
 
@@ -2890,7 +2890,7 @@ static bool __check_false_alarm()
 	time_t current_time;
 	time_t interval;
 
-	time(&current_time);
+	_alarm_time(&current_time);
 
 	interval = ab_due_time - current_time;
 
