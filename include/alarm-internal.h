@@ -227,9 +227,9 @@ int _set_time(time_t _time);
 #define ALARM_MGR_ASSERT_PRINT(FMT, ARG...) do { printf("%5d", getpid()); printf
 	("%s() : "FMT"\n", __FUNCTION__, ##ARG); } while (false)
 #else
-#define ALARM_MGR_LOG_PRINT(FMT, ARG...) SLOGD(FMT, ##ARG);
-#define ALARM_MGR_EXCEPTION_PRINT(FMT, ARG...) SLOGW(FMT, ##ARG);
-#define ALARM_MGR_ASSERT_PRINT(FMT, ARG...) SLOGE(FMT, ##ARG);
+#define ALARM_MGR_LOG_PRINT(FMT, ARG...) LOGI(FMT, ##ARG);
+#define ALARM_MGR_EXCEPTION_PRINT(FMT, ARG...) LOGW(FMT, ##ARG);
+#define ALARM_MGR_ASSERT_PRINT(FMT, ARG...) LOGE(FMT, ##ARG);
 #endif
 
 /* int alarmmgr_check_next_duetime();*/

@@ -620,3 +620,33 @@ bool _send_alarm_get_info(alarm_context_t context, alarm_id_t alarm_id,
 	return true;
 
 }
+
+bool _send_alarm_get_next_duetime(alarm_context_t context,
+				 alarm_id_t alarm_id, time_t* duetime,
+				 int *error_code)
+{
+	GError *error = NULL;
+	int return_code = 0;
+
+	if (!org_tizen_alarm_manager_alarm_get_next_duetime(context.proxy,
+			     context.pid, alarm_id, duetime, &return_code, &error)) {
+		/*dbus-glib error */
+		/*error_code should be set */
+		ALARM_MGR_EXCEPTION_PRINT(
+		"org_tizen_alarm_manager_alarm_get_next_duetime() failed. "
+		     "alarm_id[%d], return_code[%d]\n", alarm_id, return_code);
+		if (error_code)
+			*error_code = -1;	/*-1 means that system
+							failed internally.*/
+
+		return false;
+	}
+
+	if (return_code != 0) {
+		if (error_code)
+			*error_code = return_code;
+		return false;
+	}
+	return true;
+}
+

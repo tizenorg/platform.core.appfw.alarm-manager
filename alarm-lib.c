@@ -252,7 +252,7 @@ static int __sub_init()
 	GError *error = NULL;
 
 	if (sub_initialized) {
-		ALARM_MGR_EXCEPTION_PRINT("__sub_init was already called.\n");
+		//ALARM_MGR_LOG_PRINT("__sub_init was already called.\n");
 		return ALARMMGR_RESULT_SUCCESS;
 	}
 
@@ -293,7 +293,7 @@ bool alarm_power_off(int *error_code)
 			"[alarm-lib]:ALARM_BOOT feature is not supported. "
 			    "so we return false.\n");
 	if (error_code)
-		*error_code = -1;	/*-1 means that system failed 
+		*error_code = -1;	/*-1 means that system failed
 							internally.*/
 	return false;
 #endif
@@ -328,6 +328,7 @@ EXPORT_API int alarmmgr_init(const char *appid)
 	int ret;
 	int i = 0;
 	int j = 0;
+	int len = 0;
 
 	if (appid == NULL)
 		return ERR_ALARM_INVALID_PARAM;
@@ -347,7 +348,10 @@ EXPORT_API int alarmmgr_init(const char *appid)
 		return ret;
 
 	memset(service_name_mod, 'a', MAX_SERVICE_NAME_LEN-1);
-	strncpy(service_name, appid, MAX_PKG_NAME_LEN);
+
+	len = strlen("ALARM.");
+	strncpy(service_name, "ALARM.", len);
+	strncpy(service_name + len, appid, strlen(appid));
 
 	j=0;
 
@@ -364,10 +368,8 @@ EXPORT_API int alarmmgr_init(const char *appid)
                 j++;
         }
 
-	strncat(service_name, ".ALARM", strlen(".ALARM"));
-
-	strncat(service_name_mod, ".ALARM", strlen(".ALARM"));
-
+	ALARM_MGR_LOG_PRINT("[alarm-lib]: service_name %s\n", service_name);
+	ALARM_MGR_LOG_PRINT("[alarm-lib]: service_name_mod %s\n", service_name_mod);
 
 	dbus_error_init(&derror);
 
@@ -582,7 +584,6 @@ static int __alarmmgr_init_appsvc(void)
 		return ALARMMGR_RESULT_SUCCESS;
 	}
 
-	
 	dbus_g_thread_init();
 
 	ret = __sub_init();
@@ -590,7 +591,7 @@ static int __alarmmgr_init_appsvc(void)
 		return ret;
 
 	b_initialized = true;
-	
+
 	return ALARMMGR_RESULT_SUCCESS;
 
 }
@@ -666,6 +667,8 @@ EXPORT_API int alarmmgr_add_alarm_appsvc_with_localtime(alarm_entry_t *alarm, vo
 
 	bundle *b=(bundle *)bundle_data;
 
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarm_create() is called\n");
+
 	if (alarm == NULL) {
 		return ERR_ALARM_INVALID_PARAM;
 	}
@@ -676,7 +679,7 @@ EXPORT_API int alarmmgr_add_alarm_appsvc_with_localtime(alarm_entry_t *alarm, vo
 		return ERR_ALARM_INVALID_PARAM;
 	}
 	operation = appsvc_get_operation(b);
-	
+
 	if (NULL == operation)
 	{
 		ALARM_MGR_EXCEPTION_PRINT("Invalid parameter bundle [appsvc operation not present]\n");
@@ -705,10 +708,11 @@ EXPORT_API int alarmmgr_add_alarm_appsvc_with_localtime(alarm_entry_t *alarm, vo
 	}
 	alarm_mode_t *mode = &alarm_info->mode;
 
-	ALARM_MGR_LOG_PRINT("alarm_info->start.year(%d), "
-			    "alarm_info->start.month(%d), alarm_info->start.day(%d)",
-			    alarm_info->start.year, alarm_info->start.month,
-			    alarm_info->start.day);
+	ALARM_MGR_LOG_PRINT("start(%d-%d-%d, %02d:%02d:%02d), end(%d-%d-%d), repeat(%d), interval(%d), type(%d)",
+		alarm_info->start.day, alarm_info->start.month, alarm_info->start.year,
+		alarm_info->start.hour, alarm_info->start.min, alarm_info->start.sec,
+		alarm_info->end.year, alarm_info->end.month, alarm_info->end.day,
+		alarm_info->mode.repeat, alarm_info->mode.u_interval, alarm_info->alarm_type);
 
 	/* TODO: This should be changed to > ALARM_REPEAT_MODE_MAX ? */
 	if (mode->repeat >= ALARM_REPEAT_MODE_MAX) {
@@ -735,7 +739,7 @@ EXPORT_API int alarmmgr_add_alarm_appsvc_with_localtime(alarm_entry_t *alarm, vo
 	    (alarm_context, alarm_info, alarm_id, b,
 	     &error_code)) {
 		return error_code;
-	}	
+	}
 
 	return ALARMMGR_RESULT_SUCCESS;
 }
@@ -754,6 +758,8 @@ EXPORT_API int alarmmgr_add_alarm_with_localtime(alarm_entry_t *alarm,
 	int i = 0;
 	int j = 0;
 
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarm_create() is called\n");
+
 	if (alarm == NULL) {
 		return ERR_ALARM_INVALID_PARAM;
 	}
@@ -770,12 +776,11 @@ EXPORT_API int alarmmgr_add_alarm_with_localtime(alarm_entry_t *alarm,
 	if (ret < 0)
 		return ret;
 
-	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarm_create() is called\n");
-
-	ALARM_MGR_LOG_PRINT("alarm_info->start.year(%d), "
-			    "alarm_info->start.month(%d), alarm_info->start.day(%d)",
-			    alarm_info->start.year, alarm_info->start.month,
-			    alarm_info->start.day);
+	ALARM_MGR_LOG_PRINT("start(%d-%d-%d, %02d:%02d:%02d), end(%d-%d-%d), repeat(%d), interval(%d), type(%d)",
+		alarm_info->start.day, alarm_info->start.month, alarm_info->start.year,
+		alarm_info->start.hour, alarm_info->start.min, alarm_info->start.sec,
+		alarm_info->end.year, alarm_info->end.month, alarm_info->end.day,
+		alarm_info->mode.repeat, alarm_info->mode.u_interval, alarm_info->alarm_type);
 
 	/* TODO: This should be changed to > ALARM_REPEAT_MODE_MAX ? */
 	if (mode->repeat >= ALARM_REPEAT_MODE_MAX) {
@@ -805,8 +810,8 @@ EXPORT_API int alarmmgr_add_alarm_with_localtime(alarm_entry_t *alarm,
 
 	if (destination != NULL) {
 		memset(dst_service_name, 0,
-		       strlen(destination) + strlen(".ALARM") + 2);
-		snprintf(dst_service_name, MAX_SERVICE_NAME_LEN, "%s",
+		       strlen(destination) + strlen("ALARM.") + 2);
+		snprintf(dst_service_name, MAX_SERVICE_NAME_LEN, "ALARM.%s",
 			 destination);
 
 		memset(dst_service_name_mod,'a',MAX_SERVICE_NAME_LEN-1);
@@ -826,9 +831,6 @@ EXPORT_API int alarmmgr_add_alarm_with_localtime(alarm_entry_t *alarm,
 	                }
 	                j++;
 	        }
-
-		strncat(dst_service_name, ".ALARM", strlen(".ALARM"));
-		strncat(dst_service_name_mod, ".ALARM", strlen(".ALARM"));
 
 		if (!_send_alarm_create
 		    (alarm_context, alarm_info, alarm_id, dst_service_name, dst_service_name_mod,
@@ -857,6 +859,8 @@ EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 	const char *operation = NULL;
 	char *appid = NULL;
 
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarm_create() is called\n");
+
 	bundle *b=(bundle *)bundle_data;
 
 	if (NULL == b)
@@ -865,7 +869,7 @@ EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 		return ERR_ALARM_INVALID_PARAM;
 	}
 	operation = appsvc_get_operation(b);
-	
+
 	if (NULL == operation)
 	{
 		ALARM_MGR_EXCEPTION_PRINT("Invalid parameter bundle [appsvc operation not present]\n");
@@ -885,8 +889,6 @@ EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 		ALARM_MGR_EXCEPTION_PRINT("Unable to initialize dbus!!!\n");
 		return ERR_ALARM_SYSTEM_FAIL;
 	}
-
-	ALARM_MGR_LOG_PRINT("interval(%d)", interval);
 
 	if (alarm_id == NULL) {
 		return ERR_ALARM_INVALID_PARAM;
@@ -925,11 +927,16 @@ EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 		alarm_info.mode.u_interval.interval = interval;
 	}
 
+	ALARM_MGR_LOG_PRINT("trigger_at_time(%d), start(%d-%d-%d, %02d:%02d:%02d), repeat(%d), interval(%d), type(%d)",
+		trigger_at_time, alarm_info.start.day, alarm_info.start.month, alarm_info.start.year,
+		alarm_info.start.hour, alarm_info.start.min, alarm_info.start.sec,
+		alarm_info.mode.repeat, alarm_info.mode.u_interval, alarm_info.alarm_type);
+
 	if (!_send_alarm_create_appsvc
 	    (alarm_context, &alarm_info, alarm_id, b,
 	     &error_code)) {
 		return error_code;
-	}	
+	}
 
 	return ALARMMGR_RESULT_SUCCESS;
 }
@@ -949,13 +956,11 @@ EXPORT_API int alarmmgr_add_alarm(int alarm_type, time_t trigger_at_time,
 	alarm_info_t alarm_info;
 	int ret;
 
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarm_create() is called\n");
+
 	ret = __sub_init();
 	if (ret < 0)
 		return ret;
-
-	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarm_create() is called\n");
-
-	ALARM_MGR_LOG_PRINT("interval(%d)", interval);
 
 	if (alarm_id == NULL) {
 		return ERR_ALARM_INVALID_PARAM;
@@ -999,10 +1004,15 @@ EXPORT_API int alarmmgr_add_alarm(int alarm_type, time_t trigger_at_time,
 		alarm_info.mode.u_interval.interval = interval;
 	}
 
+	ALARM_MGR_LOG_PRINT("trigger_at_time(%d), start(%d-%d-%d, %02d:%02d:%02d), repeat(%d), interval(%d), type(%d)",
+		trigger_at_time, alarm_info.start.day, alarm_info.start.month, alarm_info.start.year,
+		alarm_info.start.hour, alarm_info.start.min, alarm_info.start.sec,
+		alarm_info.mode.repeat, alarm_info.mode.u_interval, alarm_info.alarm_type);
+
 	if (destination != NULL) {
 		memset(dst_service_name, 0,
-		       strlen(destination) + strlen(".ALARM") + 2);
-		snprintf(dst_service_name, MAX_SERVICE_NAME_LEN, "%s",
+		       strlen(destination) + strlen("ALARM.") + 2);
+		snprintf(dst_service_name, MAX_SERVICE_NAME_LEN, "ALARM.%s",
 			 destination);
 		memset(dst_service_name_mod,'a',MAX_SERVICE_NAME_LEN-1);
 
@@ -1021,9 +1031,6 @@ EXPORT_API int alarmmgr_add_alarm(int alarm_type, time_t trigger_at_time,
 	                }
 	                j++;
 	        }
-
-		strncat(dst_service_name, ".ALARM", strlen(".ALARM"));
-		strncat(dst_service_name_mod, ".ALARM", strlen(".ALARM"));
 
 		if (!_send_alarm_create
 		    (alarm_context, &alarm_info, alarm_id, dst_service_name,dst_service_name_mod,
@@ -1053,7 +1060,9 @@ EXPORT_API int alarmmgr_add_alarm_withcb(int alarm_type, time_t trigger_at_time,
 	int ret;
 	char appid[256];
 
-	aul_app_get_appid_bypid(getpid(), appid, sizeof(appid));
+        ret = aul_app_get_appid_bypid(getpid(), appid, sizeof(appid));
+        if (ret != AUL_R_OK)
+        	return ERR_ALARM_SYSTEM_FAIL;
 
 	ret = alarmmgr_init(appid);
 	if (ret < 0)
@@ -1119,7 +1128,7 @@ EXPORT_API int alarmmgr_remove_alarm(alarm_id_t alarm_id)
 	if (ret < 0)
 		return ret;
 
-	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarm_delete() is called\n");
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarm_delete(%d) is called\n", alarm_id);
 
 	if (alarm_id <= 0) {
 		return ERR_ALARM_INVALID_ID;
@@ -1284,8 +1293,8 @@ int alarmmgr_create(alarm_info_t *alarm_info, char *destination,
 
 	if (destination != NULL) {
 		memset(dst_service_name, 0,
-		       strlen(destination) + strlen(".ALARM") + 2);
-		snprintf(dst_service_name, MAX_SERVICE_NAME_LEN, "%s.ALARM",
+		       strlen(destination) + strlen("ALARM.") + 2);
+		snprintf(dst_service_name, MAX_SERVICE_NAME_LEN, "ALARM.%s",
 			 destination);
 		if (!_send_alarm_create
 		    (alarm_context, alarm_info, alarm_id, dst_service_name,"null",
@@ -1337,6 +1346,22 @@ int alarmmgr_get_list_of_ids(int maxnum_of_ids, alarm_id_t *alarm_id,
 
 	if (!_send_alarm_get_list_of_ids
 	    (alarm_context, maxnum_of_ids, alarm_id, num_of_ids, &error_code))
+		return error_code;
+
+	return ALARMMGR_RESULT_SUCCESS;
+}
+
+EXPORT_API int alarmmgr_get_next_duetime(alarm_id_t alarm_id, time_t* duetime)
+{
+	int error_code;
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarmmgr_get_next_duetime() is called\n");
+
+	if (duetime == NULL) {
+		return ERR_ALARM_INVALID_PARAM;
+	}
+
+	if (!_send_alarm_get_next_duetime
+		(alarm_context, alarm_id, duetime, &error_code))
 		return error_code;
 
 	return ALARMMGR_RESULT_SUCCESS;

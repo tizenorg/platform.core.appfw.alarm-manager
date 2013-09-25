@@ -104,8 +104,8 @@ static const char power_rtc[] = "/dev/rtc0";
 
 #endif				/*__WAKEUP_USING_RTC__*/
 
-static bool __alarm_add_to_list(__alarm_info_t *__alarm_info,
-				alarm_id_t *alarm_id);
+static bool __alarm_add_to_list(__alarm_info_t *__alarm_info);
+static void __alarm_generate_alarm_id(__alarm_info_t *__alarm_info, alarm_id_t *alarm_id);
 static bool __alarm_update_in_list(int pid, alarm_id_t alarm_id,
 				   __alarm_info_t *__alarm_info,
 				   int *error_code);
@@ -137,7 +137,7 @@ static void __on_system_time_changed(keynode_t *node, void *data);
 static void __on_system_time_external_changed(keynode_t *node, void *data);
 static void __initialize_timer();
 static void __initialize_alarm_list();
-static void __initialize_scheduled_alarm_lsit();
+static void __initialize_scheduled_alarm_list();
 static void __hibernation_leave_callback();
 static bool __initialize_noti();
 
@@ -154,6 +154,7 @@ static void __rtc_set()
 #ifdef __WAKEUP_USING_RTC__
 
 	const char *rtc = default_rtc;
+	const char *rtc0 = power_rtc;
 	int fd = 0;
 	struct rtc_time rtc_tm;
 	struct rtc_wkalrm rtc_wk;
@@ -168,8 +169,11 @@ static void __rtc_set()
 
 	fd = open(rtc, O_RDONLY);
 	if (fd == -1) {
-		ALARM_MGR_EXCEPTION_PRINT("RTC open failed.\n");
-		return;
+		fd = open(rtc0, O_RDONLY);
+		if (fd == -1) {
+			ALARM_MGR_EXCEPTION_PRINT("RTC open failed.\n");
+			return;
+		}
 	}
 
 	/* Read the RTC time/date */
@@ -189,7 +193,7 @@ static void __rtc_set()
 			    alarm_context.c_due_time);
 
 	if (alarm_context.c_due_time != -1) {
-		time_t due_time = alarm_context.c_due_time - 1;
+		time_t due_time = alarm_context.c_due_time;
 		gmtime_r(&due_time, &due_tm);
 
 		rtc_tm.tm_mday = due_tm.tm_mday;
@@ -245,7 +249,6 @@ int _set_rtc_time(time_t _time)
 	struct rtc_time rtc_tm = { 0, };
 	const char *rtc0 = power_rtc;
 	const char *rtc1 = default_rtc;
-	struct tm *_tm = NULL;
 	struct tm time_r = { 0, };
 
 	fd0 = open(rtc0, O_RDONLY);
@@ -258,7 +261,7 @@ int _set_rtc_time(time_t _time)
 
 	if (fd1 == -1) {
 		ALARM_MGR_LOG_PRINT("error to open /dev/rtc1.");
-		perror("\t");
+//		perror("\t");
 	}
 
 	memset(&rtc_tm, 0, sizeof(struct rtc_time));
@@ -288,17 +291,17 @@ int _set_rtc_time(time_t _time)
 	if (fd0 != -1)
 		close(fd0);
 
-	retval1 = ioctl(fd1, RTC_SET_TIME, &rtc_tm);
+	if (fd1 != -1) {
+		retval1 = ioctl(fd1, RTC_SET_TIME, &rtc_tm);
 
-	if (retval1 == -1) {
-		if (fd1 != -1)
-			close(fd1);
-		ALARM_MGR_LOG_PRINT("error to ioctl fd1.");
-		perror("\t");
-	}
-	if (fd1 != -1)
+		if (retval1 == -1) {
+			if (fd1 != -1)
+				close(fd1);
+			ALARM_MGR_LOG_PRINT("error to ioctl fd1.");
+			perror("\t");
+		}
 		close(fd1);
-
+	}
 	return 1;
 }
 
@@ -315,12 +318,9 @@ bool __alarm_clean_list()
 	return true;
 }
 
-static bool __alarm_add_to_list(__alarm_info_t *__alarm_info,
-				alarm_id_t *alarm_id)
+static void __alarm_generate_alarm_id(__alarm_info_t *__alarm_info, alarm_id_t *alarm_id)
 {
-
 	bool unique_id = false;
-	alarm_info_t *alarm_info = &__alarm_info->alarm_info;
 	__alarm_info_t *entry = NULL;
 
 	GSList *iter = NULL;
@@ -341,8 +341,20 @@ static bool __alarm_add_to_list(__alarm_info_t *__alarm_info,
 				unique_id = false;
 			}
 		}
-
 	}
+
+	*alarm_id = __alarm_info->alarm_id;
+
+	return;
+}
+
+static bool __alarm_add_to_list(__alarm_info_t *__alarm_info)
+{
+
+	alarm_info_t *alarm_info = &__alarm_info->alarm_info;
+	__alarm_info_t *entry = NULL;
+
+	GSList *iter = NULL;
 
 	/* list alarms */
 	ALARM_MGR_LOG_PRINT("[alarm-server]: before add\n");
@@ -367,8 +379,6 @@ static bool __alarm_add_to_list(__alarm_info_t *__alarm_info,
 	if (!(alarm_info->alarm_type & ALARM_TYPE_VOLATILE)) {
 		_save_alarms(__alarm_info);
 	}
-
-	*alarm_id = __alarm_info->alarm_id;
 
 	return true;
 }
@@ -471,9 +481,9 @@ static bool __alarm_set_start_and_end_time(alarm_info_t *alarm_info,
 		alarm_tm.tm_mon = start->month - 1;
 		alarm_tm.tm_mday = start->day;
 
-		alarm_tm.tm_hour = 0;
-		alarm_tm.tm_min = 0;
-		alarm_tm.tm_sec = 0;
+		alarm_tm.tm_hour = start->hour;
+		alarm_tm.tm_min = start->min;
+		alarm_tm.tm_sec = start->sec;
 
 		__alarm_info->start = mktime(&alarm_tm);
 	} else {
@@ -485,9 +495,9 @@ static bool __alarm_set_start_and_end_time(alarm_info_t *alarm_info,
 		alarm_tm.tm_mon = end->month - 1;
 		alarm_tm.tm_mday = end->day;
 
-		alarm_tm.tm_hour = 23;
-		alarm_tm.tm_min = 59;
-		alarm_tm.tm_sec = 59;
+		alarm_tm.tm_hour = end->hour;
+		alarm_tm.tm_min = end->min;
+		alarm_tm.tm_sec = end->sec;
 
 		__alarm_info->end = mktime(&alarm_tm);
 	} else {
@@ -671,6 +681,10 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 	int fd = 0;
 	int ret = 0;
 	int i = 0;
+	bundle *b;
+	char caller_appid[512];
+	bundle_raw *b_data = NULL;
+	int datalen = 0;
 
 	__alarm_info_t *__alarm_info = NULL;
 
@@ -729,14 +743,28 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 		    g_quark_from_string(app_name);
 	}
 
-	__alarm_info->quark_bundle=g_quark_from_string(bundle_data);
+	b = bundle_decode((bundle_raw *)bundle_data, strlen(bundle_data));
+	ret = aul_app_get_appid_bypid(pid, caller_appid, 512);
+	if(ret == 0) {
+		bundle_add(b, "__ALARM_MGR_CALLER_APPID", caller_appid);
+	}
+	bundle_encode(b, &b_data, &datalen);
+
+	__alarm_info->quark_bundle=g_quark_from_string(b_data);
 	__alarm_info->quark_app_service_name = g_quark_from_string("null");
 	__alarm_info->quark_dst_service_name = g_quark_from_string("null");
 	__alarm_info->quark_app_service_name_mod = g_quark_from_string("null");
 	__alarm_info->quark_dst_service_name_mod = g_quark_from_string("null");
 
+	bundle_free(b);
+	if (b_data) {
+		free(b_data);
+		b_data = NULL;
+	}
+	
 	__alarm_set_start_and_end_time(alarm_info, __alarm_info);
 	memcpy(&(__alarm_info->alarm_info), alarm_info, sizeof(alarm_info_t));
+	__alarm_generate_alarm_id(__alarm_info, alarm_id);
 
 	time(&current_time);
 
@@ -748,7 +776,7 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 	}
 
 	due_time = _alarm_next_duetime(__alarm_info);
-	if (__alarm_add_to_list(__alarm_info, alarm_id) == false) {
+	if (__alarm_add_to_list(__alarm_info) == false) {
 		free(__alarm_info);
 		*error_code = -1;
 		return false;
@@ -851,6 +879,13 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
 		return false;
 	} else {
 		ret = read(fd, process_name, 512);
+		if (ret < 0 ) {
+			*error_code = -1;	/*-1 means that system failed
+							internally.*/
+			free(__alarm_info);
+			close(fd);
+			return false;
+		}
 		close(fd);
 		while (process_name[i] != '\0') {
 			if (process_name[i] == ' ') {
@@ -885,6 +920,7 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
 
 	__alarm_set_start_and_end_time(alarm_info, __alarm_info);
 	memcpy(&(__alarm_info->alarm_info), alarm_info, sizeof(alarm_info_t));
+	__alarm_generate_alarm_id(__alarm_info, alarm_id);
 
 	time(&current_time);
 
@@ -903,7 +939,7 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
 	}
 
 	due_time = _alarm_next_duetime(__alarm_info);
-	if (__alarm_add_to_list(__alarm_info, alarm_id) == false) {
+	if (__alarm_add_to_list(__alarm_info) == false) {
 		free(__alarm_info);
 		return false;
 	}
@@ -1361,13 +1397,15 @@ static void __alarm_expired()
 		"current_time(%d), interval(%d)\n", alarm_context.c_due_time,
 		current_time, interval);
 
-	if (alarm_context.c_due_time > current_time) {
-		ALARM_MGR_LOG_PRINT("[alarm-server]: False Alarm (time changed to past)\n");
+	if (alarm_context.c_due_time > current_time + 1) {
+		ALARM_MGR_EXCEPTION_PRINT("[alarm-server]: False Alarm. due time is (%d) seconds future\n",
+			alarm_context.c_due_time - current_time);
 		goto done;
 	}
-	// 3 seconds is maximum permitted delay from timer expire to this function
-	if (alarm_context.c_due_time + 3 < current_time) {
-		ALARM_MGR_LOG_PRINT("[alarm-server]: False Alarm (time changed to future)\n");
+	// 10 seconds is maximum permitted delay from timer expire to this function
+	if (alarm_context.c_due_time + 10 < current_time) {
+		ALARM_MGR_EXCEPTION_PRINT("[alarm-server]: False Alarm. due time is (%d) seconds past\n",
+			current_time - alarm_context.c_due_time);
 		goto done;
 	}
 
@@ -1508,11 +1546,11 @@ static void __alarm_expired()
 				if (strncmp
 			    		(g_quark_to_string(__alarm_info->quark_dst_service_name),
 					     "null",4) == 0) {
-					strncpy(appid,g_quark_to_string(__alarm_info->quark_app_service_name),strlen(g_quark_to_string(__alarm_info->quark_app_service_name))-6);
+					strncpy(appid,g_quark_to_string(__alarm_info->quark_app_service_name)+6,strlen(g_quark_to_string(__alarm_info->quark_app_service_name))-6);
 				}
 				else
 				{
-					strncpy(appid,g_quark_to_string(__alarm_info->quark_dst_service_name),strlen(g_quark_to_string(__alarm_info->quark_dst_service_name))-6);
+					strncpy(appid,g_quark_to_string(__alarm_info->quark_dst_service_name)+6,strlen(g_quark_to_string(__alarm_info->quark_dst_service_name))-6);
 				}
 
 				snprintf(alarm_id_str, 31, "%d", alarm_id);
@@ -1640,7 +1678,7 @@ static void __on_system_time_changed(keynode_t *node, void *data)
 
 	tzset();
 
-	ALARM_MGR_ASSERT_PRINT("diff_time is %f\n", diff_time);
+	ALARM_MGR_EXCEPTION_PRINT("New time is %s, diff_time is %f\n", ctime(&_time), diff_time);
 
 	ALARM_MGR_LOG_PRINT("[alarm-server] System time has been changed\n");
 	ALARM_MGR_LOG_PRINT("1.alarm_context.c_due_time is %d\n",
@@ -1648,7 +1686,6 @@ static void __on_system_time_changed(keynode_t *node, void *data)
 
 	_set_time(_time);
 
-	vconf_set_dbl(VCONFKEY_SYSTEM_TIMEDIFF, diff_time);
 	vconf_set_int(VCONFKEY_SYSTEM_TIME_CHANGED,(int)diff_time);
 
 	__alarm_update_due_time_of_all_items_in_list(diff_time);
@@ -1686,18 +1723,17 @@ static void __on_system_time_external_changed(keynode_t *node, void *data)
 	}
 
 	tzset();
+	time(&cur_time);
 
-	ALARM_MGR_ASSERT_PRINT("diff_time is %f\n", diff_time);
+	ALARM_MGR_EXCEPTION_PRINT("diff_time is %f, New time is %s\n", diff_time, ctime(&cur_time));
 
 	ALARM_MGR_LOG_PRINT("[alarm-server] System time has been changed externally\n");
 	ALARM_MGR_LOG_PRINT("1.alarm_context.c_due_time is %d\n",
 			    alarm_context.c_due_time);
 
 	// set rtc time only because the linux time is set externally
-	time(&cur_time);
 	_set_rtc_time(cur_time);
 
-	vconf_set_dbl(VCONFKEY_SYSTEM_TIMEDIFF, diff_time);
 	vconf_set_int(VCONFKEY_SYSTEM_TIME_CHANGED,(int)diff_time);
 
 	__alarm_update_due_time_of_all_items_in_list(diff_time);
@@ -1761,7 +1797,6 @@ gboolean alarm_manager_alarm_set_rtc_time(void *pObject, int pid,
 	gsize size;
 	int retval = 0;
 	gboolean result = true;
-	gid_t call_gid;
 
 	const char *rtc = power_rtc;
 	int fd = 0;
@@ -1784,21 +1819,22 @@ gboolean alarm_manager_alarm_set_rtc_time(void *pObject, int pid,
 		return true;
 	}
 
-	call_gid = security_server_get_gid("alarm");
-
-	ALARM_MGR_LOG_PRINT("call_gid : %d\n", call_gid);
-
-	retval = security_server_check_privilege((const char *)cookie, call_gid);
+	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
 	if (retval < 0) {
 		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
 			ALARM_MGR_EXCEPTION_PRINT(
-				"%s", "access has been denied\n");
+				"%s", "Write access has been denied by smack\n");
 		}
+#ifdef __ALLOW_NO_PRIVILEGE
 		ALARM_MGR_EXCEPTION_PRINT("Error has occurred in security_server_check_privilege()\n");
 		if (return_code)
 			*return_code = ERR_ALARM_NO_PERMISSION;
+#endif
 	}
-	else {
+#ifdef __ALLOW_NO_PRIVILEGE
+	else
+#endif
+	{
 
 		/*extract day of the week, day in the year &
 		daylight saving time from system*/
@@ -1897,7 +1933,6 @@ gboolean alarm_manager_alarm_create_appsvc(void *pObject, int pid,
 	guchar *cookie = NULL;
 	gsize size;
 	int retval = 0;
-	gid_t call_gid;
 	gboolean result = true;
 
 	alarm_info.start.year = start_year;
@@ -1927,21 +1962,22 @@ gboolean alarm_manager_alarm_create_appsvc(void *pObject, int pid,
 		return false;
 	}
 
-	call_gid = security_server_get_gid("alarm");
-
-	ALARM_MGR_LOG_PRINT("call_gid : %d\n", call_gid);
-
-	retval = security_server_check_privilege((const char *)cookie, call_gid);
+	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
 	if (retval < 0) {
 		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
 			ALARM_MGR_EXCEPTION_PRINT(
-				"%s", "access has been denied\n");
+				"%s", "Write access has been denied by smack\n");
 		}
+#ifdef __ALLOW_NO_PRIVILEGE
 		ALARM_MGR_EXCEPTION_PRINT("Error has occurred in security_server_check_privilege()\n");
 		*return_code = -1;
 		result = false;
+#endif
 	}
-	else {
+#ifdef __ALLOW_NO_PRIVILEGE
+	else
+#endif
+	{
 		result = __alarm_create_appsvc(&alarm_info, alarm_id, pid,
 			       bundle_data, return_code);
 		if (false == result)
@@ -1973,7 +2009,6 @@ gboolean alarm_manager_alarm_create(void *pObject, int pid,
 	guchar *cookie;
 	gsize size;
 	int retval;
-	gid_t call_gid;
 
 	alarm_info.start.year = start_year;
 	alarm_info.start.month = start_month;
@@ -1995,22 +2030,23 @@ gboolean alarm_manager_alarm_create(void *pObject, int pid,
 	*return_code = 0;
 
 	cookie = g_base64_decode(e_cookie, &size);
-	call_gid = security_server_get_gid("alarm");
 
-	ALARM_MGR_LOG_PRINT("call_gid : %d\n", call_gid);
-
-	retval = security_server_check_privilege((const char *)cookie, call_gid);
+	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
 	if (retval < 0) {
 		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
 			ALARM_MGR_EXCEPTION_PRINT(
-				"%s", "access has been denied\n");
+				"%s", "Write access has been denied by smack\n");
 		}
+#ifdef __ALLOW_NO_PRIVILEGE
 		ALARM_MGR_EXCEPTION_PRINT("%s", "Error has occurred\n");
 
 		*return_code = -1;
+#endif
 	}
-
-	else {
+#ifdef __ALLOW_NO_PRIVILEGE
+	else
+#endif
+	{
 		/* return valule and return_code should be checked */
 		__alarm_create(&alarm_info, alarm_id, pid, app_service_name,app_service_name_mod,
 			       reserved_service_name, reserved_service_name_mod, return_code);
@@ -2027,25 +2063,25 @@ gboolean alarm_manager_alarm_delete(void *pObject, int pid, alarm_id_t alarm_id,
 	guchar *cookie;
 	gsize size;
 	int retval;
-	gid_t call_gid;
 
 	cookie = g_base64_decode(e_cookie, &size);
-	call_gid = security_server_get_gid("alarm");
 
-	ALARM_MGR_LOG_PRINT("call_gid : %d\n", call_gid);
-
-	retval = security_server_check_privilege((const char *)cookie, call_gid);
+	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
 	if (retval < 0) {
 		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
-			ALARM_MGR_EXCEPTION_PRINT("%s",
-						  "access has been denied\n");
+			ALARM_MGR_EXCEPTION_PRINT(
+				"%s", "Write access has been denied by smack\n");
 		}
+#ifdef __ALLOW_NO_PRIVILEGE
 		ALARM_MGR_EXCEPTION_PRINT("%s", "Error has occurred\n");
 
 		*return_code = -1;
+#endif
 	}
-
-	else {
+#ifdef __ALLOW_NO_PRIVILEGE
+	else
+#endif
+	{
 		__alarm_delete(pid, alarm_id, return_code);
 	}
 
@@ -2148,6 +2184,12 @@ gboolean alarm_manager_alarm_get_number_of_ids(void *pObject, int pid,
 		return true;
 	} else {
 		ret = read(fd, process_name, 512);
+		if (ret <0 ) {
+			*return_code = -1;	/* -1 means that system
+					   failed internally. */
+			close(fd);
+			return false;
+		}
 		close(fd);
 		while (process_name[i] != '\0') {
 			if (process_name[i] == ' ') {
@@ -2246,6 +2288,12 @@ gboolean alarm_manager_alarm_get_list_of_ids(void *pObject, int pid,
 		return true;
 	} else {
 		ret = read(fd, process_name, 512);
+		if (ret <0 ) {
+			*return_code = -1;
+			/* -1 means that system failed internally. */
+			close(fd);
+			return true;
+		}
 		close(fd);
 		while (process_name[i] != '\0') {
 			if (process_name[i] == ' ') {
@@ -2298,7 +2346,6 @@ gboolean alarm_manager_alarm_get_appsvc_info(void *pObject, int pid, alarm_id_t 
 	guchar *cookie = NULL;
 	gsize size;
 	int retval = 0;
-	gid_t call_gid;
 
 	ALARM_MGR_LOG_PRINT("called for  pid(%d) and alarm_id(%d)\n", pid,
 			    alarm_id);
@@ -2311,16 +2358,14 @@ gboolean alarm_manager_alarm_get_appsvc_info(void *pObject, int pid, alarm_id_t 
 		ALARM_MGR_EXCEPTION_PRINT("Unable to decode cookie!!!\n");
 		return true;
 	}
-	call_gid = security_server_get_gid("alarm");
 
-	ALARM_MGR_LOG_PRINT("call_gid : %d\n", call_gid);
-
-	retval = security_server_check_privilege((const char *)cookie, call_gid);
+	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "r");
 	if (retval < 0) {
 		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
 			ALARM_MGR_EXCEPTION_PRINT(
-				"%s", "access has been denied\n");
+				"%s", "Read access has been denied by smack\n");
 		}
+#ifdef __ALLOW_NO_PRIVILEGE
 		ALARM_MGR_EXCEPTION_PRINT("%s", "Error has occurred\n");
 
 		if (return_code)
@@ -2330,6 +2375,7 @@ gboolean alarm_manager_alarm_get_appsvc_info(void *pObject, int pid, alarm_id_t 
 			g_free(cookie);
 
 		return true;
+#endif
 	}
 
 	if (return_code)
@@ -2419,6 +2465,41 @@ gboolean alarm_manager_alarm_get_info(void *pObject, int pid,
 	return true;
 }
 
+gboolean alarm_manager_alarm_get_next_duetime(void *pObject, int pid,
+				      alarm_id_t alarm_id, time_t* duetime,
+					int *return_code)
+{
+	ALARM_MGR_LOG_PRINT("called for  pid(%d) and alarm_id(%d)\n", pid,
+			    alarm_id);
+
+	GSList *gs_iter = NULL;
+	__alarm_info_t *entry = NULL;
+	__alarm_info_t *find_item = NULL;
+
+	*return_code = 0;
+
+	for (gs_iter = alarm_context.alarms; gs_iter != NULL;
+	     gs_iter = g_slist_next(gs_iter)) {
+		entry = gs_iter->data;
+		if (entry->alarm_id == alarm_id) {
+			find_item = entry;
+			break;
+		}
+	}
+
+	if (find_item == NULL)
+	{
+		ALARM_MGR_EXCEPTION_PRINT("alarm id(%d) was not found\n",
+					  alarm_id);
+		*return_code = ERR_ALARM_INVALID_ID;
+	} else {
+		ALARM_MGR_LOG_PRINT("alarm was found\n");
+		*duetime = _alarm_next_duetime(find_item);
+		*return_code = 0;
+	}
+	return true;
+}
+
 #include "alarm-skeleton.h"
 
 typedef struct AlarmManagerObject AlarmManagerObject;
@@ -2490,7 +2571,7 @@ static void __initialize_alarm_list()
 #endif
 }
 
-static void __initialize_scheduled_alarm_lsit()
+static void __initialize_scheduled_alarm_list()
 {
 	_init_scheduled_alarm_list();
 }
@@ -2499,7 +2580,7 @@ static void __initialize_scheduled_alarm_lsit()
 static void __hibernation_leave_callback()
 {
 
-	__initialize_scheduled_alarm_lsit();
+	__initialize_scheduled_alarm_list();
 
 	__alarm_clean_list();
 
@@ -2567,6 +2648,8 @@ static DBusHandlerResult __alarm_server_filter(DBusConnection *connection,
 		for (entry = g_expired_alarm_list; entry; entry = entry->next) {
 			if (entry->data) {
 				expire_info = (__expired_alarm_t *) entry->data;
+
+				ALARM_MGR_LOG_PRINT("service_name(%s), service(%s)", expire_info->service_name, service);
 
 				if (strcmp(expire_info->service_name, service)
 				    == 0) {
@@ -2758,15 +2841,38 @@ static void __initialize()
 		return;
 	}
 	retval = ioctl(fd, RTC_RD_TIME, &rtc_tm);
+	if (retval == -1) {
+		ALARM_MGR_EXCEPTION_PRINT("RTC_RD_TIME ioctl failed");
+		close(fd);
+		return;
+	}
 	close(fd);
 
 	fd2 = open(default_rtc, O_RDWR);
-	if (fd2 < 0) {
-		ALARM_MGR_EXCEPTION_PRINT("cannot open /dev/rtc1\n");
-		return;
+	if (fd2 >= 0) {
+		retval = ioctl(fd2, RTC_SET_TIME, &rtc_tm);
+		if (retval == -1) {
+			ALARM_MGR_EXCEPTION_PRINT("RTC_SET_TIME ioctl failed");
+			close(fd2);
+			return;
+		}
+		close(fd2);
+//		ALARM_MGR_EXCEPTION_PRINT("cannot open /dev/rtc1\n");
+//		return;
+	} else {
+		fd = open(power_rtc, O_RDWR);
+		if (fd < 0) {
+			ALARM_MGR_EXCEPTION_PRINT("cannot open /dev/rtc0\n");
+			return;
+		}
+		retval = ioctl(fd, RTC_SET_TIME, &rtc_tm);
+		if (retval == -1) {
+			ALARM_MGR_EXCEPTION_PRINT("RTC_SET_TIME ioctl failed");
+			close(fd);
+			return;
+		}
+		close(fd);
 	}
-	retval = ioctl(fd2, RTC_SET_TIME, &rtc_tm);
-	close(fd2);
 
 	__initialize_timer();
 	if (__initialize_dbus() == false) {	/* because dbus's initialize
@@ -2775,7 +2881,7 @@ static void __initialize()
 					  "alarm-server cannot be runned.\n");
 		exit(1);
 	}
-	__initialize_scheduled_alarm_lsit();
+	__initialize_scheduled_alarm_list();
 	__initialize_db();
 	__initialize_alarm_list();
 	__initialize_noti();
