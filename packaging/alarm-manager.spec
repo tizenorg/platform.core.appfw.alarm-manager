@@ -97,6 +97,9 @@ ln -sf ../alarm-server.service %{buildroot}%{_libdir}/systemd/system/multi-user.
 mkdir -p %{buildroot}/%{_sysconfdir}/udev/rules.d
 install -m0644  %{SOURCE102} %{buildroot}%{_sysconfdir}/udev/rules.d/
 
+mkdir -p %{buildroot}/usr/share/license
+cp LICENSE %{buildroot}/usr/share/license/%{name}
+
 %preun -n alarm-server
 if [ $1 == 0 ]; then
     systemctl stop alarm-server.service
@@ -139,6 +142,7 @@ fi
 %manifest alarm-lib.manifest
 %attr(0644,root,root) %{_libdir}/libalarm.so.0.0.0
 %{_libdir}/libalarm.so.0
+/usr/share/license/%{name}
 
 %files -n libalarm-devel
 %{_includedir}/*.h
