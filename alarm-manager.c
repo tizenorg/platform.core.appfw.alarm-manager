@@ -149,6 +149,20 @@ static DBusHandlerResult __alarm_server_filter(DBusConnection *connection,
 					       DBusMessage *message,
 					       void *user_data);
 
+static void __alarm_db_changed(void)
+{
+	DBusMessage *message;
+	message = dbus_message_new_signal("/org/tizen/alarm/manager",
+					  "org.tizen.alarm.manager",
+					  "alarm_db_changed");
+
+	dbus_connection_send(dbus_g_connection_get_connection
+			     (alarm_context.bus), message, NULL);
+	dbus_connection_flush(dbus_g_connection_get_connection
+			      (alarm_context.bus));
+	dbus_message_unref(message);
+}
+
 static void __rtc_set()
 {
 #ifdef __WAKEUP_USING_RTC__
@@ -378,6 +392,7 @@ static bool __alarm_add_to_list(__alarm_info_t *__alarm_info)
 
 	if (!(alarm_info->alarm_type & ALARM_TYPE_VOLATILE)) {
 		_save_alarms(__alarm_info);
+		__alarm_db_changed();
 	}
 
 	return true;
@@ -447,6 +462,7 @@ static bool __alarm_remove_from_list(int pid, alarm_id_t alarm_id,
 
 			if (!(alarm_info->alarm_type & ALARM_TYPE_VOLATILE)) {
 				_delete_alarms(alarm_id);
+				__alarm_db_changed();
 			}
 
 			alarm_context.alarms =
@@ -623,6 +639,7 @@ static bool __alarm_update_due_time_of_all_items_in_list(double diff_time)
 					    "ALARM_TYPE_RELATIVE\n");
 
 			_update_alarms(entry);
+			__alarm_db_changed();
 		}
 
 		_alarm_next_duetime(entry);

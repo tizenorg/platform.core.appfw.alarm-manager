@@ -50,12 +50,15 @@ static alarm_context_t alarm_context = { NULL, NULL, NULL, NULL, -1 };
 static bool b_initialized = false;
 static bool sub_initialized = false;
 
+typedef struct _Alarm_Manager_DB_Changed_Info {
+	alarm_db_changed_t cb;
+	void *data;
+} Alarm_Manager_DB_Changed_Info;
+static GSList *alarm_manager_db_changed_infos = NULL;
+
 #define MAX_OBJECT_PATH_LEN 256
 #define DBUS_NAME_FLAG_PROHIBIT_REPLACEMENT 0
 
-static DBusHandlerResult __expire_alarm_filter(DBusConnection *connection,
-					       DBusMessage *message,
-					       void *user_data);
 static int __alarm_validate_date(alarm_date_t *date, int *error_code);
 static bool __alarm_validate_time(alarm_date_t *date, int *error_code);
 static int __sub_init(void);
@@ -125,53 +128,77 @@ static void __remove_resultcb(alarm_cb_info_t *info)
 	}
 }
 
-static DBusHandlerResult __expire_alarm_filter(DBusConnection *connection,
-					       DBusMessage *message,
-					       void *user_data)
+static Alarm_Manager_DB_Changed_Info *__alarm_manager_db_changed_info_new(alarm_db_changed_t cb,
+									  void *data)
 {
+	Alarm_Manager_DB_Changed_Info *info =
+		malloc(sizeof(Alarm_Manager_DB_Changed_Info));
+	if (!info)
+		return NULL;
+	info->cb = cb;
+	info->data = data;
+	return info;
+}
+
+static void __alarm_manager_db_changed_info_free(gpointer info)
+{
+	free(info);
+}
+
+static DBusHandlerResult __dbus_filter_cb(DBusConnection *connection,
+					  DBusMessage *message,
+					  void *user_data)
+{
+	int type = dbus_message_get_type(message);
+	const char *member = dbus_message_get_member(message);
 	alarm_cb_info_t *info;
+	if (!member)
+		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+	if (type == DBUS_MESSAGE_TYPE_METHOD_CALL && !strcmp(member, "alarm_expired")) {
+		DBusMessageIter iter;
+		alarm_id_t alarm_id;
+		const char *service_name =
+			dbus_message_get_destination(message);
+		const char *object_path =
+			dbus_message_get_path(message);
+		/* "/org/tizen/alarm/client" */
+		const char *interface_name =
+			dbus_message_get_interface(message);
+		/* "org.tizen.alarm.client" */
 
-	if (dbus_message_get_type(message) == DBUS_MESSAGE_TYPE_METHOD_CALL) {
-		const char *method_name = dbus_message_get_member(message);
-		/*"alarm_expired" */
+		dbus_message_iter_init(message, &iter);
+		dbus_message_iter_get_basic(&iter, &alarm_id);
 
-		if (strcmp(method_name, "alarm_expired") == 0) {
-			DBusMessageIter iter;
-			alarm_id_t alarm_id;
-			const char *service_name =
-			    dbus_message_get_destination(message);
-			const char *object_path =
-			    dbus_message_get_path(message);
-			/* "/org/tizen/alarm/client" */
-			const char *interface_name =
-			    dbus_message_get_interface(message);
-			/* "org.tizen.alarm.client" */
+		ALARM_MGR_LOG_PRINT("[alarm-lib]:service_name=%s, "
+				    "object_path=%s, interface_name=%s, method_name=%s, "
+				    "alarm_id=%d, handler=%s\n",
+				    service_name ? service_name : "no name",
+				    object_path ? object_path : "no path",
+				    interface_name ? interface_name : "no interface",
+				    member ? member : "no method", alarm_id,
+				    alarm_context.alarm_handler ? "ok" : "no handler");
 
-			dbus_message_iter_init(message, &iter);
-			dbus_message_iter_get_basic(&iter, &alarm_id);
+		if (alarm_context.alarm_handler != NULL)
+			/* alarm_context.alarm_handler(alarm_id); */
+			alarm_context.alarm_handler(alarm_id,
+						    alarm_context.user_param);
+		info = __find_resultcb(alarm_id);
 
-			ALARM_MGR_LOG_PRINT("[alarm-lib]:service_name=%s, "
-			"object_path=%s, interface_name=%s, method_name=%s, "
-			"alarm_id=%d, handler=%s\n",
-			service_name ? service_name : "no name",
-			object_path ? object_path : "no path",
-			interface_name ? interface_name : "no interface",
-			method_name ? method_name : "no method", alarm_id,
-			alarm_context.alarm_handler ? "ok" : "no handler");
-
-			if (alarm_context.alarm_handler != NULL)
-				/* alarm_context.alarm_handler(alarm_id); */
-				alarm_context.alarm_handler(alarm_id,
-					alarm_context.user_param);
-			info = __find_resultcb(alarm_id);
-
-			if( info && info->cb_func ) {
-				info->cb_func(alarm_id, info->priv_data);
+		if( info && info->cb_func ) {
+			info->cb_func(alarm_id, info->priv_data);
 			//	__remove_resultcb(info);
-			}
-
-			return DBUS_HANDLER_RESULT_HANDLED;
 		}
+
+		return DBUS_HANDLER_RESULT_HANDLED;
+	} else if (type == DBUS_MESSAGE_TYPE_SIGNAL && !strcmp(member, "alarm_db_changed")) {
+		GSList *itr;
+		Alarm_Manager_DB_Changed_Info *info;
+		for (itr = alarm_manager_db_changed_infos; itr; itr = itr->next) {
+			info = itr->data;
+			if (info->cb)
+				(info->cb)(info->data);
+		}
+		return DBUS_HANDLER_RESULT_HANDLED;
 	}
 
 	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
@@ -392,8 +419,8 @@ EXPORT_API int alarmmgr_init(const char *appid)
 
 	if (!dbus_connection_add_filter(
 	     dbus_g_connection_get_connection(alarm_context.bus),
-	     __expire_alarm_filter, NULL, NULL)) {
-		ALARM_MGR_EXCEPTION_PRINT("add __expire_alarm_filter failed\n");
+	     __dbus_filter_cb, NULL, NULL)) {
+		ALARM_MGR_EXCEPTION_PRINT("add __dbus_filter_cb failed\n");
 
 		return ERR_ALARM_SYSTEM_FAIL;
 	}
@@ -407,7 +434,10 @@ EXPORT_API void alarmmgr_fini()
 {
 	dbus_connection_remove_filter(dbus_g_connection_get_connection
 				      (alarm_context.bus),
-				      __expire_alarm_filter, NULL);
+				      __dbus_filter_cb, NULL);
+	g_slist_free_full(alarm_manager_db_changed_infos,
+			  __alarm_manager_db_changed_info_free);
+	alarm_manager_db_changed_infos = NULL;
 }
 
 EXPORT_API int alarmmgr_set_cb(alarm_cb_t handler, void *user_param)
@@ -463,6 +493,34 @@ EXPORT_API int alarmmgr_free_alarm(alarm_entry_t *alarm)
 	free(alarm);
 
 	return ALARMMGR_RESULT_SUCCESS;
+}
+
+EXPORT_API int alarmmgr_register_alarm_db_changed(alarm_db_changed_t cb, void *data)
+{
+	Alarm_Manager_DB_Changed_Info *info = __alarm_manager_db_changed_info_new(cb, data);
+
+	if (!info)
+		return ERR_ALARM_SYSTEM_FAIL;
+
+	alarm_manager_db_changed_infos =
+		g_slist_prepend(alarm_manager_db_changed_infos, info);
+	return ALARMMGR_RESULT_SUCCESS;
+}
+
+EXPORT_API int alarmmgr_unregister_alarm_db_changed(alarm_db_changed_t cb, void *data)
+{
+	GSList *itr;
+	Alarm_Manager_DB_Changed_Info *info;
+	for (itr = alarm_manager_db_changed_infos; itr; itr = itr->next) {
+		info = itr->data;
+		if (info->cb == cb && info->data == data) {
+			alarm_manager_db_changed_infos =
+				g_slist_delete_link(alarm_manager_db_changed_infos, itr);
+			__alarm_manager_db_changed_info_free(info);
+			return ALARMMGR_RESULT_SUCCESS;
+		}
+	}
+	return ERR_ALARM_INVALID_PARAM;
 }
 
 EXPORT_API int alarmmgr_set_time(alarm_entry_t *alarm, alarm_date_t time)

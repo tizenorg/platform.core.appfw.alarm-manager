@@ -167,6 +167,8 @@ typedef int (*alarm_cb_t) (alarm_id_t alarm_id, void *user_param);
 
 typedef int (*alarm_enum_fn_t) (alarm_id_t alarm_id, void *user_param);
 
+typedef void (*alarm_db_changed_t) (void *data);
+
 /**
 * This enumeration has day of a week of alarm
 */
@@ -1384,6 +1386,29 @@ int alarmmgr_add_alarm_withcb(int alarm_type, time_t trigger_at_time,
 
 
 int alarmmgr_power_on(bool on_off);
+
+/**
+ * This function register a callback to be called when the alarm db changes.
+ *
+ * The callback cb is called every time that the alarm manager db changes, in order words, if an alarm is added, updated or deleted the callback cb will be called
+ *
+ * @param	[in]            cb	                the callback
+ * @param	[in]		data	                data to the callback cb
+ * @return			This function returns ALARMMGR_RESULT_SUCCESS on success or a negative number on failure.
+ *
+ */
+int alarmmgr_register_alarm_db_changed(alarm_db_changed_t cb, void *data);
+
+/**
+ * This function removes the callback from the watch list.
+ *
+ *
+ * @param	[in]            cb	                the callback function pased at register time
+ * @param	[in]		data	                data passed at register time
+ * @return			This function returns ALARMMGR_RESULT_SUCCESS on success or a negative number on failure.
+ *
+ */
+int alarmmgr_unregister_alarm_db_changed(alarm_db_changed_t cb, void *data);
 
 #ifdef __cplusplus
 }
