@@ -117,6 +117,7 @@ fi
 %else
  %{_sysconfdir}/udev/rules.d/60-alarm-manager-rtc.rules
 %endif
+/usr/share/license/%{name}
 
 %post -n libalarm -p /sbin/ldconfig
 
@@ -135,3 +136,4 @@ fi
 %{_includedir}/*.h
 %{_libdir}/pkgconfig/*.pc
 %{_libdir}/libalarm.so
+/usr/share/license/%{name}
