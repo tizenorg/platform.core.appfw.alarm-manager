@@ -3,7 +3,7 @@ Summary:    Alarm library
 Version:    0.4.86
 Release:    1
 Group:      System/Libraries
-License:    Apache License, Version 2.0
+License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
 Source101:  packaging/alarm-server.service
 Source102:  packaging/60-alarm-manager-rtc.rules
@@ -137,6 +137,7 @@ fi
 %else
  %{_sysconfdir}/udev/rules.d/60-alarm-manager-rtc.rules
 %endif
+/usr/share/license/%{name}
 
 %files -n libalarm
 %manifest alarm-lib.manifest
@@ -148,3 +149,4 @@ fi
 %{_includedir}/*.h
 %{_libdir}/pkgconfig/*.pc
 %{_libdir}/libalarm.so
+/usr/share/license/%{name}
