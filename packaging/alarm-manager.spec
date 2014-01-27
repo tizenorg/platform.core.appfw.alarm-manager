@@ -81,7 +81,9 @@ install -m0644  %{SOURCE102} %{buildroot}%{_sysconfdir}/udev/rules.d/
 mkdir -p %{buildroot}/%{_sysconfdir}/dbus-1/system.d
 install -m0644  %{SOURCE103} %{buildroot}%{_sysconfdir}/dbus-1/system.d/
 mkdir -p %{buildroot}/usr/share/license
-cp LICENSE %{buildroot}/usr/share/license/%{name}
+cp LICENSE %{buildroot}/usr/share/license/alarm-server
+cp LICENSE %{buildroot}/usr/share/license/libalarm
+cp LICENSE %{buildroot}/usr/share/license/libalarm-devel
 
 %preun -n alarm-server
 if [ $1 == 0 ]; then
@@ -117,7 +119,7 @@ fi
 %else
  %{_sysconfdir}/udev/rules.d/60-alarm-manager-rtc.rules
 %endif
-/usr/share/license/%{name}
+/usr/share/license/alarm-server
 
 %post -n libalarm -p /sbin/ldconfig
 
@@ -129,11 +131,11 @@ fi
 %manifest alarm-lib.manifest
 %attr(0644,root,root) %{_libdir}/libalarm.so.0.0.0
 %{_libdir}/libalarm.so.0
-/usr/share/license/%{name}
+/usr/share/license/libalarm
 
 %files -n libalarm-devel
 %manifest %{name}.manifest
 %{_includedir}/*.h
 %{_libdir}/pkgconfig/*.pc
 %{_libdir}/libalarm.so
-/usr/share/license/%{name}
+/usr/share/license/libalarm-devel
