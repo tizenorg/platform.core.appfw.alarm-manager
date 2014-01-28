@@ -24,6 +24,7 @@ BuildRequires:  pkgconfig(pmapi)
 BuildRequires:  pkgconfig(security-server)
 BuildRequires:  pkgconfig(tapi)
 BuildRequires:  pkgconfig(vconf)
+BuildRequires:  pkgconfig(libtzplatform-config)
 
 %description
 Alarm Server and devel libraries

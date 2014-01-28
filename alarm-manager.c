@@ -31,6 +31,7 @@
 #include<sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <tzplatform_config.h>
 
 #include<dbus/dbus.h>
 #include<dbus/dbus-glib-lowlevel.h>
@@ -579,7 +580,7 @@ static bool __alarm_update_due_time_of_all_items_in_list(double diff_time)
 		entry = iter->data;
 		alarm_info_t *alarm_info = &(entry->alarm_info);
 		if (alarm_info->alarm_type & ALARM_TYPE_RELATIVE) {
-			/*diff_time 贸府 */
+			/*diff_time 贸锟斤拷 */
 
 			entry->due_time += diff_time;
 
@@ -2607,7 +2608,7 @@ static bool __initialize_noti()
 		ALARM_MGR_LOG_PRINT(
 			"Failed to add callback for time changing event\n");
 	}
-	/*system state change noti 贸府 */
+	/*system state change noti 贸锟斤拷 */
 
 	if (vconf_notify_key_changed
 	    (VCONFKEY_SETAPPL_TIMEZONE_ID, __on_time_zone_changed, NULL) < 0) {
@@ -2737,7 +2738,6 @@ static bool __initialize_dbus()
 	return true;
 }
 
-#define ALARMMGR_DB_FILE "/opt/dbspace/.alarmmgr.db"
 sqlite3 *alarmmgr_db;
 #define QUERY_CREATE_TABLE_ALARMMGR "create table alarmmgr \
 				(alarm_id integer primary key,\
@@ -2766,16 +2766,21 @@ static bool __initialize_db()
 {
 	char *error_message = NULL;
 	int ret;
+	char *alarmmgr_db_file = NULL;
 
-	if (access("/opt/dbspace/.alarmmgr.db", F_OK) == 0) {
+	alarmmgr_db_file = tzplatform_mkpath(TZ_SYS_DB,".alarmmgr.db");
+	if(alarmmgr_db_file == NULL)
+		return false;
+
+	if (access(alarmmgr_db_file, F_OK) == 0) {
 		ret =
-		    db_util_open(ALARMMGR_DB_FILE, &alarmmgr_db,
+		    db_util_open(alarmmgr_db_file, &alarmmgr_db,
 				 DB_UTIL_REGISTER_HOOK_METHOD);
 
 		if (ret != SQLITE_OK) {
 			ALARM_MGR_EXCEPTION_PRINT(
 			    "====>>>> connect menu_db [%s] failed!\n",
-			     ALARMMGR_DB_FILE);
+			     alarmmgr_db_file);
 			return false;
 		}
 
@@ -2783,13 +2788,13 @@ static bool __initialize_db()
 	}
 
 	ret =
-	    db_util_open(ALARMMGR_DB_FILE, &alarmmgr_db,
+	    db_util_open(alarmmgr_db_file, &alarmmgr_db,
 			 DB_UTIL_REGISTER_HOOK_METHOD);
 
 	if (ret != SQLITE_OK) {
 		ALARM_MGR_EXCEPTION_PRINT(
 		    "====>>>> connect menu_db [%s] failed!\n",
-		     ALARMMGR_DB_FILE);
+		     alarmmgr_db_file);
 		return false;
 	}
 

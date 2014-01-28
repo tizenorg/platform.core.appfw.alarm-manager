@@ -35,11 +35,11 @@ AC_SUBST(ALARM_CFLAGS)
 
 dnl AC_SUBST(ACLOCAL_AMFLAGS, "-I m4")
 # Checks for libraries.
-PKG_CHECK_MODULES(ALARM_MANAGER, dbus-1 glib-2.0 dbus-glib-1 gobject-2.0 dlog security-server bundle appsvc)
+PKG_CHECK_MODULES(ALARM_MANAGER, dbus-1 glib-2.0 dbus-glib-1 gobject-2.0 dlog security-server bundle appsvc libtzplatform-config)
 AC_SUBST(ALARM_MANAGER_CFLAGS)
 AC_SUBST(ALARM_MANAGER_LIBS)
 
-PKG_CHECK_MODULES(ALARM_MANAGER_SERVER, dbus-1 glib-2.0 dbus-glib-1 pmapi dlog heynoti aul bundle security-server db-util appsvc)
+PKG_CHECK_MODULES(ALARM_MANAGER_SERVER, dbus-1 glib-2.0 dbus-glib-1 pmapi dlog heynoti aul bundle security-server db-util appsvc libtzplatform-config)
 AC_SUBST(ALARM_MANAGER_SERVER_CFLAGS)
 AC_SUBST(ALARM_MANAGER_SERVER_LIBS)
 
