@@ -1,15 +1,20 @@
 Name:           alarm-manager
-Version:        0.4.84
+Version:        0.4.86
 Release:        1
 License:        Apache-2.0
 Summary:        Alarm library
 Group:          Application Framework/Libraries
 Source0:        %{name}-%{version}.tar.gz
-Source101:      alarm-server.service
-Source102:      60-alarm-manager-rtc.rules
-Source103:      alarm-service.conf
-Source1001:     %{name}.manifest
+Source101:      packaging/alarm-server.service
+Source102:      packaging/60-alarm-manager-rtc.rules
+Source103:      packaging/alarm-service.conf
+Source1001:     packaging/%{name}.manifest
 
+Requires(post): /sbin/ldconfig
+Requires(post): /usr/bin/systemctl
+Requires(postun): /sbin/ldconfig
+Requires(postun): /usr/bin/systemctl
+Requires(preun): /usr/bin/systemctl
 
 BuildRequires:  pkgconfig(appsvc)
 BuildRequires:  pkgconfig(aul)
@@ -81,6 +86,11 @@ install -m0644  %{SOURCE102} %{buildroot}%{_sysconfdir}/udev/rules.d/
 mkdir -p %{buildroot}/%{_sysconfdir}/dbus-1/system.d
 install -m0644  %{SOURCE103} %{buildroot}%{_sysconfdir}/dbus-1/system.d/
 
+mkdir -p %{buildroot}/usr/share/license
+cp LICENSE %{buildroot}/usr/share/license/alarm-server
+cp LICENSE %{buildroot}/usr/share/license/libalarm
+cp LICENSE %{buildroot}/usr/share/license/libalarm-devel
+
 %preun -n alarm-server
 if [ $1 == 0 ]; then
     systemctl stop alarm-server.service
@@ -115,6 +125,7 @@ fi
 %else
  %{_sysconfdir}/udev/rules.d/60-alarm-manager-rtc.rules
 %endif
+/usr/share/license/alarm-server
 
 %post -n libalarm -p /sbin/ldconfig
 
@@ -126,9 +137,11 @@ fi
 %manifest alarm-lib.manifest
 %attr(0644,root,root) %{_libdir}/libalarm.so.0.0.0
 %{_libdir}/libalarm.so.0
+/usr/share/license/libalarm
 
 %files -n libalarm-devel
 %manifest %{name}.manifest
 %{_includedir}/*.h
 %{_libdir}/pkgconfig/*.pc
 %{_libdir}/libalarm.so
+/usr/share/license/libalarm-devel
