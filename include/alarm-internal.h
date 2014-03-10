@@ -217,6 +217,8 @@ bool _init_scheduled_alarm_list();
 int _set_rtc_time(time_t _time);
 int _set_sys_time(time_t _time);
 int _set_time(time_t _time);
+time_t _alarm_time(time_t *tp);
+
 
 
 #ifdef _DEBUG_MODE_

@@ -190,7 +190,7 @@ static time_t __alarm_next_duetime_once(__alarm_info_t *__alarm_info)
 	alarm_info_t *alarm_info = &__alarm_info->alarm_info;
 	alarm_date_t *start = &alarm_info->start;
 
-	time(&current_time);
+	_alarm_time(&current_time);
 	localtime_r(&current_time, &duetime_tm);
 	duetime_tm.tm_hour = start->hour;
 	duetime_tm.tm_min = start->min;
@@ -222,7 +222,7 @@ static time_t __alarm_next_duetime_repeat(__alarm_info_t *__alarm_info)
 	alarm_info_t *alarm_info = &__alarm_info->alarm_info;
 	alarm_date_t *start = &alarm_info->start;
 
-	time(&current_time);
+	_alarm_time(&current_time);
 	/*localtime_r(&current_time, &duetime_tm); */
 
 	duetime_tm.tm_hour = start->hour;
@@ -262,7 +262,7 @@ static time_t __alarm_next_duetime_annually(__alarm_info_t *__alarm_info)
 	alarm_info_t *alarm_info = &__alarm_info->alarm_info;
 	alarm_date_t *start = &alarm_info->start;
 
-	time(&current_time);
+	_alarm_time(&current_time);
 	localtime_r(&current_time, &duetime_tm);
 	duetime_tm.tm_hour = start->hour;
 	duetime_tm.tm_min = start->min;
@@ -295,7 +295,7 @@ static time_t __alarm_next_duetime_monthly(__alarm_info_t *__alarm_info)
 	alarm_info_t *alarm_info = &__alarm_info->alarm_info;
 	alarm_date_t *start = &alarm_info->start;
 
-	time(&current_time);
+	_alarm_time(&current_time);
 	localtime_r(&current_time, &duetime_tm);
 	duetime_tm.tm_hour = start->hour;
 	duetime_tm.tm_min = start->min;
@@ -339,7 +339,7 @@ static time_t __alarm_next_duetime_weekly(__alarm_info_t *__alarm_info)
 
 	alarm_mode_t *mode = &alarm_info->mode;
 
-	time(&current_time);
+	_alarm_time(&current_time);
 	localtime_r(&current_time, &duetime_tm);
 	wday = duetime_tm.tm_wday;
 	duetime_tm.tm_hour = start->hour;
@@ -405,7 +405,7 @@ time_t _alarm_next_duetime(__alarm_info_t *__alarm_info)
 	alarm_info_t *alarm_info = &__alarm_info->alarm_info;
 	alarm_mode_t *mode = &alarm_info->mode;
 
-	time(&current_time);
+	_alarm_time(&current_time);
 	cur_tm = localtime(&current_time);
 	if (cur_tm->tm_isdst > 0)
 		is_dst = 1;
@@ -459,7 +459,7 @@ static bool __find_next_alarm_to_be_scheduled(time_t *min_due_time)
 	GSList *iter = NULL;
 	__alarm_info_t *entry = NULL;
 
-	time(&current_time);
+	_alarm_time(&current_time);
 
 	for (iter = alarm_context.alarms; iter != NULL;
 	     iter = g_slist_next(iter)) {
@@ -509,7 +509,7 @@ static bool __find_next_alarm_to_be_scheduled_power_on(time_t *min_due_time)
 	struct tm *temp_info;
 	GSList *iter = NULL;
 
-	time(&current_time);
+	_alarm_time(&current_time);
 
 	tzset();		/*for portability tzset() need to be called
 				before locatime_r,refer manpage localtime_r*/
@@ -580,7 +580,7 @@ bool _alarm_schedule()
 
 	int min = -1;
 
-	time(&current_time);
+	_alarm_time(&current_time);
 
 	min_time = 0;
 
