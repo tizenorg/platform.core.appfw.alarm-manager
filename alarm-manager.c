@@ -1816,7 +1816,9 @@ gboolean alarm_manager_alarm_set_rtc_time(void *pObject, int pid,
 		return true;
 	}
 
-	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
+	//retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
+	retval = 0;
+
 	if (retval < 0) {
 		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
 			ALARM_MGR_EXCEPTION_PRINT(
@@ -1959,7 +1961,9 @@ gboolean alarm_manager_alarm_create_appsvc(void *pObject, int pid,
 		return false;
 	}
 
-	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
+	//retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
+	retval = 0;
+
 	if (retval < 0) {
 		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
 			ALARM_MGR_EXCEPTION_PRINT(
@@ -2028,7 +2032,9 @@ gboolean alarm_manager_alarm_create(void *pObject, int pid,
 
 	cookie = g_base64_decode(e_cookie, &size);
 
-	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
+	//retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
+	retval = 0;
+
 	if (retval < 0) {
 		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
 			ALARM_MGR_EXCEPTION_PRINT(
@@ -2063,7 +2069,9 @@ gboolean alarm_manager_alarm_delete(void *pObject, int pid, alarm_id_t alarm_id,
 
 	cookie = g_base64_decode(e_cookie, &size);
 
-	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
+	//retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
+	retval = 0;
+
 	if (retval < 0) {
 		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
 			ALARM_MGR_EXCEPTION_PRINT(
@@ -2356,7 +2364,9 @@ gboolean alarm_manager_alarm_get_appsvc_info(void *pObject, int pid, alarm_id_t 
 		return true;
 	}
 
-	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "r");
+	//retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "r");
+	retval = 0;
+
 	if (retval < 0) {
 		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
 			ALARM_MGR_EXCEPTION_PRINT(
