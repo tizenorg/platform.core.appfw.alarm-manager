@@ -1,6 +1,6 @@
 Name:           alarm-manager
 Version:        0.4.86
-Release:        1
+Release:        0
 License:        Apache-2.0
 Summary:        Alarm library
 Group:          Application Framework/Libraries
@@ -9,7 +9,6 @@ Source101:      alarm-server.service
 Source102:      60-alarm-manager-rtc.rules
 Source103:      alarm-service.conf
 Source1001:     %{name}.manifest
-
 
 BuildRequires:  pkgconfig(appsvc)
 BuildRequires:  pkgconfig(aul)
@@ -58,14 +57,12 @@ cp %{SOURCE1001} .
 
 
 %build
-%autogen --disable-static
 dbus-binding-tool --mode=glib-server --prefix=alarm_manager ./alarm_mgr.xml > ./include/alarm-skeleton.h
 dbus-binding-tool --mode=glib-client --prefix=alarm_manager ./alarm_mgr.xml > ./include/alarm-stub.h
 dbus-binding-tool --mode=glib-server --prefix=alarm_client ./alarm-expire.xml > ./include/alarm-expire-skeleton.h
 dbus-binding-tool --mode=glib-client --prefix=alarm_client ./alarm-expire.xml > ./include/alarm-expire-stub.h
-
-%configure --disable-static
-make %{?_smp_mflags}
+%reconfigure --disable-static
+%__make %{?_smp_mflags}
 
 
 %install
@@ -80,10 +77,10 @@ install -m0644  %{SOURCE102} %{buildroot}%{_sysconfdir}/udev/rules.d/
 
 mkdir -p %{buildroot}/%{_sysconfdir}/dbus-1/system.d
 install -m0644  %{SOURCE103} %{buildroot}%{_sysconfdir}/dbus-1/system.d/
-mkdir -p %{buildroot}/usr/share/license
-cp LICENSE %{buildroot}/usr/share/license/alarm-server
-cp LICENSE %{buildroot}/usr/share/license/libalarm
-cp LICENSE %{buildroot}/usr/share/license/libalarm-devel
+mkdir -p %{buildroot}%{_datadir}/license
+cp LICENSE %{buildroot}%{_datadir}/license/alarm-server
+cp LICENSE %{buildroot}%{_datadir}/license/libalarm
+cp LICENSE %{buildroot}%{_datadir}/license/libalarm-devel
 
 %preun -n alarm-server
 if [ $1 == 0 ]; then
@@ -119,7 +116,7 @@ fi
 %else
  %{_sysconfdir}/udev/rules.d/60-alarm-manager-rtc.rules
 %endif
-/usr/share/license/alarm-server
+%{_datadir}/license/alarm-server
 
 %post -n libalarm -p /sbin/ldconfig
 
@@ -131,11 +128,11 @@ fi
 %manifest alarm-lib.manifest
 %attr(0644,root,root) %{_libdir}/libalarm.so.0.0.0
 %{_libdir}/libalarm.so.0
-/usr/share/license/libalarm
+%{_datadir}/license/libalarm
 
 %files -n libalarm-devel
 %manifest %{name}.manifest
 %{_includedir}/*.h
 %{_libdir}/pkgconfig/*.pc
 %{_libdir}/libalarm.so
-/usr/share/license/libalarm-devel
+%{_datadir}/license/libalarm-devel
