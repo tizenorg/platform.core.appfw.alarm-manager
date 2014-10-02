@@ -10,6 +10,7 @@ Source102:      60-alarm-manager-rtc.rules
 Source103:      alarm-service.conf
 Source1001:     %{name}.manifest
 
+BuildRequires:  pkgconfig
 BuildRequires:  pkgconfig(appsvc)
 BuildRequires:  pkgconfig(aul)
 BuildRequires:  pkgconfig(bundle)
@@ -26,30 +27,30 @@ BuildRequires:  pkgconfig(vconf)
 BuildRequires:  pkgconfig(libtzplatform-config)
 
 %description
-Alarm Server and devel libraries
+Alarm server and alaram manager libraries.
 
 %package -n alarm-server
-Summary:        Alarm server (devel)
-Requires(post): /usr/bin/systemctl
+Summary:          Alarm server (devel)
+Requires(post):   /usr/bin/systemctl
 Requires(postun): /usr/bin/systemctl
-Requires(preun): /usr/bin/systemctl
+Requires(preun):  /usr/bin/systemctl
 
 %description -n alarm-server
-Alarm Server
+Alarm Server (development files).
 
 %package -n libalarm
-Summary:        Alarm server libraries
+Summary:        Alarm server (libs)
 Requires:       alarm-server = %{version}-%{release}
 
 %description -n libalarm
-Alarm server library
+Alarm server libraries.
 
 %package -n libalarm-devel
-Summary:        Alarm server libraries(devel)
+Summary:        Alarm server libraries (devel)
 Requires:       libalarm = %{version}-%{release}
 
 %description -n libalarm-devel
-Alarm server library (devel)
+Alarm server library (development files).
 
 %prep
 %setup -q
@@ -126,4 +127,3 @@ fi
 %{_includedir}/*.h
 %{_libdir}/pkgconfig/*.pc
 %{_libdir}/libalarm.so
-
