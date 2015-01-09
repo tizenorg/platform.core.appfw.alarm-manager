@@ -682,7 +682,7 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 	char caller_appid[512];
 	bundle_raw *b_data = NULL;
 	int datalen = 0;
-
+	uid_t uid;
 	__alarm_info_t *__alarm_info = NULL;
 
 	__alarm_info = malloc(sizeof(__alarm_info_t));
@@ -693,9 +693,19 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 					   failed internally. */
 		return false;
 	}
+	uid = _proc_get_usr_bypid(pid);
 	__alarm_info->pid = pid;
 	__alarm_info->alarm_id = -1;
-
+	if( uid < 0 ){		/* failure */
+		ALARM_MGR_EXCEPTION_PRINT("Caution!! app_pid(%d) seems to be "
+					  "killed, so we failed to get proc owner and do not create "
+					  "alarm_info\n", pid);
+		*error_code = -1;	/*-1 means that system failed
+							internally.*/
+		free(__alarm_info);
+		return false;
+	} else
+	__alarm_info->uid =  uid;
 
 	/* we should consider to check whether  pid is running or Not
 	 */
@@ -840,6 +850,7 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
 	char app_name[256] = { 0 };
 	char *word = NULL;
 	char *proc_name_ptr = NULL;
+	uid_t uid;
 
 	__alarm_info_t *__alarm_info = NULL;
 
@@ -851,9 +862,19 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
 					   failed internally. */
 		return false;
 	}
+	uid = _proc_get_usr_bypid(pid);
 	__alarm_info->pid = pid;
 	__alarm_info->alarm_id = -1;
-
+	if( uid < 0 ){		/* failure */
+		ALARM_MGR_EXCEPTION_PRINT("Caution!! app_pid(%d) seems to be "
+					  "killed, so we failed to get proc owner and do not create "
+					  "alarm_info\n", pid);
+		*error_code = -1;	/*-1 means that system failed
+							internally.*/
+		free(__alarm_info);
+		return false;
+	} else
+	__alarm_info->uid =  uid;
 	/* we should consider to check whether  pid is running or Not
 	 */
 	memset(process_name, '\0', 512);
@@ -999,6 +1020,7 @@ static bool __alarm_update(int pid, char *app_service_name, alarm_id_t alarm_id,
 {
 	time_t current_time;
 	time_t due_time;
+	uid_t uid;
 
 	__alarm_info_t *__alarm_info = NULL;
 	bool result = false;
@@ -1011,9 +1033,20 @@ static bool __alarm_update(int pid, char *app_service_name, alarm_id_t alarm_id,
 						internally.*/
 		return false;
 	}
-
+	uid = _proc_get_usr_bypid(pid);
 	__alarm_info->pid = pid;
 	__alarm_info->alarm_id = alarm_id;
+
+	if( uid < 0 ){		/* failure */
+		ALARM_MGR_EXCEPTION_PRINT("Caution!! app_pid(%d) seems to be "
+					  "killed, so we failed to get proc owner and do not create "
+					  "alarm_info\n", pid);
+		*error_code = -1;	/*-1 means that system failed
+							internally.*/
+		free(__alarm_info);
+		return false;
+	} else
+	__alarm_info->uid =  uid;
 
 	/* we should consider to check whether  pid is running or Not
 	 */
@@ -1446,7 +1479,7 @@ static void __alarm_expired()
 						}
 						else
 						{
-							if ( appsvc_run_service(b, 0, NULL, NULL) < 0)
+							if ( appsvc_run_service(b, 0, NULL, NULL, __alarm_info->uid) < 0)
 							{
 								ALARM_MGR_EXCEPTION_PRINT("Unable to run app svc\n");
 							}
@@ -2919,6 +2952,23 @@ static bool __check_false_alarm()
 	return true;
 }
 #endif
+
+
+uid_t _proc_get_usr_bypid(int pid)
+{
+	char buf[255];
+	int ret;
+	uid_t uid;
+	struct stat dir_stats;
+	snprintf(buf, sizeof(buf), "/proc/%d", pid);
+	ret = stat(buf, &dir_stats);
+	if (ret < 0)
+		uid = (uid_t)-1;
+	else
+		uid = dir_stats.st_uid;
+	return uid;
+}
+
 
 int main()
 {

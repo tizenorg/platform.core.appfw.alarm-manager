@@ -154,6 +154,7 @@ typedef struct {
 
 	int alarm_id;
 	int pid;
+	uid_t uid;
 	GQuark quark_app_unique_name;	/*the fullpath of application's pid is
 		converted to quark value.*/
 	GQuark quark_app_service_name;	/*dbus_service_name is converted  to
@@ -219,6 +220,7 @@ int _set_sys_time(time_t _time);
 int _set_time(time_t _time);
 time_t _alarm_time(time_t *tp);
 
+uid_t _proc_get_usr_bypid(int pid);
 
 
 #ifdef _DEBUG_MODE_
