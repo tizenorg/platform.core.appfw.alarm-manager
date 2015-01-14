@@ -1479,7 +1479,7 @@ static void __alarm_expired()
 						}
 						else
 						{
-							if ( appsvc_run_service(b, 0, NULL, NULL, __alarm_info->uid) < 0)
+							if ( appsvc_usr_run_service(b, 0, NULL, NULL, __alarm_info->uid) < 0)
 							{
 								ALARM_MGR_EXCEPTION_PRINT("Unable to run app svc\n");
 							}
