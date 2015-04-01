@@ -50,7 +50,6 @@
 #include <aul.h>
 #include <bundle.h>
 #include <heynoti.h>
-#include <security-server.h>
 #include <db-util.h>
 #include <vconf.h>
 #include <vconf-keys.h>
@@ -1821,9 +1820,8 @@ this value to 0(zero)
 
 gboolean alarm_manager_alarm_set_rtc_time(void *pObject, int pid,
 				int year, int mon, int day,
-				int hour, int min, int sec, char *e_cookie,
+				int hour, int min, int sec,
 				int *return_code){
-	guchar *cookie = NULL;
 	gsize size;
 	int retval = 0;
 	gboolean result = true;
@@ -1840,108 +1838,76 @@ gboolean alarm_manager_alarm_set_rtc_time(void *pObject, int pid,
 		*return_code = ALARMMGR_RESULT_SUCCESS;
 	}
 
-	cookie = g_base64_decode(e_cookie, &size);
-	if (NULL == cookie)
-	{
+	/*extract day of the week, day in the year &
+	  daylight saving time from system*/
+	time_t ctime;
+	ctime = time(NULL);
+	alarm_tm = localtime(&ctime);
+
+	alarm_tm->tm_year = year;
+	alarm_tm->tm_mon = mon;
+	alarm_tm->tm_mday = day;
+	alarm_tm->tm_hour = hour;
+	alarm_tm->tm_min = min;
+	alarm_tm->tm_sec = sec;
+
+	/*convert to calendar time representation*/
+	time_t rtc_time = mktime(alarm_tm);
+
+	/*convert to Coordinated Universal Time (UTC)*/
+	gmtime_r(&rtc_time, &due_tm);
+
+	fd = open(rtc, O_RDONLY);
+	if (fd == -1) {
+		ALARM_MGR_EXCEPTION_PRINT("RTC open failed.\n");
 		if (return_code)
-			*return_code = ERR_ALARM_NO_PERMISSION;
-		ALARM_MGR_EXCEPTION_PRINT("Unable to decode cookie!!!\n");
-		return true;
+			*return_code = ERR_ALARM_SYSTEM_FAIL;
+		return result;
 	}
 
-	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
-	if (retval < 0) {
-		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
-			ALARM_MGR_EXCEPTION_PRINT(
-				"%s", "Write access has been denied by smack\n");
-		}
-#ifdef __ALLOW_NO_PRIVILEGE
-		ALARM_MGR_EXCEPTION_PRINT("Error has occurred in security_server_check_privilege()\n");
+	/* Read the RTC time/date */
+	retval = ioctl(fd, RTC_RD_TIME, &rtc_tm);
+	if (retval == -1) {
+		ALARM_MGR_EXCEPTION_PRINT("RTC_RD_TIME ioctl failed");
+		close(fd);
 		if (return_code)
-			*return_code = ERR_ALARM_NO_PERMISSION;
-#endif
-	}
-#ifdef __ALLOW_NO_PRIVILEGE
-	else
-#endif
-	{
-
-		/*extract day of the week, day in the year &
-		daylight saving time from system*/
-		time_t ctime;
-		ctime = time(NULL);
-		alarm_tm = localtime(&ctime);
-
-		alarm_tm->tm_year = year;
-		alarm_tm->tm_mon = mon;
-		alarm_tm->tm_mday = day;
-		alarm_tm->tm_hour = hour;
-		alarm_tm->tm_min = min;
-		alarm_tm->tm_sec = sec;
-
-		/*convert to calendar time representation*/
-		time_t rtc_time = mktime(alarm_tm);
-
-		/*convert to Coordinated Universal Time (UTC)*/
-		gmtime_r(&rtc_time, &due_tm);
-
-		fd = open(rtc, O_RDONLY);
-		if (fd == -1) {
-			ALARM_MGR_EXCEPTION_PRINT("RTC open failed.\n");
-			if (return_code)
-				*return_code = ERR_ALARM_SYSTEM_FAIL;
-			return result;
-		}
-
-		/* Read the RTC time/date */
-		retval = ioctl(fd, RTC_RD_TIME, &rtc_tm);
-		if (retval == -1) {
-			ALARM_MGR_EXCEPTION_PRINT("RTC_RD_TIME ioctl failed");
-			close(fd);
-			if (return_code)
-				*return_code = ERR_ALARM_SYSTEM_FAIL;
-			return result;
-		}
-
-		rtc_tm.tm_mday = due_tm.tm_mday;
-		rtc_tm.tm_mon = due_tm.tm_mon;
-		rtc_tm.tm_year = due_tm.tm_year;
-		rtc_tm.tm_hour = due_tm.tm_hour;
-		rtc_tm.tm_min = due_tm.tm_min;
-		rtc_tm.tm_sec = due_tm.tm_sec;
-
-		memcpy(&rtc_wk.time, &rtc_tm, sizeof(rtc_tm));
-
-		rtc_wk.enabled = 1;
-		rtc_wk.pending = 0;
-
-		retval = ioctl(fd, RTC_WKALM_BOOT_SET, &rtc_wk);
-		if (retval == -1) {
-			if (errno == ENOTTY) {
-				ALARM_MGR_EXCEPTION_PRINT("\nAlarm IRQs not"
-							  "supported.\n");
-			}
-			ALARM_MGR_EXCEPTION_PRINT("RTC_ALM_SET ioctl");
-			close(fd);
-			if (return_code)
-				*return_code = ERR_ALARM_SYSTEM_FAIL;
-		}
-		else{
-			ALARM_MGR_LOG_PRINT("[alarm-server]RTC alarm is setted");
-			/* Enable alarm interrupts */
-			retval = ioctl(fd, RTC_AIE_ON, 0);
-			if (retval == -1) {
-				ALARM_MGR_EXCEPTION_PRINT("RTC_AIE_ON ioctl failed");
-				if (return_code)
-					*return_code = ERR_ALARM_SYSTEM_FAIL;
-			}
-			close(fd);
-		}
+			*return_code = ERR_ALARM_SYSTEM_FAIL;
+		return result;
 	}
 
-	if (cookie){
-		g_free(cookie);
-		cookie = NULL;
+	rtc_tm.tm_mday = due_tm.tm_mday;
+	rtc_tm.tm_mon = due_tm.tm_mon;
+	rtc_tm.tm_year = due_tm.tm_year;
+	rtc_tm.tm_hour = due_tm.tm_hour;
+	rtc_tm.tm_min = due_tm.tm_min;
+	rtc_tm.tm_sec = due_tm.tm_sec;
+
+	memcpy(&rtc_wk.time, &rtc_tm, sizeof(rtc_tm));
+
+	rtc_wk.enabled = 1;
+	rtc_wk.pending = 0;
+
+	retval = ioctl(fd, RTC_WKALM_BOOT_SET, &rtc_wk);
+	if (retval == -1) {
+		if (errno == ENOTTY) {
+			ALARM_MGR_EXCEPTION_PRINT("\nAlarm IRQs not"
+					"supported.\n");
+		}
+		ALARM_MGR_EXCEPTION_PRINT("RTC_ALM_SET ioctl");
+		close(fd);
+		if (return_code)
+			*return_code = ERR_ALARM_SYSTEM_FAIL;
+	}
+	else{
+		ALARM_MGR_LOG_PRINT("[alarm-server]RTC alarm is setted");
+		/* Enable alarm interrupts */
+		retval = ioctl(fd, RTC_AIE_ON, 0);
+		if (retval == -1) {
+			ALARM_MGR_EXCEPTION_PRINT("RTC_AIE_ON ioctl failed");
+			if (return_code)
+				*return_code = ERR_ALARM_SYSTEM_FAIL;
+		}
+		close(fd);
 	}
 
 	return result;
@@ -1956,11 +1922,9 @@ gboolean alarm_manager_alarm_create_appsvc(void *pObject, int pid,
 				    int end_day, int mode_day_of_week,
 				    int mode_repeat, int alarm_type,
 				    int reserved_info,
-				    char *bundle_data, char *e_cookie,
-				    int *alarm_id, int *return_code)
+				    char *bundle_data, int *alarm_id, int *return_code)
 {
 	alarm_info_t alarm_info;
-	guchar *cookie = NULL;
 	gsize size;
 	int retval = 0;
 	gboolean result = true;
@@ -1984,41 +1948,11 @@ gboolean alarm_manager_alarm_create_appsvc(void *pObject, int pid,
 
 	*return_code = 0;
 
-	cookie = g_base64_decode(e_cookie, &size);
-	if (NULL == cookie)
+	result = __alarm_create_appsvc(&alarm_info, alarm_id, pid,
+			bundle_data, return_code);
+	if (false == result)
 	{
-		*return_code = -1;
-		ALARM_MGR_EXCEPTION_PRINT("Unable to decode cookie!!!\n");
-		return false;
-	}
-
-	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
-	if (retval < 0) {
-		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
-			ALARM_MGR_EXCEPTION_PRINT(
-				"%s", "Write access has been denied by smack\n");
-		}
-#ifdef __ALLOW_NO_PRIVILEGE
-		ALARM_MGR_EXCEPTION_PRINT("Error has occurred in security_server_check_privilege()\n");
-		*return_code = -1;
-		result = false;
-#endif
-	}
-#ifdef __ALLOW_NO_PRIVILEGE
-	else
-#endif
-	{
-		result = __alarm_create_appsvc(&alarm_info, alarm_id, pid,
-			       bundle_data, return_code);
-		if (false == result)
-		{
-			ALARM_MGR_EXCEPTION_PRINT("Unable to create alarm!\n");
-		}
-	}
-
-	if (cookie){
-		g_free(cookie);
-		cookie = NULL;
+		ALARM_MGR_EXCEPTION_PRINT("Unable to create alarm!\n");
 	}
 
 	return result;
@@ -2032,11 +1966,10 @@ gboolean alarm_manager_alarm_create(void *pObject, int pid,
 				    int end_day, int mode_day_of_week,
 				    int mode_repeat, int alarm_type,
 				    int reserved_info,
-				    char *reserved_service_name, char *reserved_service_name_mod, char *e_cookie,
+				    char *reserved_service_name, char *reserved_service_name_mod,
 				    int *alarm_id, int *return_code)
 {
 	alarm_info_t alarm_info;
-	guchar *cookie;
 	gsize size;
 	int retval;
 
@@ -2059,63 +1992,20 @@ gboolean alarm_manager_alarm_create(void *pObject, int pid,
 
 	*return_code = 0;
 
-	cookie = g_base64_decode(e_cookie, &size);
-
-	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
-	if (retval < 0) {
-		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
-			ALARM_MGR_EXCEPTION_PRINT(
-				"%s", "Write access has been denied by smack\n");
-		}
-#ifdef __ALLOW_NO_PRIVILEGE
-		ALARM_MGR_EXCEPTION_PRINT("%s", "Error has occurred\n");
-
-		*return_code = -1;
-#endif
-	}
-#ifdef __ALLOW_NO_PRIVILEGE
-	else
-#endif
-	{
-		/* return valule and return_code should be checked */
-		__alarm_create(&alarm_info, alarm_id, pid, app_service_name,app_service_name_mod,
-			       reserved_service_name, reserved_service_name_mod, return_code);
-	}
-
-	g_free(cookie);
+	/* return valule and return_code should be checked */
+	__alarm_create(&alarm_info, alarm_id, pid, app_service_name,app_service_name_mod,
+			reserved_service_name, reserved_service_name_mod, return_code);
 
 	return true;
 }
 
 gboolean alarm_manager_alarm_delete(void *pObject, int pid, alarm_id_t alarm_id,
-				    char *e_cookie, int *return_code)
+				    int *return_code)
 {
-	guchar *cookie;
 	gsize size;
 	int retval;
 
-	cookie = g_base64_decode(e_cookie, &size);
-
-	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "w");
-	if (retval < 0) {
-		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
-			ALARM_MGR_EXCEPTION_PRINT(
-				"%s", "Write access has been denied by smack\n");
-		}
-#ifdef __ALLOW_NO_PRIVILEGE
-		ALARM_MGR_EXCEPTION_PRINT("%s", "Error has occurred\n");
-
-		*return_code = -1;
-#endif
-	}
-#ifdef __ALLOW_NO_PRIVILEGE
-	else
-#endif
-	{
-		__alarm_delete(pid, alarm_id, return_code);
-	}
-
-	g_free(cookie);
+	__alarm_delete(pid, alarm_id, return_code);
 
 	return true;
 }
@@ -2366,47 +2256,18 @@ gboolean alarm_manager_alarm_get_list_of_ids(void *pObject, int pid,
 }
 
 gboolean alarm_manager_alarm_get_appsvc_info(void *pObject, int pid, alarm_id_t alarm_id,
-				char *e_cookie, gchar **b_data, int *return_code)
+				gchar **b_data, int *return_code)
 {
 	bool found = false;
 
 	GSList *gs_iter = NULL;
 	__alarm_info_t *entry = NULL;
 
-	guchar *cookie = NULL;
 	gsize size;
 	int retval = 0;
 
 	ALARM_MGR_LOG_PRINT("called for  pid(%d) and alarm_id(%d)\n", pid,
 			    alarm_id);
-
-	cookie = g_base64_decode(e_cookie, &size);
-	if (NULL == cookie)
-	{
-		if (return_code)
-			*return_code = ERR_ALARM_SYSTEM_FAIL;
-		ALARM_MGR_EXCEPTION_PRINT("Unable to decode cookie!!!\n");
-		return true;
-	}
-
-	retval = security_server_check_privilege_by_cookie((const char *)cookie, "alarm-manager::alarm", "r");
-	if (retval < 0) {
-		if (retval == SECURITY_SERVER_API_ERROR_ACCESS_DENIED) {
-			ALARM_MGR_EXCEPTION_PRINT(
-				"%s", "Read access has been denied by smack\n");
-		}
-#ifdef __ALLOW_NO_PRIVILEGE
-		ALARM_MGR_EXCEPTION_PRINT("%s", "Error has occurred\n");
-
-		if (return_code)
-			*return_code = ERR_ALARM_NO_PERMISSION;
-
-		if (cookie)
-			g_free(cookie);
-
-		return true;
-#endif
-	}
 
 	if (return_code)
 		*return_code = 0;
@@ -2431,9 +2292,6 @@ gboolean alarm_manager_alarm_get_appsvc_info(void *pObject, int pid, alarm_id_t 
 		if (return_code)
 			*return_code = ERR_ALARM_INVALID_ID;
 	}
-
-	if (cookie)
-		g_free(cookie);
 
 	return true;
 }
