@@ -20,9 +20,6 @@
  *
  */
 
-
-
-
 #ifndef _ALARM_INTERNAL_H
 #define _ALARM_INTERNAL_H
 
@@ -33,17 +30,18 @@
 #define ALARM_INFO_MAX 100
 
 #include "alarm.h"
-#include <dbus/dbus-glib.h>
 #include <glib.h>
 #include <dlog.h>
 #include <bundle.h>
 #include <appsvc.h>
+#include <gio/gio.h>
 
 #define INIT_ALARM_LIST_SIZE 64
 #define INIT_SCHEDULED_ALARM_LIST_SIZE 32
 #define MAX_BUNDLE_NAME_LEN 2048
 #define MAX_SERVICE_NAME_LEN 256
 #define MAX_PKG_NAME_LEN MAX_SERVICE_NAME_LEN-8
+#define MAX_PKG_ID_LEN 256
 
 #define SYSTEM_TIME_CHANGED "setting_time_changed"
 
@@ -52,17 +50,17 @@
 #endif
 #define LOG_TAG "ALARM_MANAGER"
 
-/*Application ID for native application which is not launched by application 
+/*Application ID for native application which is not launched by application
 server.*/
 #define ALARM_NATIVE_APP_ID 99999
-/*  Application Instance ID for native application which is not launched by 
+/*  Application Instance ID for native application which is not launched by
 application server.*/
 #define ALARM_NATIVE_APP_INST_ID 99999
 /*  Prefix of dbus service name of native application.*/
 #define ALARM_NATIVE_APP_DBUS_SVC_NAME_PREFIX "NATIVE"
 
 /* how to send expire event : gproxy or low level dbus
-* if you want to use gproxy for receiving expire_event, please enable 
+* if you want to use gproxy for receiving expire_event, please enable
 * _EXPIRE_ALARM_INTERFACE_IS_DBUS_GPROXY_ feature
 * otherwise, lowlevel dbus interface will be used for receiving expire_event.
 * Now we use low level dbus instead of gproxy
@@ -70,12 +68,12 @@ application server.*/
 /*#define	_EXPIRE_ALARM_INTERFACE_IS_DBUS_GPROXY_ */
 
 typedef struct {
-	DBusGConnection *bus;
-	DBusGProxy *proxy;
+	GDBusConnection *connection;
+	GDBusProxy *proxy;
 	alarm_cb_t alarm_handler;
 	void *user_param;
 	int pid;		/* this specifies pid*/
-	GQuark quark_app_service_name;	/*dbus_service_name is converted 
+	GQuark quark_app_service_name;	/*dbus_service_name is converted
 	 to quark value*/
 	 GQuark quark_app_service_name_mod;
 } alarm_context_t;
@@ -98,14 +96,14 @@ typedef struct {
 
 typedef enum
 {
-	ALARM_TYPE_DEFAULT = 0x0,	
-	ALARM_TYPE_RELATIVE = 0x01,	
-	ALARM_TYPE_VOLATILE = 0x02,	
+	ALARM_TYPE_DEFAULT = 0x0,
+	ALARM_TYPE_RELATIVE = 0x01,
+	ALARM_TYPE_VOLATILE = 0x02,
 }alarm_type_t;
 */
 #define	ALARM_TYPE_RELATIVE		0x80000000	/**< relative  */
 #define	ALARM_TYPE_WITHCB		0x40000000	/**< withcb  */
-
+#define	ALARM_TYPE_PERIOD		0x10000000	/**< periodic */
 
 /**
 * This struct has the information of an alarm
@@ -120,49 +118,44 @@ typedef struct {
 } alarm_info_t;
 
 bool _send_alarm_create(alarm_context_t context, alarm_info_t *alarm,
-			 alarm_id_t *id, const char *dst_service_name,const char *dst_service_name_mod,
-			 int *error_code);
+			alarm_id_t *id, const char *dst_service_name,const char *dst_service_name_mod, int *error_code);
 bool _send_alarm_create_appsvc(alarm_context_t context, alarm_info_t *alarm_info,
 			alarm_id_t *alarm_id, bundle *b,int *error_code);
 bool _send_alarm_update(alarm_context_t context, int pid, alarm_id_t alarm_id,
-			 alarm_info_t *alarm_info, int *error_code);
-bool _send_alarm_delete(alarm_context_t context, alarm_id_t alarm_id,
-			 int *error_code);
+			alarm_info_t *alarm_info, int *error_code);
+bool _send_alarm_delete(alarm_context_t context, alarm_id_t alarm_id, int *error_code);
+bool _send_alarm_delete_all(alarm_context_t context, int *error_code);
 bool _send_alarm_get_list_of_ids(alarm_context_t context, int maxnum_of_ids,
-				  alarm_id_t *alarm_id, int *num_of_ids,
-				  int *error_code);
-bool _send_alarm_get_number_of_ids(alarm_context_t context, int *num_of_ids,
-				    int *error_code);
-bool _send_alarm_get_info(alarm_context_t context, alarm_id_t alarm_id,
-			   alarm_info_t *alarm_info, int *error_code);
+			alarm_id_t *alarm_id, int *num_of_ids, int *error_code);
+bool _send_alarm_get_number_of_ids(alarm_context_t context, int *num_of_ids, int *error_code);
+bool _send_alarm_get_info(alarm_context_t context, alarm_id_t alarm_id, alarm_info_t *alarm_info, int *error_code);
+bool _send_alarm_get_next_duetime(alarm_context_t context, alarm_id_t alarm_id, time_t* duetime, int *error_code);
+bool _send_alarm_get_all_info(alarm_context_t context, char ** db_path, int *error_code);
 bool _send_alarm_reset(alarm_context_t context, int *error_code);
-
-bool _send_alarm_power_on(alarm_context_t context, bool on_off,
-			   int *error_code);
-bool _send_alarm_check_next_duetime(alarm_context_t context, int *error_code);
-bool _send_alarm_power_off(alarm_context_t context, int *error_code);
 bool _remove_from_scheduled_alarm_list(int pid, alarm_id_t alarm_id);
 bool _load_alarms_from_registry();
-bool _alarm_find_mintime_power_on(time_t *min_time);
 bundle *_send_alarm_get_appsvc_info(alarm_context_t context, alarm_id_t alarm_id, int *error_code);
 bool _send_alarm_set_rtc_time(alarm_context_t context, alarm_date_t *time, int *error_code);
+bool _send_alarm_set_time_with_propagation_delay(alarm_context_t context, unsigned int new_sec, unsigned int new_nsec, unsigned int req_sec, unsigned int req_nsec, int *error_code);
+bool _send_alarm_set_timezone(alarm_context_t context, char *tzpath_str, int *error_code);
 
 /*  alarm manager*/
 typedef struct {
 	time_t start;
 	time_t end;
 
-	int alarm_id;
+	alarm_id_t alarm_id;
 	int pid;
-	uid_t uid;
+	GQuark quark_caller_pkgid;
+	GQuark quark_callee_pkgid;
 	GQuark quark_app_unique_name;	/*the fullpath of application's pid is
 		converted to quark value.*/
 	GQuark quark_app_service_name;	/*dbus_service_name is converted  to
 		quark value.app_service_name is a service name  of application
 		that creates alarm_info.*/
 	GQuark quark_app_service_name_mod;
-	GQuark quark_dst_service_name;	/*dbus_service_name is converted to 
-		quark value.app_service_name is a service name  for 
+	GQuark quark_dst_service_name;	/*dbus_service_name is converted to
+		quark value.app_service_name is a service name  for
 		dst_service_name of alarm_create_extend().*/
 	GQuark quark_dst_service_name_mod;
 	time_t due_time;
@@ -171,6 +164,9 @@ typedef struct {
 
 	alarm_info_t alarm_info;
 
+	periodic_method_e method;
+	long requested_interval;
+	int is_ref;
 } __alarm_info_t;
 
 typedef struct {
@@ -179,12 +175,12 @@ typedef struct {
 } __alarm_entry_t;
 
 typedef struct {
-	timer_t timer;
+	int timer;
 	time_t c_due_time;
 	GSList *alarms;
 	int gmt_idx;
 	int dst;
-	DBusGConnection *bus;
+	GDBusConnection *connection;
 } __alarm_server_context_t;
 
 typedef struct {
@@ -208,35 +204,22 @@ bool _save_alarms(__alarm_info_t *__alarm_info);
 bool _delete_alarms(alarm_id_t alarm_id);
 bool _update_alarms(__alarm_info_t *__alarm_info);
 
-timer_t _alarm_create_timer();
 bool _alarm_destory_timer(timer_t timer);
-bool _alarm_set_timer(__alarm_server_context_t *alarm_context, timer_t timer,
-		       time_t due_time, alarm_id_t id);
+bool _alarm_set_timer(__alarm_server_context_t *alarm_context, int timer, time_t due_time);
 bool _alarm_disable_timer(__alarm_server_context_t alarm_context);
 bool _init_scheduled_alarm_list();
-
-int _set_rtc_time(time_t _time);
-int _set_sys_time(time_t _time);
-int _set_time(time_t _time);
-time_t _alarm_time(time_t *tp);
-
-uid_t _proc_get_usr_bypid(int pid);
-
 
 #ifdef _DEBUG_MODE_
 #define ALARM_MGR_LOG_PRINT(FMT, ARG...)  do { printf("%5d", getpid()); printf
 	("%s() : "FMT"\n", __FUNCTION__, ##ARG); } while (false)
-#define ALARM_MGR_EXCEPTION_PRINT(FMT, ARG...)  do { printf("%5d", getpid()); 
+#define ALARM_MGR_EXCEPTION_PRINT(FMT, ARG...)  do { printf("%5d", getpid());
 	printf("%s() : "FMT"\n", __FUNCTION__, ##ARG); } while (false)
 #define ALARM_MGR_ASSERT_PRINT(FMT, ARG...) do { printf("%5d", getpid()); printf
 	("%s() : "FMT"\n", __FUNCTION__, ##ARG); } while (false)
 #else
-#define ALARM_MGR_LOG_PRINT(FMT, ARG...) LOGI(FMT, ##ARG);
+#define ALARM_MGR_LOG_PRINT(FMT, ARG...) LOGD(FMT, ##ARG);
 #define ALARM_MGR_EXCEPTION_PRINT(FMT, ARG...) LOGW(FMT, ##ARG);
 #define ALARM_MGR_ASSERT_PRINT(FMT, ARG...) LOGE(FMT, ##ARG);
 #endif
-
-/* int alarmmgr_check_next_duetime();*/
-
 
 #endif /*_ALARM_INTERNAL_H*/

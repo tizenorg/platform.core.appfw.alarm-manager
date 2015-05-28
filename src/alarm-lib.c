@@ -20,51 +20,45 @@
  *
  */
 
-
-
-
-#include<stdio.h>
-#include<stdlib.h>
-#include<errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include<sys/types.h>
-#include<string.h>
-#include<dbus/dbus.h>
-#include<dbus/dbus-glib.h>
-#include<glib.h>
+#include <sys/types.h>
+#include <string.h>
+#include <glib.h>
 #include <fcntl.h>
-#include <dbus/dbus-glib-lowlevel.h>
 
 #include "alarm.h"
 #include "alarm-internal.h"
-#include "alarm-stub.h"
+#include "alarm-mgr-stub.h"
 #include <bundle.h>
 #include <appsvc.h>
 #include <aul.h>
+#include <gio/gio.h>
 
 #define MAX_KEY_SIZE 256
+#define MAX_PROC_NAME_LEN 512
 
 static alarm_context_t alarm_context = { NULL, NULL, NULL, NULL, -1 };
 
 static bool b_initialized = false;
 static bool sub_initialized = false;
 
-#define MAX_OBJECT_PATH_LEN 256
-#define DBUS_NAME_FLAG_PROHIBIT_REPLACEMENT 0
+pthread_mutex_t init_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static DBusHandlerResult __expire_alarm_filter(DBusConnection *connection,
-					       DBusMessage *message,
-					       void *user_data);
+static void __handle_expiry_method_call(GDBusConnection *conn,
+	const gchar *name, const gchar *path, const gchar *interface,
+	const gchar *method, GVariant *param, GDBusMethodInvocation *invocation, gpointer user_data);
+
 static int __alarm_validate_date(alarm_date_t *date, int *error_code);
 static bool __alarm_validate_time(alarm_date_t *date, int *error_code);
 static int __sub_init(void);
 static int __alarmmgr_init_appsvc(void);
-bool alarm_power_off(int *error_code);
-int alarmmgr_check_next_duetime(void);
 
 typedef struct _alarm_cb_info_t {
-	int alarm_id;
+	alarm_id_t alarm_id;
 	alarm_cb_t cb_func;
 	void *priv_data;
 	struct _alarm_cb_info_t *next;
@@ -72,8 +66,28 @@ typedef struct _alarm_cb_info_t {
 
 static alarm_cb_info_t *alarmcb_head = NULL;
 
-static void __add_resultcb(int alarm_id, alarm_cb_t cb_func,
-			 void *data)
+guint registration_id = 0;
+
+static GDBusNodeInfo *introspection_data = NULL;
+
+static const gchar introspection_xml[] =
+  "<node name='/org/tizen/alarm/client'>"
+  "  <interface name='org.tizen.alarm.client'>"
+  "    <method name='alarm_expired'>"
+  "      <arg type='i' name='alarm_id' direction='in'/>"
+  "      <arg type='s' name='service_name' direction='in'/>"
+  "    </method>"
+  "  </interface>"
+  "</node>";
+
+static const GDBusInterfaceVTable interface_vtable =
+{
+	__handle_expiry_method_call,
+	NULL,
+	NULL
+};
+
+static void __add_resultcb(alarm_id_t alarm_id, alarm_cb_t cb_func, void *data)
 {
 	alarm_cb_info_t *info;
 
@@ -88,14 +102,16 @@ static void __add_resultcb(int alarm_id, alarm_cb_t cb_func,
 	alarmcb_head = info;
 }
 
-static alarm_cb_info_t *__find_resultcb(int alarm_id)
+static alarm_cb_info_t *__find_resultcb(alarm_id_t alarm_id)
 {
 	alarm_cb_info_t *tmp;
 
 	tmp = alarmcb_head;
 	while (tmp) {
-		if (tmp->alarm_id == alarm_id)
+		if (tmp->alarm_id == alarm_id) {
+			ALARM_MGR_LOG_PRINT("matched alarm id =  %d", alarm_id);
 			return tmp;
+		}
 		tmp = tmp->next;
 	}
 	return NULL;
@@ -125,56 +141,27 @@ static void __remove_resultcb(alarm_cb_info_t *info)
 	}
 }
 
-static DBusHandlerResult __expire_alarm_filter(DBusConnection *connection,
-					       DBusMessage *message,
-					       void *user_data)
+static void __handle_expiry_method_call(GDBusConnection *conn,
+                const gchar *name, const gchar *path, const gchar *interface,
+                const gchar *method, GVariant *param, GDBusMethodInvocation *invocation, gpointer user_data)
 {
-	alarm_cb_info_t *info;
+	if (method && strcmp(method, "alarm_expired") == 0) {
+		gchar *package_name = NULL;
+		alarm_id_t alarm_id = 0;
+		alarm_cb_info_t *info = NULL;
+		g_variant_get(param, "(is)", &alarm_id, &package_name);
+		ALARM_MGR_EXCEPTION_PRINT("[alarm-lib] : Alarm expired for [%s] : Alarm id [%d]", package_name, alarm_id);
 
-	if (dbus_message_get_type(message) == DBUS_MESSAGE_TYPE_METHOD_CALL) {
-		const char *method_name = dbus_message_get_member(message);
-		/*"alarm_expired" */
-
-		if (strcmp(method_name, "alarm_expired") == 0) {
-			DBusMessageIter iter;
-			alarm_id_t alarm_id;
-			const char *service_name =
-			    dbus_message_get_destination(message);
-			const char *object_path =
-			    dbus_message_get_path(message);
-			/* "/org/tizen/alarm/client" */
-			const char *interface_name =
-			    dbus_message_get_interface(message);
-			/* "org.tizen.alarm.client" */
-
-			dbus_message_iter_init(message, &iter);
-			dbus_message_iter_get_basic(&iter, &alarm_id);
-
-			ALARM_MGR_LOG_PRINT("[alarm-lib]:service_name=%s, "
-			"object_path=%s, interface_name=%s, method_name=%s, "
-			"alarm_id=%d, handler=%s\n",
-			service_name ? service_name : "no name",
-			object_path ? object_path : "no path",
-			interface_name ? interface_name : "no interface",
-			method_name ? method_name : "no method", alarm_id,
-			alarm_context.alarm_handler ? "ok" : "no handler");
-
-			if (alarm_context.alarm_handler != NULL)
-				/* alarm_context.alarm_handler(alarm_id); */
-				alarm_context.alarm_handler(alarm_id,
-					alarm_context.user_param);
-			info = __find_resultcb(alarm_id);
-
-			if( info && info->cb_func ) {
-				info->cb_func(alarm_id, info->priv_data);
-			//	__remove_resultcb(info);
-			}
-
-			return DBUS_HANDLER_RESULT_HANDLED;
+		if (alarm_context.alarm_handler != NULL) {
+			alarm_context.alarm_handler(alarm_id, alarm_context.user_param);
 		}
-	}
 
-	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+		info = __find_resultcb(alarm_id);
+		if (info && info->cb_func) {
+			info->cb_func(alarm_id, info->priv_data);
+		}
+		g_free(package_name);
+	}
 }
 
 static int __alarm_validate_date(alarm_date_t *date, int *error_code)
@@ -250,82 +237,94 @@ static bool __alarm_validate_time(alarm_date_t *date, int *error_code)
 static int __sub_init()
 {
 	GError *error = NULL;
+	char proc_file[MAX_PROC_NAME_LEN] = {0, };
+	char process_name[MAX_PROC_NAME_LEN] = {0, };
+	int fd = 0;
+	int ret = 0;
+	const int MAX_LEN = MAX_PROC_NAME_LEN;
+
+	pthread_mutex_lock(&init_lock);
 
 	if (sub_initialized) {
-		//ALARM_MGR_LOG_PRINT("__sub_init was already called.\n");
+		pthread_mutex_unlock(&init_lock);
 		return ALARMMGR_RESULT_SUCCESS;
 	}
 
-	dbus_g_thread_init();
+#if !GLIB_CHECK_VERSION(2,32,0)
+	g_thread_init(NULL);
+#endif
+	g_type_init();
 
-	alarm_context.bus = dbus_g_bus_get(DBUS_BUS_SYSTEM, &error);
-	if (alarm_context.bus == NULL) {
-		ALARM_MGR_EXCEPTION_PRINT("dbus bus get failed\n");
-
+	alarm_context.connection = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
+	if (alarm_context.connection == NULL) {
+		ALARM_MGR_EXCEPTION_PRINT("g_bus_get_sync() is failed. error: %s", error->message);
+		g_error_free(error);
+		pthread_mutex_unlock(&init_lock);
 		return ERR_ALARM_SYSTEM_FAIL;
 	}
 
-	alarm_context.proxy = dbus_g_proxy_new_for_name(alarm_context.bus,
+	alarm_context.proxy = g_dbus_proxy_new_sync(alarm_context.connection,
+							G_DBUS_PROXY_FLAGS_NONE,
+							NULL,
 							"org.tizen.alarm.manager",
 							"/org/tizen/alarm/manager",
-							"org.tizen.alarm.manager");
-	if (alarm_context.proxy == NULL) {
-		ALARM_MGR_EXCEPTION_PRINT("dbus bus proxy get failed\n");
+							"org.tizen.alarm.manager",
+							NULL,
+							NULL);
 
+	if (alarm_context.proxy == NULL) {
+		ALARM_MGR_EXCEPTION_PRINT("Creating a proxy is failed.");
+		g_object_unref (alarm_context.connection);
+		pthread_mutex_unlock(&init_lock);
 		return ERR_ALARM_SYSTEM_FAIL;
 	}
 
-	alarm_context.pid = getpid();	/*this running appliction's process id*/
+	// Only webapp which has a pid of WebProcess uses the sid. Otherwise, the pid is used.
+	snprintf(proc_file, MAX_LEN, "/proc/%d/cmdline", getpid());
+	fd = open(proc_file, O_RDONLY);
+	if (fd < 0) {
+		SECURE_LOGE("Unable to get the proc file(%d).\n", getpid());
+		g_object_unref(alarm_context.proxy);
+		g_object_unref(alarm_context.connection);
+		pthread_mutex_unlock(&init_lock);
+		return ERR_ALARM_SYSTEM_FAIL;
+	}
+	else {
+		ret = read(fd, process_name, MAX_LEN - 1);
+		close(fd);
+		if (ret < 0) {
+			ALARM_MGR_EXCEPTION_PRINT("Unable to read the proc file(%d).", getpid());
+			g_object_unref(alarm_context.proxy);
+			g_object_unref(alarm_context.connection);
+			pthread_mutex_unlock(&init_lock);
+			return ERR_ALARM_SYSTEM_FAIL;
+		}
+		else {
+			if (strncmp(process_name, "/usr/bin/WebProcess", strlen("/usr/bin/WebProcess")) == 0) {
+				alarm_context.pid = getsid(getpid());
+				SECURE_LOGD("alarm_context.pid is set to sessionID, %d.", alarm_context.pid);
+			}
+			else {
+				alarm_context.pid = getpid();
+				SECURE_LOGD("alarm_context.pid is set to processID, %d.", alarm_context.pid);
+			}
+		}
+	}
 
 	sub_initialized = true;
 
-	return ALARMMGR_RESULT_SUCCESS;
-}
-
-bool alarm_power_off(int *error_code)
-{
-	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarm_power_off() is called\n");
-
-#ifdef __ALARM_BOOT
-	return _send_alarm_power_off(alarm_context, error_code);
-#else
-	ALARM_MGR_LOG_PRINT(
-			"[alarm-lib]:ALARM_BOOT feature is not supported. "
-			    "so we return false.\n");
-	if (error_code)
-		*error_code = -1;	/*-1 means that system failed
-							internally.*/
-	return false;
-#endif
-}
-
-int alarmmgr_check_next_duetime()
-{
-	int error_code;
-	ALARM_MGR_LOG_PRINT(
-	    "[alarm-lib]:alarm_check_next_duetime() is called\n");
-
-#ifdef __ALARM_BOOT
-	if (!_send_alarm_check_next_duetime(alarm_context, &error_code))
-		return error_code;
-#else
-	ALARM_MGR_LOG_PRINT(
-		    "[alarm-lib]:ALARM_BOOT feature is not supported. "
-			    "so we return false.\n");
-	return ERR_ALARM_SYSTEM_FAIL;
-#endif
+	pthread_mutex_unlock(&init_lock);
 
 	return ALARMMGR_RESULT_SUCCESS;
 }
 
 EXPORT_API int alarmmgr_init(const char *appid)
 {
-	DBusError derror;
-	int request_name_result = 0;
+	SECURE_LOGD("Enter");
 	char service_name[MAX_SERVICE_NAME_LEN] = { 0 };
 	char service_name_mod[MAX_SERVICE_NAME_LEN]= { 0 };
-
-	int ret;
+	int ret = ALARMMGR_RESULT_SUCCESS;
+	guint owner_id = 0;
 	int i = 0;
 	int j = 0;
 	int len = 0;
@@ -337,8 +336,7 @@ EXPORT_API int alarmmgr_init(const char *appid)
 		return ERR_ALARM_INVALID_PARAM;
 
 	if (b_initialized) {
-		ALARM_MGR_EXCEPTION_PRINT(
-		     "alarm was already initialized. app_service_name=%s\n",
+		SECURE_LOGD("alarm was already initialized. app_service_name=%s",
 		     g_quark_to_string(alarm_context.quark_app_service_name));
 		return ALARMMGR_RESULT_SUCCESS;
 	}
@@ -347,78 +345,110 @@ EXPORT_API int alarmmgr_init(const char *appid)
 	if (ret < 0)
 		return ret;
 
-	memset(service_name_mod, 'a', MAX_SERVICE_NAME_LEN-1);
+	memset(service_name_mod, 'a', MAX_SERVICE_NAME_LEN - 1);
 
 	len = strlen("ALARM.");
 	strncpy(service_name, "ALARM.", len);
 	strncpy(service_name + len, appid, strlen(appid));
 
-	j=0;
-
-        for(i=0;i<=strlen(service_name);i++)
-        {
-                if (service_name[i] == '.' )
-                {
+	for(i = 0; i <= strlen(service_name); i++) {
+		if (service_name[i] == '.') {
 			service_name_mod[j] = service_name[i];
-                        j++;
-                }
-		else{
+			j++;
+		}
+		else {
 			service_name_mod[j] = service_name[i];
 		}
-                j++;
-        }
-
-	ALARM_MGR_LOG_PRINT("[alarm-lib]: service_name %s\n", service_name);
-	ALARM_MGR_LOG_PRINT("[alarm-lib]: service_name_mod %s\n", service_name_mod);
-
-	dbus_error_init(&derror);
-
-	request_name_result = dbus_bus_request_name(
-			  dbus_g_connection_get_connection(alarm_context.bus),
-			  service_name_mod, 0, &derror);
-	if (dbus_error_is_set(&derror))	/*failure*/ {
-		ALARM_MGR_EXCEPTION_PRINT(
-		     "Failed to dbus_bus_request_name(%s): %s\n", service_name,
-		     derror.message);
-		dbus_error_free(&derror);
-
-		return ERR_ALARM_SYSTEM_FAIL;
+		j++;
 	}
-	alarm_context.quark_app_service_name =
-	    g_quark_from_string(service_name);
-	alarm_context.quark_app_service_name_mod=
-	    g_quark_from_string(service_name_mod);
 
-
-	if (!dbus_connection_add_filter(
-	     dbus_g_connection_get_connection(alarm_context.bus),
-	     __expire_alarm_filter, NULL, NULL)) {
-		ALARM_MGR_EXCEPTION_PRINT("add __expire_alarm_filter failed\n");
-
-		return ERR_ALARM_SYSTEM_FAIL;
+	SECURE_LOGD("[alarm-lib]: dbus own name: %s", service_name_mod);
+	owner_id = g_bus_own_name_on_connection(alarm_context.connection, service_name_mod,
+										G_BUS_NAME_OWNER_FLAGS_NONE, NULL, NULL, NULL, NULL);
+	if (owner_id == 0) {
+		ALARM_MGR_EXCEPTION_PRINT("Acquiring the own name is failed. %s", service_name_mod);
+		goto error;
 	}
+
+	introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, NULL);
+	if (introspection_data == NULL) {
+		ALARM_MGR_EXCEPTION_PRINT("g_dbus_node_info_new_for_xml() is failed.");
+		goto error;
+	}
+
+	registration_id = g_dbus_connection_register_object(alarm_context.connection,
+												"/org/tizen/alarm/client",
+												introspection_data->interfaces[0],
+												&interface_vtable, NULL, NULL, NULL);
+	if (registration_id == 0) {
+		ALARM_MGR_EXCEPTION_PRINT("Registering the callback is failed.");
+		goto error;
+	}
+
+	alarm_context.quark_app_service_name = g_quark_from_string(service_name);
+	alarm_context.quark_app_service_name_mod= g_quark_from_string(service_name_mod);
 
 	b_initialized = true;
+
+	SECURE_LOGD("Leave");
 	return ALARMMGR_RESULT_SUCCESS;
 
+error:
+	if (introspection_data) {
+		g_dbus_node_info_unref(introspection_data);
+	}
+	if (registration_id != 0) {
+		g_dbus_connection_unregister_object(alarm_context.connection, registration_id);
+	}
+	g_object_unref(alarm_context.proxy);
+	alarm_context.proxy = NULL;
+
+	g_object_unref(alarm_context.connection);
+	alarm_context.connection = NULL;
+
+	sub_initialized = false;
+	return ERR_ALARM_INVALID_PARAM;
 }
 
 EXPORT_API void alarmmgr_fini()
 {
-	dbus_connection_remove_filter(dbus_g_connection_get_connection
-				      (alarm_context.bus),
-				      __expire_alarm_filter, NULL);
+	SECURE_LOGD("Enter");
+	if (introspection_data) {
+		g_dbus_node_info_unref(introspection_data);
+	}
+
+	if (alarm_context.connection != NULL && registration_id != 0) {
+		g_dbus_connection_unregister_object(alarm_context.connection, registration_id);
+	}
+
+	if (alarm_context.proxy) {
+		g_object_unref(alarm_context.proxy);
+		alarm_context.proxy = NULL;
+	}
+
+	if (alarm_context.connection) {
+		g_object_unref(alarm_context.connection);
+		alarm_context.connection = NULL;
+	}
+
+	b_initialized = false;
+	sub_initialized = false;
+
+	SECURE_LOGD("Leave");
 }
 
 EXPORT_API int alarmmgr_set_cb(alarm_cb_t handler, void *user_param)
 {
-	ALARM_MGR_LOG_PRINT("alarm_set_cb is called\n");
+	SECURE_LOGD("Enter");
 
 	if (handler == NULL) {
+		ALARM_MGR_EXCEPTION_PRINT("callback is NULL.");
 		return ERR_ALARM_INVALID_PARAM;
 	}
 	alarm_context.alarm_handler = handler;
 	alarm_context.user_param = user_param;
+
+	SECURE_LOGD("Leave");
 	return ALARMMGR_RESULT_SUCCESS;
 }
 
@@ -577,23 +607,17 @@ EXPORT_API int alarmmgr_get_type(const alarm_entry_t *alarm, int *alarm_type)
 
 static int __alarmmgr_init_appsvc(void)
 {
-	int ret;
-
 	if (b_initialized) {
-		ALARM_MGR_EXCEPTION_PRINT("alarm was already initialized\n");
+		ALARM_MGR_EXCEPTION_PRINT("alarm was already initialized.");
 		return ALARMMGR_RESULT_SUCCESS;
 	}
 
-	dbus_g_thread_init();
-
-	ret = __sub_init();
+	int ret = __sub_init();
 	if (ret < 0)
 		return ret;
 
 	b_initialized = true;
-
 	return ALARMMGR_RESULT_SUCCESS;
-
 }
 
 EXPORT_API void *alarmmgr_get_alarm_appsvc_info(alarm_id_t alarm_id, int *return_code){
@@ -602,16 +626,18 @@ EXPORT_API void *alarmmgr_get_alarm_appsvc_info(alarm_id_t alarm_id, int *return
 
 	ret = __sub_init();
 	if (ret < 0){
-		if (return_code)
+		if (return_code) {
 			*return_code = ret;
+		}
 		return NULL;
 	}
 
-	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarmmgr_get_alarm_appsvc_info() is called\n");
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarmmgr_get_alarm_appsvc_info() is called.");
 
 	if (alarm_id <= 0) {
-		if (return_code)
+		if (return_code) {
 			*return_code = ERR_ALARM_INVALID_ID;
+		}
 		return NULL;
 	}
 
@@ -663,7 +689,7 @@ EXPORT_API int alarmmgr_add_alarm_appsvc_with_localtime(alarm_entry_t *alarm, vo
 	alarm_info_t *alarm_info = NULL;	/* = (alarm_info_t*)alarm; */
 	const char *operation = NULL;
 	int error_code = 0;
-	char *appid = NULL;
+	const char *appid = NULL;
 
 	bundle *b=(bundle *)bundle_data;
 
@@ -678,12 +704,12 @@ EXPORT_API int alarmmgr_add_alarm_appsvc_with_localtime(alarm_entry_t *alarm, vo
 		ALARM_MGR_EXCEPTION_PRINT("Invalid parameter bundle\n");
 		return ERR_ALARM_INVALID_PARAM;
 	}
+
 	operation = appsvc_get_operation(b);
 
 	if (NULL == operation)
 	{
-		ALARM_MGR_EXCEPTION_PRINT("Invalid parameter bundle [appsvc operation not present]\n");
-		return ERR_ALARM_INVALID_PARAM;
+		appsvc_set_operation(b, APPSVC_OPERATION_DEFAULT);
 	}
 
 	if (__alarmmgr_init_appsvc() < 0)
@@ -696,7 +722,8 @@ EXPORT_API int alarmmgr_add_alarm_appsvc_with_localtime(alarm_entry_t *alarm, vo
 
 	appid = appsvc_get_appid(b);
 
-	if (NULL == appid && (alarm_info->alarm_type & ALARM_TYPE_NOLAUNCH) )
+	if ( (NULL == appid && (alarm_info->alarm_type & ALARM_TYPE_NOLAUNCH)) ||
+			(NULL == appid && !strcmp(operation, APPSVC_OPERATION_DEFAULT)) )
 	{
 		ALARM_MGR_EXCEPTION_PRINT("Invalid parameter\n");
 		return ERR_ALARM_INVALID_PARAM;
@@ -708,7 +735,7 @@ EXPORT_API int alarmmgr_add_alarm_appsvc_with_localtime(alarm_entry_t *alarm, vo
 	}
 	alarm_mode_t *mode = &alarm_info->mode;
 
-	ALARM_MGR_LOG_PRINT("start(%d-%d-%d, %02d:%02d:%02d), end(%d-%d-%d), repeat(%d), interval(%d), type(%d)",
+	ALARM_MGR_EXCEPTION_PRINT("start(%d-%d-%d, %02d:%02d:%02d), end(%d-%d-%d), repeat(%d), interval(%d), type(%d)",
 		alarm_info->start.day, alarm_info->start.month, alarm_info->start.year,
 		alarm_info->start.hour, alarm_info->start.min, alarm_info->start.sec,
 		alarm_info->end.year, alarm_info->end.month, alarm_info->end.day,
@@ -735,9 +762,7 @@ EXPORT_API int alarmmgr_add_alarm_appsvc_with_localtime(alarm_entry_t *alarm, vo
 	}
 
 
-	if (!_send_alarm_create_appsvc
-	    (alarm_context, alarm_info, alarm_id, b,
-	     &error_code)) {
+	if (!_send_alarm_create_appsvc(alarm_context, alarm_info, alarm_id, b, &error_code)) {
 		return error_code;
 	}
 
@@ -776,7 +801,7 @@ EXPORT_API int alarmmgr_add_alarm_with_localtime(alarm_entry_t *alarm,
 	if (ret < 0)
 		return ret;
 
-	ALARM_MGR_LOG_PRINT("start(%d-%d-%d, %02d:%02d:%02d), end(%d-%d-%d), repeat(%d), interval(%d), type(%d)",
+	ALARM_MGR_EXCEPTION_PRINT("start(%d-%d-%d, %02d:%02d:%02d), end(%d-%d-%d), repeat(%d), interval(%d), type(%d)",
 		alarm_info->start.day, alarm_info->start.month, alarm_info->start.year,
 		alarm_info->start.hour, alarm_info->start.min, alarm_info->start.sec,
 		alarm_info->end.year, alarm_info->end.month, alarm_info->end.day,
@@ -809,38 +834,31 @@ EXPORT_API int alarmmgr_add_alarm_with_localtime(alarm_entry_t *alarm,
 	}
 
 	if (destination != NULL) {
-		memset(dst_service_name, 0,
-		       strlen(destination) + strlen("ALARM.") + 2);
-		snprintf(dst_service_name, MAX_SERVICE_NAME_LEN, "ALARM.%s",
-			 destination);
+		memset(dst_service_name, 0, strlen(destination) + strlen("ALARM.") + 2);
+		snprintf(dst_service_name, MAX_SERVICE_NAME_LEN, "ALARM.%s", destination);
+		memset(dst_service_name_mod, 'a', MAX_SERVICE_NAME_LEN-1);
 
-		memset(dst_service_name_mod,'a',MAX_SERVICE_NAME_LEN-1);
-
-		j=0;
-
-	        for(i=0; i<=strlen(dst_service_name); i++)
-	        {
-	                if (dst_service_name[i] == '.' )
-	                {
+		for (i=0; i<=strlen(dst_service_name); i++)
+		{
+			if (dst_service_name[i] == '.' )
+			{
 				dst_service_name_mod[j] = dst_service_name[i];
-	                        j++;
-	                }
-	                else
-	                {
-		                dst_service_name_mod[j] = dst_service_name[i];
-	                }
-	                j++;
-	        }
+				j++;
+			}
+			else
+			{
+				dst_service_name_mod[j] = dst_service_name[i];
+			}
+			j++;
+		}
 
-		if (!_send_alarm_create
-		    (alarm_context, alarm_info, alarm_id, dst_service_name, dst_service_name_mod,
-		     &error_code)) {
+		if (!_send_alarm_create(alarm_context, alarm_info, alarm_id, dst_service_name, dst_service_name_mod, &error_code)) {
 			return error_code;
 		}
-	} else
-	    if (!_send_alarm_create
-		(alarm_context, alarm_info, alarm_id, "null", "null", &error_code)) {
-		return error_code;
+	} else {
+		if (!_send_alarm_create(alarm_context, alarm_info, alarm_id, "null", "null", &error_code)) {
+			return error_code;
+		}
 	}
 
 	return ALARMMGR_RESULT_SUCCESS;
@@ -853,11 +871,11 @@ EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 				  alarm_id_t *alarm_id)
 {
 	int error_code = 0;;
-	time_t current_time;
+	struct timeval current_time;
 	struct tm duetime_tm;
 	alarm_info_t alarm_info;
 	const char *operation = NULL;
-	char *appid = NULL;
+	const char *appid = NULL;
 
 	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarm_create() is called\n");
 
@@ -872,13 +890,13 @@ EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 
 	if (NULL == operation)
 	{
-		ALARM_MGR_EXCEPTION_PRINT("Invalid parameter bundle [appsvc operation not present]\n");
-		return ERR_ALARM_INVALID_PARAM;
+		appsvc_set_operation(b, APPSVC_OPERATION_DEFAULT);
 	}
 
 	appid = appsvc_get_appid(b);
 
-	if (NULL == appid && (alarm_type & ALARM_TYPE_NOLAUNCH) )
+	if ( (NULL == appid && (alarm_type & ALARM_TYPE_NOLAUNCH)) ||
+			(NULL == appid && !strcmp(operation, APPSVC_OPERATION_DEFAULT)) )
 	{
 		ALARM_MGR_EXCEPTION_PRINT("Invalid parameter\n");
 		return ERR_ALARM_INVALID_PARAM;
@@ -901,11 +919,21 @@ EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 	alarm_info.alarm_type = alarm_type;
 	alarm_info.alarm_type |= ALARM_TYPE_RELATIVE;
 
-	time(&current_time);
+	gettimeofday(&current_time, NULL);
 
-	current_time += trigger_at_time;
+	if (current_time.tv_usec > 500 * 1000)
+	{
+		// When the millisecond part of the current_time is bigger than 500ms,
+		// the duetime increases by extra 1sec.
+		current_time.tv_sec += (trigger_at_time + 1);
+	}
+	else
+	{
+		current_time.tv_sec += trigger_at_time;
+	}
 
-	localtime_r(&current_time, &duetime_tm);
+	tzset();	// Processes the TZ environment variable, and Set timezone, daylight, and tzname.
+	localtime_r(&current_time.tv_sec, &duetime_tm);
 
 	alarm_info.start.year = duetime_tm.tm_year + 1900;
 	alarm_info.start.month = duetime_tm.tm_mon + 1;
@@ -927,14 +955,12 @@ EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 		alarm_info.mode.u_interval.interval = interval;
 	}
 
-	ALARM_MGR_LOG_PRINT("trigger_at_time(%d), start(%d-%d-%d, %02d:%02d:%02d), repeat(%d), interval(%d), type(%d)",
+	ALARM_MGR_EXCEPTION_PRINT("trigger_at_time(%d), start(%d-%d-%d, %02d:%02d:%02d), repeat(%d), interval(%d), type(%d)",
 		trigger_at_time, alarm_info.start.day, alarm_info.start.month, alarm_info.start.year,
 		alarm_info.start.hour, alarm_info.start.min, alarm_info.start.sec,
 		alarm_info.mode.repeat, alarm_info.mode.u_interval, alarm_info.alarm_type);
 
-	if (!_send_alarm_create_appsvc
-	    (alarm_context, &alarm_info, alarm_id, b,
-	     &error_code)) {
+	if (!_send_alarm_create_appsvc(alarm_context, &alarm_info, alarm_id, b, &error_code)) {
 		return error_code;
 	}
 
@@ -951,7 +977,7 @@ EXPORT_API int alarmmgr_add_alarm(int alarm_type, time_t trigger_at_time,
 	int i = 0;
 	int j = 0;
 	int error_code;
-	time_t current_time;
+	struct timeval current_time;
 	struct tm duetime_tm;
 	alarm_info_t alarm_info;
 	int ret;
@@ -978,11 +1004,21 @@ EXPORT_API int alarmmgr_add_alarm(int alarm_type, time_t trigger_at_time,
 	alarm_info.alarm_type = alarm_type;
 	alarm_info.alarm_type |= ALARM_TYPE_RELATIVE;
 
-	time(&current_time);
+	gettimeofday(&current_time, NULL);
 
-	current_time += trigger_at_time;
+	if (current_time.tv_usec > 500 * 1000)
+	{
+		// When the millisecond part of the current_time is bigger than 500ms,
+		// the duetime increases by extra 1sec.
+		current_time.tv_sec += (trigger_at_time + 1);
+	}
+	else
+	{
+		current_time.tv_sec += trigger_at_time;
+	}
 
-	localtime_r(&current_time, &duetime_tm);
+	tzset();	// Processes the TZ environment variable, and Set timezone, daylight, and tzname.
+	localtime_r(&current_time.tv_sec, &duetime_tm);
 
 	alarm_info.start.year = duetime_tm.tm_year + 1900;
 	alarm_info.start.month = duetime_tm.tm_mon + 1;
@@ -1004,7 +1040,7 @@ EXPORT_API int alarmmgr_add_alarm(int alarm_type, time_t trigger_at_time,
 		alarm_info.mode.u_interval.interval = interval;
 	}
 
-	ALARM_MGR_LOG_PRINT("trigger_at_time(%d), start(%d-%d-%d, %02d:%02d:%02d), repeat(%d), interval(%d), type(%d)",
+	ALARM_MGR_EXCEPTION_PRINT("trigger_at_time(%d), start(%d-%d-%d, %02d:%02d:%02d), repeat(%d), interval(%d), type(%d)",
 		trigger_at_time, alarm_info.start.day, alarm_info.start.month, alarm_info.start.year,
 		alarm_info.start.hour, alarm_info.start.min, alarm_info.start.sec,
 		alarm_info.mode.repeat, alarm_info.mode.u_interval, alarm_info.alarm_type);
@@ -1049,28 +1085,22 @@ EXPORT_API int alarmmgr_add_alarm(int alarm_type, time_t trigger_at_time,
 EXPORT_API int alarmmgr_add_alarm_withcb(int alarm_type, time_t trigger_at_time,
 				  time_t interval, alarm_cb_t handler, void *user_param, alarm_id_t *alarm_id)
 {
-	char dst_service_name[MAX_SERVICE_NAME_LEN] = { 0 };
-	char dst_service_name_mod[MAX_SERVICE_NAME_LEN] = { 0 };
-	int i = 0;
-	int j = 0;
-	int error_code;
-	time_t current_time;
+	int error_code = 0;
+	struct timeval current_time;
 	struct tm duetime_tm;
 	alarm_info_t alarm_info;
-	int ret;
-	char appid[256];
+	int ret = 0;
+	char appid[256] = {0,};
 
-        ret = aul_app_get_appid_bypid(getpid(), appid, sizeof(appid));
-        if (ret != AUL_R_OK)
-        	return ERR_ALARM_SYSTEM_FAIL;
+	if (aul_app_get_appid_bypid(getpid(), appid, sizeof(appid)) != AUL_R_OK) {
+		ALARM_MGR_LOG_PRINT("aul_app_get_appid_bypid() is failed. PID %d may not be app.", getpid());
+	}
 
 	ret = alarmmgr_init(appid);
 	if (ret < 0)
 		return ret;
 
-	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarmmgr_add_alarm_withcb() is called\n");
-
-	ALARM_MGR_LOG_PRINT("interval(%d)", interval);
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarmmgr_add_alarm_withcb() is called");
 
 	if (alarm_id == NULL) {
 		return ERR_ALARM_INVALID_PARAM;
@@ -1084,11 +1114,21 @@ EXPORT_API int alarmmgr_add_alarm_withcb(int alarm_type, time_t trigger_at_time,
 	alarm_info.alarm_type |= ALARM_TYPE_RELATIVE;
 	alarm_info.alarm_type |= ALARM_TYPE_WITHCB;
 
-	time(&current_time);
+	gettimeofday(&current_time, NULL);
 
-	current_time += trigger_at_time;
+	if (current_time.tv_usec > 500 * 1000)
+	{
+		// When the millisecond part of the current_time is bigger than 500ms,
+		// the duetime increases by extra 1sec.
+		current_time.tv_sec += (trigger_at_time + 1);
+	}
+	else
+	{
+		current_time.tv_sec += trigger_at_time;
+	}
 
-	localtime_r(&current_time, &duetime_tm);
+	tzset();	// Processes the TZ environment variable, and Set timezone, daylight, and tzname.
+	localtime_r(&current_time.tv_sec, &duetime_tm);
 
 	alarm_info.start.year = duetime_tm.tm_year + 1900;
 	alarm_info.start.month = duetime_tm.tm_mon + 1;
@@ -1110,6 +1150,11 @@ EXPORT_API int alarmmgr_add_alarm_withcb(int alarm_type, time_t trigger_at_time,
 		alarm_info.mode.u_interval.interval = interval;
 	}
 
+	ALARM_MGR_EXCEPTION_PRINT("trigger_at_time(%d), start(%d-%d-%d, %02d:%02d:%02d), repeat(%d), interval(%d), type(%d)",
+		trigger_at_time, alarm_info.start.day, alarm_info.start.month, alarm_info.start.year,
+		alarm_info.start.hour, alarm_info.start.min, alarm_info.start.sec,
+		alarm_info.mode.repeat, alarm_info.mode.u_interval.interval, alarm_info.alarm_type);
+
 	if (!_send_alarm_create(alarm_context, &alarm_info, alarm_id, "null","null", &error_code)) {
 		return error_code;
 	}
@@ -1123,6 +1168,7 @@ EXPORT_API int alarmmgr_remove_alarm(alarm_id_t alarm_id)
 	int error_code;
 	int ret;
 	alarm_cb_info_t *info;
+	alarm_info_t alarm;
 
 	ret = __sub_init();
 	if (ret < 0)
@@ -1143,72 +1189,94 @@ EXPORT_API int alarmmgr_remove_alarm(alarm_id_t alarm_id)
 	return ALARMMGR_RESULT_SUCCESS;
 }
 
+EXPORT_API int alarmmgr_remove_all(void)
+{
+	int error_code;
+	int return_code = ALARMMGR_RESULT_SUCCESS;
+	int ret = __sub_init();
+	if (ret < 0)
+	{
+		return ret;
+	}
+
+	if (!_send_alarm_delete_all(alarm_context, &error_code))
+		return error_code;
+
+	return return_code;
+}
+
 EXPORT_API int alarmmgr_enum_alarm_ids(alarm_enum_fn_t fn, void *user_param)
 {
+	SECURE_LOGD("Enter");
 	GError *error = NULL;
-	GArray *alarm_array = NULL;
+	GVariant *alarm_array = NULL;
 	int return_code = 0;
-	int i = 0;
-	int maxnum_of_ids;
-	int num_of_ids;
-	int alarm_id = -1;
-	int ret;
+	int maxnum_of_ids = 0;
+	int num_of_ids = 0;
+	alarm_id_t alarm_id = -1;
+	int ret = 0;
+	GVariantIter *iter = NULL;
 
-	if (fn == NULL)
+	if (fn == NULL) {
 		return ERR_ALARM_INVALID_PARAM;
+	}
 
 	ret = __sub_init();
-	if (ret < 0)
+	if (ret < 0) {
+		ALARM_MGR_EXCEPTION_PRINT("__sub_init() is failed.");
 		return ret;
+	}
 
-	if (!org_tizen_alarm_manager_alarm_get_number_of_ids(
-	    alarm_context.proxy, alarm_context.pid, &maxnum_of_ids,
-	       &return_code, &error)) {
-		/* dbus-glib error */
-		/* error_code should be set */
+	SECURE_LOGD("alarm_manager_call_alarm_get_number_of_ids_sync() is called");
+	if (!alarm_manager_call_alarm_get_number_of_ids_sync(
+	    (AlarmManager*)alarm_context.proxy, alarm_context.pid, &maxnum_of_ids, &return_code, NULL, &error)) {
+		/* dbus error. error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT(
-		    "org_tizen_alarm_manager_alarm_get_number_of_ids() "
-		    "failed. return_code[%d], return_code[%s]\n",
-		return_code, error->message);
+		    "alarm_manager_call_alarm_get_number_of_ids_sync() is failed by dbus. return_code[%d], err message[%s]",
+		    return_code, error->message);
+		return ERR_ALARM_SYSTEM_FAIL;
 	}
 
-	if (return_code != 0) {
-		return return_code;
-	}
-
-	if (!org_tizen_alarm_manager_alarm_get_list_of_ids(
-		     alarm_context.proxy, alarm_context.pid, maxnum_of_ids,
-	     &alarm_array, &num_of_ids, &return_code, &error)) {
-		/*dbus-glib error */
-		/* error_code should be set */
-		ALARM_MGR_EXCEPTION_PRINT(
-		    "org_tizen_alarm_manager_alarm_get_list_of_ids() "
-		    "failed. alarm_id[%d], return_code[%d]\n",
-		     alarm_id, return_code);
-	}
-
-	if (return_code != 0) {
+	if (return_code != ALARMMGR_RESULT_SUCCESS) {
+		ALARM_MGR_EXCEPTION_PRINT("alarm_manager_call_alarm_get_number_of_ids_sync() is failed. return_code[%d]", return_code);
 		return return_code;
 	} else {
-		if (error != NULL) {
-			ALARM_MGR_LOG_PRINT(
-				"Alarm server not ready dbus error message %s\n", error->message);
-			return ERR_ALARM_SYSTEM_FAIL;
-		}
-		if (NULL == alarm_array) {
-			ALARM_MGR_LOG_PRINT(
-				"alarm server not initilized\n");
-			return ERR_ALARM_SYSTEM_FAIL;
-		}
-		for (i = 0; i < alarm_array->len && i < maxnum_of_ids; i++) {
-			alarm_id = g_array_index(alarm_array, alarm_id_t, i);
-			(*fn) (alarm_id, user_param);
-			ALARM_MGR_LOG_PRINT(" alarm_id(%d)\n", alarm_id);
-		}
-
-		g_array_free(alarm_array, true);
+		ALARM_MGR_LOG_PRINT("maxnum_of_ids[%d]", maxnum_of_ids);
 	}
 
+	SECURE_LOGD("alarm_manager_call_alarm_get_list_of_ids_sync() is called");
+	if (!alarm_manager_call_alarm_get_list_of_ids_sync(
+		     (AlarmManager*)alarm_context.proxy, alarm_context.pid, maxnum_of_ids, &alarm_array, &num_of_ids, &return_code, NULL, &error)) {
+		/* dbus error. error_code should be set */
+		ALARM_MGR_EXCEPTION_PRINT(
+		    "alarm_manager_call_alarm_get_list_of_ids_sync() failed by dbus. num_of_ids[%d], return_code[%d].", num_of_ids, return_code);
+		return ERR_ALARM_SYSTEM_FAIL;
+	}
+
+	if (return_code != ALARMMGR_RESULT_SUCCESS) {
+		return return_code;
+	}
+
+	if (error != NULL) {
+		ALARM_MGR_LOG_PRINT("Alarm server is not ready dbus. error message %s.", error->message);
+		return ERR_ALARM_SYSTEM_FAIL;
+	}
+
+	if (alarm_array == NULL) {
+		ALARM_MGR_LOG_PRINT("alarm server is not initilized.");
+		return ERR_ALARM_SYSTEM_FAIL;
+	}
+
+	g_variant_get(alarm_array, "ai", &iter);
+	while (g_variant_iter_loop(iter, "i", &alarm_id))
+	{
+		(*fn) (alarm_id, user_param);
+		ALARM_MGR_LOG_PRINT("alarm_id (%d)", alarm_id);
+	}
+	g_variant_iter_free(iter);
+	g_variant_unref(alarm_array);
+
+	SECURE_LOGD("Leave");
 	return ALARMMGR_RESULT_SUCCESS;
 }
 
@@ -1229,26 +1297,9 @@ EXPORT_API int alarmmgr_get_info(alarm_id_t alarm_id, alarm_entry_t *alarm)
 		return ERR_ALARM_INVALID_PARAM;
 	}
 
-	if (!_send_alarm_get_info(alarm_context, alarm_id, alarm_info,
-				  &error_code))
+	if (!_send_alarm_get_info(alarm_context, alarm_id, alarm_info, &error_code)) {
 		return error_code;
-
-	return ALARMMGR_RESULT_SUCCESS;
-}
-
-EXPORT_API int alarmmgr_power_on(bool on_off)
-{
-	int error_code;
-	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarm_power_on() is called\n");
-
-#ifdef __ALARM_BOOT
-	if (!_send_alarm_power_on(alarm_context, on_off, &error_code))
-		return error_code;
-#else
-	ALARM_MGR_LOG_PRINT("[alarm-lib]:ALARM_BOOT feature is not supported. "
-			    "so we return false.\n");
-	return ERR_ALARM_SYSTEM_FAIL;
-#endif
+	}
 
 	return ALARMMGR_RESULT_SUCCESS;
 }
@@ -1315,16 +1366,15 @@ int alarmmgr_create(alarm_info_t *alarm_info, char *destination,
 int alarmmgr_get_number_of_ids(int *num_of_ids)
 {
 	int error_code;
-	ALARM_MGR_LOG_PRINT("[alarm-lib]:"
-			    "alarm_get_number_of_ids() is called\n");
+	ALARM_MGR_LOG_PRINT("[alarm-lib]: alarm_get_number_of_ids() is called.");
 
 	if (num_of_ids == NULL) {
 		return ERR_ALARM_INVALID_PARAM;
 	}
 	ALARM_MGR_LOG_PRINT("call alarm_get_number_of_ids\n");
-	if (!_send_alarm_get_number_of_ids(alarm_context, num_of_ids,
-					   &error_code))
+	if (!_send_alarm_get_number_of_ids(alarm_context, num_of_ids, &error_code)) {
 		return error_code;
+	}
 
 	return ALARMMGR_RESULT_SUCCESS;
 }
@@ -1333,7 +1383,7 @@ int alarmmgr_get_list_of_ids(int maxnum_of_ids, alarm_id_t *alarm_id,
 			     int *num_of_ids)
 {
 	int error_code;
-	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarm_get_list_of_ids() is called\n");
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarm_get_list_of_ids() is called.");
 
 	if (maxnum_of_ids < 0 || alarm_id == NULL || num_of_ids == NULL) {
 		return ERR_ALARM_INVALID_PARAM;
@@ -1345,8 +1395,9 @@ int alarmmgr_get_list_of_ids(int maxnum_of_ids, alarm_id_t *alarm_id,
 	}
 
 	if (!_send_alarm_get_list_of_ids
-	    (alarm_context, maxnum_of_ids, alarm_id, num_of_ids, &error_code))
+	    (alarm_context, maxnum_of_ids, alarm_id, num_of_ids, &error_code)) {
 		return error_code;
+	}
 
 	return ALARMMGR_RESULT_SUCCESS;
 }
@@ -1354,15 +1405,153 @@ int alarmmgr_get_list_of_ids(int maxnum_of_ids, alarm_id_t *alarm_id,
 EXPORT_API int alarmmgr_get_next_duetime(alarm_id_t alarm_id, time_t* duetime)
 {
 	int error_code;
-	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarmmgr_get_next_duetime() is called\n");
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarmmgr_get_next_duetime() is called.");
 
 	if (duetime == NULL) {
 		return ERR_ALARM_INVALID_PARAM;
 	}
 
-	if (!_send_alarm_get_next_duetime
-		(alarm_context, alarm_id, duetime, &error_code))
+	if (!_send_alarm_get_next_duetime(alarm_context, alarm_id, duetime, &error_code)) {
 		return error_code;
+	}
 
+	return ALARMMGR_RESULT_SUCCESS;
+}
+
+EXPORT_API int alarmmgr_get_all_info(char **db_path)
+{
+	int error_code;
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarmmgr_get_all_info() is called.");
+
+	if (db_path == NULL) {
+		return ERR_ALARM_INVALID_PARAM;
+	}
+
+	if (!_send_alarm_get_all_info(alarm_context, db_path, &error_code)) {
+		return error_code;
+	}
+
+	ALARM_MGR_LOG_PRINT("[alarm-lib]: successfully save info in %s.", *db_path);
+	return ALARMMGR_RESULT_SUCCESS;
+}
+
+EXPORT_API int alarmmgr_add_periodic_alarm_withcb(int interval, periodic_method_e method,
+        alarm_cb_t handler, void *user_param, alarm_id_t *alarm_id)
+{
+	int error_code = 0;
+	alarm_info_t alarm_info;
+	int ret = 0;
+	char appid[256] = {0,};
+
+	if (aul_app_get_appid_bypid(getpid(), appid, sizeof(appid)) != AUL_R_OK) {
+		ALARM_MGR_LOG_PRINT("aul_app_get_appid_bypid() is failed. PID %d may not be app.",
+			getpid());
+	}
+
+	ret = alarmmgr_init(appid);
+	if (ret < 0)
+		return ret;
+
+	if (alarm_id == NULL) {
+		return ERR_ALARM_INVALID_PARAM;
+	}
+
+	if (!_send_alarm_create_periodic(alarm_context, interval, 0, (int)method, alarm_id,
+		&error_code)) {
+		return error_code;
+	}
+	__add_resultcb(*alarm_id, handler, user_param);
+
+	return ALARMMGR_RESULT_SUCCESS;
+}
+
+EXPORT_API int alarmmgr_add_reference_periodic_alarm_withcb(int interval,
+        alarm_cb_t handler, void *user_param, alarm_id_t *alarm_id)
+{
+	int error_code = 0;
+	alarm_info_t alarm_info;
+	int ret = 0;
+	char appid[256] = {0,};
+
+	if (aul_app_get_appid_bypid(getpid(), appid, sizeof(appid)) != AUL_R_OK) {
+		ALARM_MGR_LOG_PRINT("aul_app_get_appid_bypid() is failed. PID %d may not be app.",
+			getpid());
+	}
+
+	ret = alarmmgr_init(appid);
+	if (ret < 0)
+		return ret;
+
+	if (alarm_id == NULL) {
+		return ERR_ALARM_INVALID_PARAM;
+	}
+
+	if (!_send_alarm_create_periodic(alarm_context, interval, 1, 0,
+		alarm_id, &error_code)) {
+		return error_code;
+	}
+
+	__add_resultcb(*alarm_id, handler, user_param);
+
+	return ALARMMGR_RESULT_SUCCESS;
+}
+
+EXPORT_API int alarmmgr_set_systime(int new_time)
+{
+	int error_code;
+	struct timespec req_time = {0,};
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarmmgr_set_systime(%d) is called.", new_time);
+
+	if (__sub_init() < 0) {
+		return ERR_ALARM_SYSTEM_FAIL;
+	}
+
+	clock_gettime(CLOCK_REALTIME, &req_time);
+	if (!_send_alarm_set_time_with_propagation_delay(alarm_context, new_time, 0, req_time.tv_sec, req_time.tv_nsec, &error_code)) {
+		ALARM_MGR_EXCEPTION_PRINT("Failed to set time with propagation delay. error: %d", error_code);
+		return error_code;
+	}
+
+	ALARM_MGR_LOG_PRINT("[alarm-lib]: successfully set the time(%d) by pid(%d).", new_time, alarm_context.pid);
+	return ALARMMGR_RESULT_SUCCESS;
+}
+
+EXPORT_API int alarmmgr_set_systime_with_propagation_delay(struct timespec new_time, struct timespec req_time)
+{
+	int error_code;
+	ALARM_MGR_LOG_PRINT("[alarm-lib] New: %d(sec) %09d(nsec), Requested: %d(sec) %09d(nsec)",
+		new_time.tv_sec, new_time.tv_nsec, req_time.tv_sec, req_time.tv_nsec);
+
+	if (__sub_init() < 0) {
+		return ERR_ALARM_SYSTEM_FAIL;
+	}
+
+	if (!_send_alarm_set_time_with_propagation_delay(alarm_context, new_time.tv_sec, new_time.tv_nsec, req_time.tv_sec, req_time.tv_nsec, &error_code)) {
+		ALARM_MGR_EXCEPTION_PRINT("Failed to set time with propagation delay. error: %d", error_code);
+		return error_code;
+	}
+
+	ALARM_MGR_LOG_PRINT("[alarm-lib]: successfully set the time by pid(%d).", alarm_context.pid);
+	return ALARMMGR_RESULT_SUCCESS;
+}
+
+EXPORT_API int alarmmgr_set_timezone(char *tzpath_str)
+{
+	int error_code;
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarmmgr_set_timezone() is called.");
+
+	if (tzpath_str == NULL) {
+		return ERR_ALARM_INVALID_PARAM;
+	}
+
+	if (__sub_init() < 0) {
+		return ERR_ALARM_SYSTEM_FAIL;
+	}
+
+	if (!_send_alarm_set_timezone(alarm_context, tzpath_str, &error_code)) {
+		return error_code;
+	}
+
+	ALARM_MGR_LOG_PRINT("[alarm-lib]: successfully set the timezone(%s) by pid(%d)", tzpath_str, alarm_context.pid);
 	return ALARMMGR_RESULT_SUCCESS;
 }

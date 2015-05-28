@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <node name="/org/tizen/alarm/manager">
   <interface name="org.tizen.alarm.manager">
+    <method name="alarm_create_periodic">
+      <arg type="s" name="app_service_name" direction="in" />
+      <arg type="s" name="app_service_name_mod" direction="in" />
+      <arg type="i" name="interval" direction="in" />
+      <arg type="i" name="is_ref" direction="in" />
+      <arg type="i" name="method" direction="in" />
+      <arg type="i" name="alarm_id" direction="out" />
+      <arg type="i" name="return_code" direction="out" />
+    </method>
     <method name="alarm_create">
       <arg type="i" name="pid" direction="in" />
       <arg type="s" name="app_service_name" direction="in" />
@@ -42,21 +51,12 @@
       <arg type="i" name="alarm_id" direction="out" />
       <arg type="i" name="return_code" direction="out" />
     </method>
-	<method name="alarm_delete">
+    <method name="alarm_delete">
       <arg type="i" name="pid" direction="in" />
       <arg type="i" name="alarm_id" direction="in" />
       <arg type="i" name="alarm_info_return_code" direction="out" />
     </method>
-	<method name="alarm_power_on">
-      <arg type="i" name="pid" direction="in" />
-      <arg type="i" name="on_off" direction="in" />
-      <arg type="i" name="alarm_info_return_code" direction="out" />
-    </method>
-	<method name="alarm_power_off">
-      <arg type="i" name="pid" direction="in" />
-      <arg type="i" name="alarm_info_return_code" direction="out" />
-    </method>
-	<method name="alarm_check_next_duetime">
+    <method name="alarm_delete_all">
       <arg type="i" name="pid" direction="in" />
       <arg type="i" name="alarm_info_return_code" direction="out" />
     </method>
@@ -129,6 +129,26 @@
 	  <arg type="i" name="pid" direction="in" />
 	  <arg type="i" name="alarm_id" direction="in" />
 	  <arg type="i" name="duetime" direction="out" />
+	  <arg type="i" name="return_code" direction="out" />
+    </method>
+	<method name="alarm_get_all_info">
+	  <arg type="i" name="pid" direction="in" />
+	  <arg type="s" name="db_path" direction="out" />
+	  <arg type="i" name="return_code" direction="out" />
+    </method>
+    <method name="alarm_set_time">
+      <arg type="i" name="time" direction="in" />
+      <arg type="i" name="return_code" direction="out" />
+    </method>
+    <method name="alarm_set_time_with_propagation_delay">
+	  <arg type="u" name="new_sec" direction="in" />
+	  <arg type="u" name="new_nsec" direction="in" />
+	  <arg type="u" name="req_sec" direction="in" />
+	  <arg type="u" name="req_nsec" direction="in" />
+	  <arg type="i" name="return_code" direction="out" />
+    </method>
+	<method name="alarm_set_timezone">
+	  <arg type="s" name="tzpath_str" direction="in" />
 	  <arg type="i" name="return_code" direction="out" />
     </method>
   </interface>
