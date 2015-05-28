@@ -1,12 +1,16 @@
 [Unit]
-Description=Start the Alarm service
+Description=Alarm server
+After=system-server.service
 
 [Service]
+User=system
+Group=system
+SmackProcessLabel=alarm-server
 ExecStart=/usr/bin/alarm-server
-Nice=5
-OOMScoreAdjust=-100
+TimeoutStopSec=3s
 Restart=always
-RestartSec=2
+RestartSec=0
 
 [Install]
 WantedBy=multi-user.target
+
