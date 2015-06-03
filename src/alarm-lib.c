@@ -41,6 +41,10 @@
 #define MAX_KEY_SIZE 256
 #define MAX_PROC_NAME_LEN 512
 
+#ifndef EXPORT_API
+#define EXPORT_API __attribute__ ((visibility("default")))
+#endif
+
 static alarm_context_t alarm_context = { NULL, NULL, NULL, NULL, -1 };
 
 static bool b_initialized = false;

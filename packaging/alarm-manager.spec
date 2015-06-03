@@ -119,7 +119,7 @@ chown system:system /var/log/alarmmgr.log
 
 %files -n libalarm
 %manifest alarm-lib.manifest
-%attr(0644,root,root) %{_libdir}/libalarm.so.0.0.0
+%attr(0644,root,root) %{_libdir}/libalarm.so.*
 %{_libdir}/*.so.*
 %license LICENSE
 
