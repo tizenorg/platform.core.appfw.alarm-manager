@@ -72,7 +72,6 @@ typedef struct {
 	GDBusProxy *proxy;
 	alarm_cb_t alarm_handler;
 	void *user_param;
-	int pid;		/* this specifies pid*/
 	GQuark quark_app_service_name;	/*dbus_service_name is converted
 	 to quark value*/
 	 GQuark quark_app_service_name_mod;
