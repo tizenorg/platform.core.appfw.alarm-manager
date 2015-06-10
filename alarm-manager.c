@@ -1811,7 +1811,7 @@ void __reschedule_alarms_with_newtime(int cur_time, int new_time, double diff_ti
 	return;
 }
 
-gboolean alarm_manager_alarm_set_rtc_time(AlarmManager *pObj, GDBusMethodInvocation *invoc, int pid,
+gboolean alarm_manager_alarm_set_rtc_time(AlarmManager *pObj, GDBusMethodInvocation *invoc,
 				int year, int mon, int day,
 				int hour, int min, int sec,
 				gpointer user_data) {
@@ -1820,14 +1820,13 @@ gboolean alarm_manager_alarm_set_rtc_time(AlarmManager *pObj, GDBusMethodInvocat
 	int retval = 0;
 	int return_code = ALARMMGR_RESULT_SUCCESS;
 	struct tm *alarm_tm = NULL;
-
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 	char log_tag[ALARMMGR_LOG_TAG_SIZE] = {0,};
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
 #endif
-
 	/*extract day of the week, day in the year & daylight saving time from system*/
 	time_t current_time;
+
 	current_time = time(NULL);
 	alarm_tm = localtime(&current_time);
 
@@ -2028,7 +2027,6 @@ done:
 }
 
 gboolean alarm_manager_alarm_create_appsvc(AlarmManager *pObject, GDBusMethodInvocation *invoc,
-					int pid,
 				    int start_year,
 				    int start_month, int start_day,
 				    int start_hour, int start_min,
@@ -2048,6 +2046,10 @@ gboolean alarm_manager_alarm_create_appsvc(AlarmManager *pObject, GDBusMethodInv
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
 #endif
 	bool ret = true;
+	int pid;
+	const char *name = g_dbus_method_invocation_get_sender(invoc);
+
+	pid = __get_caller_pid(name);
 
 	alarm_info.start.year = start_year;
 	alarm_info.start.month = start_month;
@@ -2090,7 +2092,7 @@ gboolean alarm_manager_alarm_create_appsvc(AlarmManager *pObject, GDBusMethodInv
 	return ret;
 }
 
-gboolean alarm_manager_alarm_create(AlarmManager *obj, GDBusMethodInvocation *invoc, int pid,
+gboolean alarm_manager_alarm_create(AlarmManager *obj, GDBusMethodInvocation *invoc,
 				    char *app_service_name, char *app_service_name_mod,  int start_year,
 				    int start_month, int start_day,
 				    int start_hour, int start_min,
@@ -2110,6 +2112,10 @@ gboolean alarm_manager_alarm_create(AlarmManager *obj, GDBusMethodInvocation *in
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
 #endif
 	bool ret = true;
+	int pid;
+	const char *name = g_dbus_method_invocation_get_sender(invoc);
+
+	pid = __get_caller_pid(name);
 
 	alarm_info.start.year = start_year;
 	alarm_info.start.month = start_month;
@@ -2242,8 +2248,7 @@ gboolean alarm_manager_alarm_create_periodic(AlarmManager *obj, GDBusMethodInvoc
 }
 
 gboolean alarm_manager_alarm_delete(AlarmManager *obj, GDBusMethodInvocation *invoc,
-					int pid, alarm_id_t alarm_id,
-				    gpointer user_data)
+		alarm_id_t alarm_id, gpointer user_data)
 {
 	int retval = 0;
 	int return_code = ALARMMGR_RESULT_SUCCESS;
@@ -2252,6 +2257,11 @@ gboolean alarm_manager_alarm_delete(AlarmManager *obj, GDBusMethodInvocation *in
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
 #endif
 	bool ret = true;
+	int pid;
+	const char *name = g_dbus_method_invocation_get_sender(invoc);
+
+	pid = __get_caller_pid(name);
+
 
 	if (!__alarm_delete(pid, alarm_id, &return_code)) {
 		ALARM_MGR_EXCEPTION_PRINT("Unable to delete the alarm! alarm_id[%d], return_code[%d]", alarm_id, return_code);
@@ -2277,7 +2287,7 @@ gboolean alarm_manager_alarm_delete(AlarmManager *obj, GDBusMethodInvocation *in
 }
 
 gboolean alarm_manager_alarm_delete_all(AlarmManager *obj, GDBusMethodInvocation *invoc,
-					int pid, gpointer user_data)
+					gpointer user_data)
 {
 	GSList* gs_iter = NULL;
 	char app_name[512] = { 0 };
@@ -2289,6 +2299,10 @@ gboolean alarm_manager_alarm_delete_all(AlarmManager *obj, GDBusMethodInvocation
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
 #endif
+	int pid;
+	const char *name = g_dbus_method_invocation_get_sender(invoc);
+
+	pid = __get_caller_pid(name);
 
 	if (!__get_caller_unique_name(pid, app_name)) {
 		return_code = ERR_ALARM_SYSTEM_FAIL;
@@ -2353,7 +2367,7 @@ gboolean alarm_manager_alarm_delete_all(AlarmManager *obj, GDBusMethodInvocation
 	return true;
 }
 
-gboolean alarm_manager_alarm_update(AlarmManager *pObj, GDBusMethodInvocation *invoc, int pid,
+gboolean alarm_manager_alarm_update(AlarmManager *pObj, GDBusMethodInvocation *invoc,
 				    char *app_service_name, alarm_id_t alarm_id,
 				    int start_year, int start_month,
 				    int start_day, int start_hour,
@@ -2370,6 +2384,10 @@ gboolean alarm_manager_alarm_update(AlarmManager *pObj, GDBusMethodInvocation *i
 	char log_tag[ALARMMGR_LOG_TAG_SIZE] = {0,};
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
 #endif
+	int pid;
+	const char *name = g_dbus_method_invocation_get_sender(invoc);
+
+	pid = __get_caller_pid(name);
 
 	alarm_info.start.year = start_year;
 	alarm_info.start.month = start_month;
@@ -2412,7 +2430,7 @@ gboolean alarm_manager_alarm_update(AlarmManager *pObj, GDBusMethodInvocation *i
 	return ret;
 }
 
-gboolean alarm_manager_alarm_get_number_of_ids(AlarmManager *pObject, GDBusMethodInvocation *invoc, int pid,
+gboolean alarm_manager_alarm_get_number_of_ids(AlarmManager *pObject, GDBusMethodInvocation *invoc,
 					       gpointer user_data)
 {
 	GSList *gs_iter = NULL;
@@ -2421,6 +2439,10 @@ gboolean alarm_manager_alarm_get_number_of_ids(AlarmManager *pObject, GDBusMetho
 	int retval = 0;
 	int num_of_ids = 0;
 	int return_code = ALARMMGR_RESULT_SUCCESS;
+	int pid;
+	const char *name = g_dbus_method_invocation_get_sender(invoc);
+
+	pid = __get_caller_pid(name);
 
 	if (!__get_caller_unique_name(pid, app_name)) {
 		return_code = ERR_ALARM_SYSTEM_FAIL;
@@ -2444,7 +2466,7 @@ gboolean alarm_manager_alarm_get_number_of_ids(AlarmManager *pObject, GDBusMetho
 	return true;
 }
 
-gboolean alarm_manager_alarm_get_list_of_ids(AlarmManager *pObject, GDBusMethodInvocation *invoc, int pid,
+gboolean alarm_manager_alarm_get_list_of_ids(AlarmManager *pObject, GDBusMethodInvocation *invoc,
 					     int max_number_of_ids, gpointer user_data)
 {
 	GSList *gs_iter = NULL;
@@ -2455,6 +2477,10 @@ gboolean alarm_manager_alarm_get_list_of_ids(AlarmManager *pObject, GDBusMethodI
 	GVariantBuilder* builder = NULL;
 	int num_of_ids = 0;
 	int return_code = ALARMMGR_RESULT_SUCCESS;
+	int pid;
+	const char *name = g_dbus_method_invocation_get_sender(invoc);
+
+	pid = __get_caller_pid(name);
 
 	if (max_number_of_ids <= 0) {
 		SECURE_LOGE("called for pid(%d), but max_number_of_ids(%d) is less than 0.", pid, max_number_of_ids);
@@ -2490,9 +2516,8 @@ gboolean alarm_manager_alarm_get_list_of_ids(AlarmManager *pObject, GDBusMethodI
 	return true;
 }
 
-gboolean alarm_manager_alarm_get_appsvc_info(AlarmManager *pObject, GDBusMethodInvocation *invoc ,
-				int pid, alarm_id_t alarm_id,
-				gpointer user_data)
+gboolean alarm_manager_alarm_get_appsvc_info(AlarmManager *pObject, GDBusMethodInvocation *invoc,
+				alarm_id_t alarm_id, gpointer user_data)
 {
 	bool found = false;
 	GSList *gs_iter = NULL;
@@ -2501,7 +2526,7 @@ gboolean alarm_manager_alarm_get_appsvc_info(AlarmManager *pObject, GDBusMethodI
 	int return_code = ALARMMGR_RESULT_SUCCESS;
 	gchar *b_data = NULL;
 
-	SECURE_LOGD("called for pid(%d) and alarm_id(%d)\n", pid, alarm_id);
+	SECURE_LOGD("called for alarm_id(%d)\n", alarm_id);
 
 	for (gs_iter = alarm_context.alarms; gs_iter != NULL; gs_iter = g_slist_next(gs_iter)) {
 		entry = gs_iter->data;
@@ -2527,17 +2552,16 @@ gboolean alarm_manager_alarm_get_appsvc_info(AlarmManager *pObject, GDBusMethodI
 	return true;
 }
 
-gboolean alarm_manager_alarm_get_info(AlarmManager *pObject, GDBusMethodInvocation *invoc, int pid,
+gboolean alarm_manager_alarm_get_info(AlarmManager *pObject, GDBusMethodInvocation *invoc,
 				      alarm_id_t alarm_id, gpointer user_data)
 {
-	SECURE_LOGD("called for pid(%d) and alarm_id(%d)\n", pid, alarm_id);
-
 	GSList *gs_iter = NULL;
 	__alarm_info_t *entry = NULL;
 	alarm_info_t *alarm_info = NULL;
 	int retval = 0;
 	int return_code = ALARMMGR_RESULT_SUCCESS;
 
+	SECURE_LOGD("called for alarm_id(%d)\n", alarm_id);
 	for (gs_iter = alarm_context.alarms; gs_iter != NULL; gs_iter = g_slist_next(gs_iter)) {
 		entry = gs_iter->data;
 		if (entry->alarm_id == alarm_id) {
@@ -2560,11 +2584,9 @@ gboolean alarm_manager_alarm_get_info(AlarmManager *pObject, GDBusMethodInvocati
 	return true;
 }
 
-gboolean alarm_manager_alarm_get_next_duetime(AlarmManager *pObject, GDBusMethodInvocation *invoc, int pid,
+gboolean alarm_manager_alarm_get_next_duetime(AlarmManager *pObject, GDBusMethodInvocation *invoc,
 				      alarm_id_t alarm_id, gpointer user_data)
 {
-	SECURE_LOGD("called for pid(%d) and alarm_id(%d)\n", pid, alarm_id);
-
 	GSList *gs_iter = NULL;
 	__alarm_info_t *entry = NULL;
 	__alarm_info_t *find_item = NULL;
@@ -2572,6 +2594,7 @@ gboolean alarm_manager_alarm_get_next_duetime(AlarmManager *pObject, GDBusMethod
 	int return_code = ALARMMGR_RESULT_SUCCESS;
 	time_t duetime = 0;
 
+	SECURE_LOGD("called for alarm_id(%d)\n", alarm_id);
 	for (gs_iter = alarm_context.alarms; gs_iter != NULL; gs_iter = g_slist_next(gs_iter)) {
 		entry = gs_iter->data;
 		if (entry->alarm_id == alarm_id) {
@@ -2594,7 +2617,7 @@ gboolean alarm_manager_alarm_get_next_duetime(AlarmManager *pObject, GDBusMethod
 	return true;
 }
 
-gboolean alarm_manager_alarm_get_all_info(AlarmManager *pObject, GDBusMethodInvocation *invoc, int pid, gpointer user_data)
+gboolean alarm_manager_alarm_get_all_info(AlarmManager *pObject, GDBusMethodInvocation *invoc, gpointer user_data)
 {
 	sqlite3 *alarmmgr_tool_db;
 	char *db_path = NULL;
