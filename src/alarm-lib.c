@@ -38,9 +38,6 @@
 #include <aul.h>
 #include <gio/gio.h>
 
-#define MAX_KEY_SIZE 256
-#define MAX_PROC_NAME_LEN 512
-
 #ifndef EXPORT_API
 #define EXPORT_API __attribute__ ((visibility("default")))
 #endif
@@ -241,11 +238,8 @@ static bool __alarm_validate_time(alarm_date_t *date, int *error_code)
 static int __sub_init()
 {
 	GError *error = NULL;
-	char proc_file[MAX_PROC_NAME_LEN] = {0, };
-	char process_name[MAX_PROC_NAME_LEN] = {0, };
 	int fd = 0;
 	int ret = 0;
-	const int MAX_LEN = MAX_PROC_NAME_LEN;
 
 	pthread_mutex_lock(&init_lock);
 
@@ -281,38 +275,6 @@ static int __sub_init()
 		g_object_unref (alarm_context.connection);
 		pthread_mutex_unlock(&init_lock);
 		return ERR_ALARM_SYSTEM_FAIL;
-	}
-
-	// Only webapp which has a pid of WebProcess uses the sid. Otherwise, the pid is used.
-	snprintf(proc_file, MAX_LEN, "/proc/%d/cmdline", getpid());
-	fd = open(proc_file, O_RDONLY);
-	if (fd < 0) {
-		SECURE_LOGE("Unable to get the proc file(%d).\n", getpid());
-		g_object_unref(alarm_context.proxy);
-		g_object_unref(alarm_context.connection);
-		pthread_mutex_unlock(&init_lock);
-		return ERR_ALARM_SYSTEM_FAIL;
-	}
-	else {
-		ret = read(fd, process_name, MAX_LEN - 1);
-		close(fd);
-		if (ret < 0) {
-			ALARM_MGR_EXCEPTION_PRINT("Unable to read the proc file(%d).", getpid());
-			g_object_unref(alarm_context.proxy);
-			g_object_unref(alarm_context.connection);
-			pthread_mutex_unlock(&init_lock);
-			return ERR_ALARM_SYSTEM_FAIL;
-		}
-		else {
-			if (strncmp(process_name, "/usr/bin/WebProcess", strlen("/usr/bin/WebProcess")) == 0) {
-				alarm_context.pid = getsid(getpid());
-				SECURE_LOGD("alarm_context.pid is set to sessionID, %d.", alarm_context.pid);
-			}
-			else {
-				alarm_context.pid = getpid();
-				SECURE_LOGD("alarm_context.pid is set to processID, %d.", alarm_context.pid);
-			}
-		}
 	}
 
 	sub_initialized = true;
@@ -1233,7 +1195,7 @@ EXPORT_API int alarmmgr_enum_alarm_ids(alarm_enum_fn_t fn, void *user_param)
 
 	SECURE_LOGD("alarm_manager_call_alarm_get_number_of_ids_sync() is called");
 	if (!alarm_manager_call_alarm_get_number_of_ids_sync(
-	    (AlarmManager*)alarm_context.proxy, alarm_context.pid, &maxnum_of_ids, &return_code, NULL, &error)) {
+	    (AlarmManager*)alarm_context.proxy, &maxnum_of_ids, &return_code, NULL, &error)) {
 		/* dbus error. error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT(
 		    "alarm_manager_call_alarm_get_number_of_ids_sync() is failed by dbus. return_code[%d], err message[%s]",
@@ -1250,7 +1212,7 @@ EXPORT_API int alarmmgr_enum_alarm_ids(alarm_enum_fn_t fn, void *user_param)
 
 	SECURE_LOGD("alarm_manager_call_alarm_get_list_of_ids_sync() is called");
 	if (!alarm_manager_call_alarm_get_list_of_ids_sync(
-		     (AlarmManager*)alarm_context.proxy, alarm_context.pid, maxnum_of_ids, &alarm_array, &num_of_ids, &return_code, NULL, &error)) {
+		     (AlarmManager*)alarm_context.proxy, maxnum_of_ids, &alarm_array, &num_of_ids, &return_code, NULL, &error)) {
 		/* dbus error. error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT(
 		    "alarm_manager_call_alarm_get_list_of_ids_sync() failed by dbus. num_of_ids[%d], return_code[%d].", num_of_ids, return_code);
@@ -1516,7 +1478,7 @@ EXPORT_API int alarmmgr_set_systime(int new_time)
 		return error_code;
 	}
 
-	ALARM_MGR_LOG_PRINT("[alarm-lib]: successfully set the time(%d) by pid(%d).", new_time, alarm_context.pid);
+	ALARM_MGR_LOG_PRINT("[alarm-lib]: successfully set the time(%d) by pid(%d).", new_time, getpid());
 	return ALARMMGR_RESULT_SUCCESS;
 }
 
@@ -1535,7 +1497,7 @@ EXPORT_API int alarmmgr_set_systime_with_propagation_delay(struct timespec new_t
 		return error_code;
 	}
 
-	ALARM_MGR_LOG_PRINT("[alarm-lib]: successfully set the time by pid(%d).", alarm_context.pid);
+	ALARM_MGR_LOG_PRINT("[alarm-lib]: successfully set the time by pid(%d).", getpid());
 	return ALARMMGR_RESULT_SUCCESS;
 }
 
@@ -1556,6 +1518,6 @@ EXPORT_API int alarmmgr_set_timezone(char *tzpath_str)
 		return error_code;
 	}
 
-	ALARM_MGR_LOG_PRINT("[alarm-lib]: successfully set the timezone(%s) by pid(%d)", tzpath_str, alarm_context.pid);
+	ALARM_MGR_LOG_PRINT("[alarm-lib]: successfully set the timezone(%s) by pid(%d)", tzpath_str, getpid());
 	return ALARMMGR_RESULT_SUCCESS;
 }

@@ -72,7 +72,7 @@ bool _send_alarm_create_appsvc(alarm_context_t context, alarm_info_t *alarm_info
 		return false;
 	}
 
-	if (!alarm_manager_call_alarm_create_appsvc_sync((AlarmManager*)context.proxy, context.pid,
+	if (!alarm_manager_call_alarm_create_appsvc_sync((AlarmManager*)context.proxy,
 						    alarm_info->start.year,
 						    alarm_info->start.month,
 						    alarm_info->start.day,
@@ -130,7 +130,7 @@ bool _send_alarm_create(alarm_context_t context, alarm_info_t *alarm_info,
 		return false;
 	}
 
-	if (!alarm_manager_call_alarm_create_sync((AlarmManager*)context.proxy, context.pid,
+	if (!alarm_manager_call_alarm_create_sync((AlarmManager*)context.proxy,
 			g_quark_to_string(context.quark_app_service_name),
 			g_quark_to_string(context.quark_app_service_name_mod),
 						    alarm_info->start.year,
@@ -217,7 +217,7 @@ bundle *_send_alarm_get_appsvc_info(alarm_context_t context, alarm_id_t alarm_id
 	int len = 0;
 
 	if (!alarm_manager_call_alarm_get_appsvc_info_sync
-	    ((AlarmManager*)context.proxy, context.pid, alarm_id, &b_data, &return_code, NULL, &error)) {
+	    ((AlarmManager*)context.proxy, alarm_id, &b_data, &return_code, NULL, &error)) {
 		/* g_dbus_proxy_call_sync error */
 		/*error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT("alarm_manager_call_alarm_get_appsvc_info_sync() failed. alarm_id[%d], return_code[%d].", alarm_id, return_code);
@@ -255,7 +255,7 @@ bool _send_alarm_set_rtc_time(alarm_context_t context, alarm_date_t *time, int *
 	int return_code = 0;
 
 	if (!alarm_manager_call_alarm_set_rtc_time_sync
-	    ((AlarmManager*)context.proxy, context.pid, time->year, time->month, time->day,
+	    ((AlarmManager*)context.proxy, time->year, time->month, time->day,
 		 time->hour, time->min, time->sec, &return_code, NULL, &error)) {
 		/* g_dbus_proxy_call_sync error */
 		/*error_code should be set */
@@ -283,7 +283,7 @@ bool _send_alarm_delete(alarm_context_t context, alarm_id_t alarm_id, int *error
 	int return_code = 0;
 
 	if (!alarm_manager_call_alarm_delete_sync
-	    ((AlarmManager*)context.proxy, context.pid, alarm_id, &return_code, NULL, &error)) {
+	    ((AlarmManager*)context.proxy, alarm_id, &return_code, NULL, &error)) {
 		/* g_dbus_proxy_call_sync error */
 		/*error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT("alarm_manager_call_alarm_delete_sync() failed. alarm_id[%d], return_code[%d]", alarm_id, return_code);
@@ -310,7 +310,7 @@ bool _send_alarm_delete_all(alarm_context_t context, int *error_code)
 	int return_code = 0;
 
 	if (!alarm_manager_call_alarm_delete_all_sync
-	    ((AlarmManager*)context.proxy, context.pid, &return_code, NULL, &error)) {
+	    ((AlarmManager*)context.proxy, &return_code, NULL, &error)) {
 		/* g_dbus_proxy_call_sync error */
 		/*error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT("alarm_manager_call_alarm_delete_all_sync() failed. return_code[%d]", return_code);
@@ -340,7 +340,7 @@ bool _send_alarm_get_list_of_ids(alarm_context_t context, int maxnum_of_ids,
 	int return_code = 0;
 
 	if (!alarm_manager_call_alarm_get_list_of_ids_sync((AlarmManager*)context.proxy,
-			     context.pid, maxnum_of_ids, &alarm_array,
+			     maxnum_of_ids, &alarm_array,
 			     num_of_ids, &return_code, NULL, &error)) {
 		/* g_dbus_proxy_call_sync error */
 		/*error_code should be set */
@@ -383,7 +383,7 @@ bool _send_alarm_get_number_of_ids(alarm_context_t context, int *num_of_ids,
 	GError *error = NULL;
 	gint return_code = 0;
 
-	if (!alarm_manager_call_alarm_get_number_of_ids_sync((AlarmManager*)context.proxy, context.pid, num_of_ids, &return_code, NULL, &error)) {
+	if (!alarm_manager_call_alarm_get_number_of_ids_sync((AlarmManager*)context.proxy, num_of_ids, &return_code, NULL, &error)) {
 		/* g_dbus_proxy_call_sync error */
 		/* error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT(
@@ -413,7 +413,7 @@ bool _send_alarm_get_info(alarm_context_t context, alarm_id_t alarm_id,
 	int return_code = 0;
 
 	if (!alarm_manager_call_alarm_get_info_sync((AlarmManager*)context.proxy,
-		context.pid, alarm_id, &alarm_info->start.year,
+		alarm_id, &alarm_info->start.year,
 		&alarm_info->start.month, &alarm_info->start.day,
 		&alarm_info->start.hour, &alarm_info->start.min,
 		&alarm_info->start.sec, &alarm_info->end.year,
@@ -449,7 +449,7 @@ bool _send_alarm_get_next_duetime(alarm_context_t context,
 	int return_code = 0;
 
 	if (!alarm_manager_call_alarm_get_next_duetime_sync((AlarmManager*)context.proxy,
-			     context.pid, alarm_id, (gint *)duetime, &return_code, NULL, &error)) {
+			     alarm_id, (gint *)duetime, &return_code, NULL, &error)) {
 		/*g_dbus_proxy_call_sync error */
 		/*error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT(
@@ -475,7 +475,7 @@ bool _send_alarm_get_all_info(alarm_context_t context, char ** db_path, int *err
 	GError *error = NULL;
 	int return_code = 0;
 
-	if (!alarm_manager_call_alarm_get_all_info_sync((AlarmManager*)context.proxy, context.pid, db_path, &return_code, NULL, &error)) {
+	if (!alarm_manager_call_alarm_get_all_info_sync((AlarmManager*)context.proxy, db_path, &return_code, NULL, &error)) {
 		/*g_dbus_proxy_call_sync error */
 		/*error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT("alarm_manager_call_alarm_get_all_info_sync() failed by dbus. return_code[%d][%s]", return_code, error->message);
