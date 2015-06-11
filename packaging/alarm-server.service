@@ -3,8 +3,6 @@ Description=Alarm server
 After=system-server.service
 
 [Service]
-User=system
-Group=system
 SmackProcessLabel=alarm-server
 ExecStart=/usr/bin/alarm-server
 TimeoutStopSec=3s
