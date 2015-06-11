@@ -82,9 +82,9 @@ make %{?jobs:-j%jobs}
 rm -rf %{buildroot}
 %make_install
 
-mkdir -p %{buildroot}%{_libdir}/systemd/system/multi-user.target.wants
-install -m 0644 %SOURCE1 %{buildroot}%{_libdir}/systemd/system/alarm-server.service
-ln -s ../alarm-server.service %{buildroot}%{_libdir}/systemd/system/multi-user.target.wants/alarm-server.service
+mkdir -p %{buildroot}%{_unitdir}/multi-user.target.wants
+install -m 0644 %SOURCE1 %{buildroot}%{_unitdir}/alarm-server.service
+ln -s ../alarm-server.service %{buildroot}%{_unitdir}/multi-user.target.wants/alarm-server.service
 
 %post -p /sbin/ldconfig
 
@@ -109,8 +109,8 @@ chown system:system /var/log/alarmmgr.log
 %manifest alarm-server.manifest
 %{_bindir}/*
 %attr(0755,root,root) %{_bindir}/alarm-server
-%attr(0644,root,root) %{_libdir}/systemd/system/alarm-server.service
-%{_libdir}/systemd/system/multi-user.target.wants/alarm-server.service
+%attr(0644,root,root) %{_unitdir}/alarm-server.service
+%{_unitdir}/multi-user.target.wants/alarm-server.service
 %license LICENSE
 %config %{_sysconfdir}/dbus-1/system.d/alarm-service.conf
 %if 0%{?appfw_feature_alarm_manager_module_log}
