@@ -1563,25 +1563,48 @@ bool __get_caller_unique_name(int pid, char *unique_name)
 	char caller_appid[256] = {0,};
 	char caller_cmdline[512] = {0,};
 
-	if (unique_name == NULL)
-	{
+	if (unique_name == NULL) {
 		ALARM_MGR_EXCEPTION_PRINT("unique_name should not be NULL.");
 		return false;
 	}
 
-	if (aul_app_get_appid_bypid(pid, caller_appid, sizeof(caller_appid)) == AUL_R_OK)
-	{
-		// When a caller is an application, the unique name is appID.
+	if (aul_app_get_appid_bypid(pid, caller_appid,
+				sizeof(caller_appid)) == AUL_R_OK) {
+		/* When a caller is an application, the unique name is appID. */
 		strncpy(unique_name, caller_appid, strlen(caller_appid));
-/*	}
-	else if (aul_app_get_cmdline_bypid(pid, caller_cmdline, sizeof(caller_cmdline)) == AUL_R_OK)
-	{
-		strncpy(unique_name, caller_cmdline, strlen(caller_cmdline));
-		ALARM_MGR_LOG_PRINT("unique_name is caller_cmdline : %s.", unique_name);
-		*/
 	} else {
-		ALARM_MGR_EXCEPTION_PRINT("Failed to get caller_cmdline");
-		return false;
+		/* Otherwise, the unique name is /proc/pid/cmdline. */
+		char proc_file[512] = {0,};
+		char process_name[512] = {0,};
+		int fd = 0;
+		int i = 0;
+
+		snprintf(proc_file, 512, "/proc/%d/cmdline", pid);
+
+		fd = open(proc_file, O_RDONLY);
+		if (fd < 0) {
+			SECURE_LOGE("Caution!! pid(%d) seems to be killed.",
+					pid, proc_file);
+			return false;
+		}
+		else {
+			if (read(fd, process_name, 512) <= 0)
+			{
+				ALARM_MGR_EXCEPTION_PRINT("Unable to get the process name.");
+				close(fd);
+				return false;
+			}
+			close(fd);
+
+			while (process_name[i] != '\0') {
+				if (process_name[i] == ' ') {
+					process_name[i] = '\0';
+					break;
+				}
+				++i;
+			}
+			strncpy(unique_name, process_name, strlen(process_name));
+		}
 	}
 
 	SECURE_LOGD("unique_name= %s", unique_name);
