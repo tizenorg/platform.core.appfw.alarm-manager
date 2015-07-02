@@ -9,6 +9,14 @@ Branch: refs/heads/tizen
 Verified+1: José Bollo <jobol@nonadev.net>
 Code-Review+2: Semun Lee <sm79.lee@samsung.com>
 Submitted-by: Semun Lee <sm79.lee@samsung.com>
+Submitted-at: Wed, 01 Jul 2015 03:24:50 -0700
+Reviewed-on: https://review.tizen.org/gerrit/42292
+Project: platform/core/appfw/alarm-manager
+Branch: refs/heads/tizen
+
+Verified+1: José Bollo <jobol@nonadev.net>
+Code-Review+2: Semun Lee <sm79.lee@samsung.com>
+Submitted-by: Semun Lee <sm79.lee@samsung.com>
 Submitted-at: Wed, 01 Jul 2015 03:24:09 -0700
 Reviewed-on: https://review.tizen.org/gerrit/42292
 Project: platform/core/appfw/alarm-manager
