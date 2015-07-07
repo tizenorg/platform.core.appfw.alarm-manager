@@ -1496,7 +1496,7 @@ static void __on_system_time_external_changed(keynode_t *node, void *data)
 	return;
 }
 
-static int __on_app_uninstalled(int req_id, const char *pkg_type,
+static int __on_app_uninstalled(uid_t target_uid, int req_id, const char *pkg_type,
 				const char *pkgid, const char *key, const char *val,
 				const void *pmsg, void *user_data)
 {
