@@ -251,7 +251,6 @@ bundle *_send_alarm_get_appsvc_info(alarm_context_t context, alarm_id_t alarm_id
 	int retval = 0;
 
 	gchar *b_data = NULL;
-	int len = 0;
 
 	size = security_server_get_cookie_size();
 	retval = security_server_request_cookie(cookie, size);
@@ -298,7 +297,7 @@ bundle *_send_alarm_get_appsvc_info(alarm_context_t context, alarm_id_t alarm_id
 		if (error_code)
 			*error_code = return_code;
 	} else {
-		b = bundle_decode((bundle_raw *)b_data, len);
+		b = bundle_decode((bundle_raw *)b_data, strlen(b_data));
 	}
 
 	if (e_cookie)
