@@ -298,7 +298,7 @@ bundle *_send_alarm_get_appsvc_info(alarm_context_t context, alarm_id_t alarm_id
 		if (error_code)
 			*error_code = return_code;
 	} else {
-		b = bundle_decode((bundle_raw *)b_data, len);
+		b = bundle_decode((bundle_raw *)b_data, strlen(b_data));
 	}
 
 	if (e_cookie)
