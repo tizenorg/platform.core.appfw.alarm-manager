@@ -214,7 +214,6 @@ bundle *_send_alarm_get_appsvc_info(alarm_context_t context, alarm_id_t alarm_id
 	int return_code = 0;
 	bundle *b = NULL;
 	gchar *b_data = NULL;
-	int len = 0;
 
 	if (!alarm_manager_call_alarm_get_appsvc_info_sync
 	    ((AlarmManager*)context.proxy, alarm_id, &b_data, &return_code, NULL, &error)) {
@@ -238,7 +237,7 @@ bundle *_send_alarm_get_appsvc_info(alarm_context_t context, alarm_id_t alarm_id
 			*error_code = return_code;
 		}
 	} else {
-		b = bundle_decode((bundle_raw *)b_data, len);
+		b = bundle_decode((bundle_raw *)b_data, strlen(b_data));
 	}
 
 	if (b_data) {
