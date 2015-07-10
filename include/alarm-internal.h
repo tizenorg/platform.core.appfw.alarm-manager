@@ -131,7 +131,7 @@ bool _send_alarm_get_info(alarm_context_t context, alarm_id_t alarm_id, alarm_in
 bool _send_alarm_get_next_duetime(alarm_context_t context, alarm_id_t alarm_id, time_t* duetime, int *error_code);
 bool _send_alarm_get_all_info(alarm_context_t context, char ** db_path, int *error_code);
 bool _send_alarm_reset(alarm_context_t context, int *error_code);
-bool _remove_from_scheduled_alarm_list(int pid, alarm_id_t alarm_id);
+bool _remove_from_scheduled_alarm_list(uid_t uid, alarm_id_t alarm_id);
 bool _load_alarms_from_registry();
 bundle *_send_alarm_get_appsvc_info(alarm_context_t context, alarm_id_t alarm_id, int *error_code);
 bool _send_alarm_set_rtc_time(alarm_context_t context, alarm_date_t *time, int *error_code);
@@ -144,6 +144,7 @@ typedef struct {
 	time_t end;
 
 	alarm_id_t alarm_id;
+	uid_t uid;
 	int pid;
 	GQuark quark_caller_pkgid;
 	GQuark quark_callee_pkgid;
@@ -185,6 +186,7 @@ typedef struct {
 typedef struct {
 	bool used;
 	alarm_id_t alarm_id;
+	uid_t uid;
 	int pid;
 	__alarm_info_t *__alarm_info;
 } __scheduled_alarm_t;
