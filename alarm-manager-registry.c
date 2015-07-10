@@ -57,7 +57,7 @@ bool _save_alarms(__alarm_info_t *__alarm_info)
 	alarm_mode_t *mode = &alarm_info->mode;
 
 	char *query = sqlite3_mprintf("insert into alarmmgr( alarm_id, start,\
-			end, pid, caller_pkgid, callee_pkgid, app_unique_name, app_service_name, app_service_name_mod, bundle, year,\
+			end, uid, pid, caller_pkgid, callee_pkgid, app_unique_name, app_service_name, app_service_name_mod, bundle, year,\
 			month, day, hour, min, sec, day_of_week, repeat,\
 			alarm_type, reserved_info, dst_service_name, dst_service_name_mod)\
 			values (%d,%d,%d,%d,%Q,%Q,%Q,%Q,%Q,%Q,%d,%d,%d,%d,%d,%d,%d,%d,\
@@ -65,6 +65,7 @@ bool _save_alarms(__alarm_info_t *__alarm_info)
 			__alarm_info->alarm_id,
 			(int)__alarm_info->start,
 			(int)__alarm_info->end,
+			__alarm_info->uid,
 			__alarm_info->pid,
 			(char *)g_quark_to_string(__alarm_info->quark_caller_pkgid),
 			(char *)g_quark_to_string(__alarm_info->quark_callee_pkgid),
@@ -110,13 +111,14 @@ bool _update_alarms(__alarm_info_t *__alarm_info)
 	alarm_mode_t *mode = &alarm_info->mode;
 
 	char *query = sqlite3_mprintf("update alarmmgr set start=%d, end=%d,\
-			pid=%d, caller_pkgid=%Q, callee_pkgid=%Q, app_unique_name=%Q, app_service_name=%Q, app_service_name_mod=%Q,\
+			uid=%d, pid=%d, caller_pkgid=%Q, callee_pkgid=%Q, app_unique_name=%Q, app_service_name=%Q, app_service_name_mod=%Q,\
 			bundle=%Q, year=%d, month=%d, day=%d, hour=%d, min=%d, sec=%d,\
 			day_of_week=%d, repeat=%d, alarm_type=%d,\
 			reserved_info=%d, dst_service_name=%Q, dst_service_name_mod=%Q\
 			where alarm_id=%d",\
 			(int)__alarm_info->start,
 			(int)__alarm_info->end,
+			__alarm_info->uid,
 			__alarm_info->pid,
 			(char *)g_quark_to_string(__alarm_info->quark_caller_pkgid),
 			(char *)g_quark_to_string(__alarm_info->quark_callee_pkgid),
@@ -172,6 +174,7 @@ bool _delete_alarms(alarm_id_t alarm_id)
 bool _load_alarms_from_registry()
 {
 	int i = 0;
+	int col_idx;
 	char query[MAX_QUERY_LEN] = {0,};
 	sqlite3_stmt *stmt = NULL;
 	const char *tail = NULL;
@@ -196,6 +199,7 @@ bool _load_alarms_from_registry()
 	}
 
 	for (i = 0; SQLITE_ROW == sqlite3_step(stmt); i++) {
+		col_idx = 0;
 		__alarm_info = malloc(sizeof(__alarm_info_t));
 
 		if (G_UNLIKELY(__alarm_info == NULL)) {
@@ -206,36 +210,37 @@ bool _load_alarms_from_registry()
 		start = &alarm_info->start;
 		mode = &alarm_info->mode;
 
-		__alarm_info->alarm_id = sqlite3_column_int(stmt, 0);
-		__alarm_info->start = sqlite3_column_int(stmt, 1);
-		__alarm_info->end = sqlite3_column_int(stmt, 2);
-		__alarm_info->pid = sqlite3_column_int(stmt, 3);
+		__alarm_info->alarm_id = sqlite3_column_int(stmt, col_idx++);
+		__alarm_info->start = sqlite3_column_int(stmt, col_idx++);
+		__alarm_info->end = sqlite3_column_int(stmt, col_idx++);
+		__alarm_info->uid = sqlite3_column_int(stmt, col_idx++);
+		__alarm_info->pid = sqlite3_column_int(stmt, col_idx++);
 
-		strncpy(caller_pkgid, (const char *)sqlite3_column_text(stmt, 4),
+		strncpy(caller_pkgid, (const char *)sqlite3_column_text(stmt, col_idx++),
 			MAX_PKG_ID_LEN - 1);
-		strncpy(callee_pkgid, (const char *)sqlite3_column_text(stmt, 5),
+		strncpy(callee_pkgid, (const char *)sqlite3_column_text(stmt, col_idx++),
 			MAX_PKG_ID_LEN - 1);
-		strncpy(app_unique_name, (const char *)sqlite3_column_text(stmt, 6),
+		strncpy(app_unique_name, (const char *)sqlite3_column_text(stmt, col_idx++),
 			MAX_SERVICE_NAME_LEN - 1);
-		strncpy(app_service_name, (const char *)sqlite3_column_text(stmt, 7),
+		strncpy(app_service_name, (const char *)sqlite3_column_text(stmt, col_idx++),
 			MAX_SERVICE_NAME_LEN - 1);
-		strncpy(app_service_name_mod, (const char *)sqlite3_column_text(stmt, 8),
+		strncpy(app_service_name_mod, (const char *)sqlite3_column_text(stmt, col_idx++),
 			MAX_SERVICE_NAME_LEN - 1);
-		strncpy(bundle, (const char *)sqlite3_column_text(stmt, 9),
+		strncpy(bundle, (const char *)sqlite3_column_text(stmt, col_idx++),
 			MAX_BUNDLE_NAME_LEN - 1);
-		start->year = sqlite3_column_int(stmt, 10);
-		start->month = sqlite3_column_int(stmt, 11);
-		start->day = sqlite3_column_int(stmt, 12);
-		start->hour = sqlite3_column_int(stmt, 13);
-		start->min = sqlite3_column_int(stmt, 14);
-		start->sec = sqlite3_column_int(stmt, 15);
-		mode->u_interval.day_of_week = sqlite3_column_int(stmt, 16);
-		mode->repeat = sqlite3_column_int(stmt, 17);
-		alarm_info->alarm_type = sqlite3_column_int(stmt, 18);
-		alarm_info->reserved_info = sqlite3_column_int(stmt, 19);
-		strncpy(dst_service_name, (const char *)sqlite3_column_text(stmt, 20),
+		start->year = sqlite3_column_int(stmt, col_idx++);
+		start->month = sqlite3_column_int(stmt, col_idx++);
+		start->day = sqlite3_column_int(stmt, col_idx++);
+		start->hour = sqlite3_column_int(stmt, col_idx++);
+		start->min = sqlite3_column_int(stmt, col_idx++);
+		start->sec = sqlite3_column_int(stmt, col_idx++);
+		mode->u_interval.day_of_week = sqlite3_column_int(stmt, col_idx++);
+		mode->repeat = sqlite3_column_int(stmt, col_idx++);
+		alarm_info->alarm_type = sqlite3_column_int(stmt, col_idx++);
+		alarm_info->reserved_info = sqlite3_column_int(stmt, col_idx++);
+		strncpy(dst_service_name, (const char *)sqlite3_column_text(stmt, col_idx++),
 			MAX_SERVICE_NAME_LEN - 1);
-		strncpy(dst_service_name_mod, (const char *)sqlite3_column_text(stmt, 21),
+		strncpy(dst_service_name_mod, (const char *)sqlite3_column_text(stmt, col_idx++),
 			MAX_SERVICE_NAME_LEN - 1);
 
 		__alarm_info->quark_caller_pkgid = g_quark_from_string(caller_pkgid);
