@@ -87,11 +87,12 @@ bool _add_to_scheduled_alarm_list(__alarm_info_t *__alarm_info)
 
 	alarm->used = true;
 	alarm->alarm_id = __alarm_info->alarm_id;
+	alarm->uid = __alarm_info->uid;
 	alarm->pid = __alarm_info->pid;
 	alarm->__alarm_info = __alarm_info;
 
-	SECURE_LOGD("%s :alarm->pid =%d, app_service_name=%s(%u)\n",
-			__FUNCTION__, alarm->pid,
+	SECURE_LOGD("%s :alarm->uid =%d, alarm->pid =%d, app_service_name=%s(%u)\n",
+			__FUNCTION__, alarm->uid, alarm->pid,
 			g_quark_to_string(alarm->__alarm_info->quark_app_service_name),
 			alarm->__alarm_info->quark_app_service_name);
 

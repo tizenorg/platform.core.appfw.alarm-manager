@@ -144,6 +144,7 @@ typedef struct {
 	time_t end;
 
 	alarm_id_t alarm_id;
+	uid_t uid;
 	int pid;
 	GQuark quark_caller_pkgid;
 	GQuark quark_callee_pkgid;
@@ -185,6 +186,7 @@ typedef struct {
 typedef struct {
 	bool used;
 	alarm_id_t alarm_id;
+	uid_t uid;
 	int pid;
 	__alarm_info_t *__alarm_info;
 } __scheduled_alarm_t;

@@ -139,13 +139,13 @@ static bool __alarm_remove_from_list(int pid, alarm_id_t alarm_id,
 static bool __alarm_set_start_and_end_time(alarm_info_t *alarm_info,
 					   __alarm_info_t *__alarm_info);
 static bool __alarm_update_due_time_of_all_items_in_list(double diff_time);
-static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
+static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id, uid_t uid,
 			int pid, periodic_method_e method, long requested_interval, int is_ref,
 			char *app_service_name, char *app_service_name_mod,
 			const char *dst_service_name, const char *dst_service_name_mod,
 			int *error_code);
 static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
-			   int pid, char *bundle_data, int *error_code);
+			   uid_t uid, int pid, char *bundle_data, int *error_code);
 
 static bool __alarm_delete(int pid, alarm_id_t alarm_id, int *error_code);
 static bool __alarm_update(int pid, char *app_service_name, alarm_id_t alarm_id,
@@ -654,7 +654,7 @@ static bool __alarm_update_due_time_of_all_items_in_list(double diff_time)
 }
 
 static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
-			   int pid, char *bundle_data, int *error_code)
+			   uid_t uid, int pid, char *bundle_data, int *error_code)
 {
 	time_t current_time;
 	time_t due_time;
@@ -680,6 +680,7 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 		return false;
 	}
 
+	__alarm_info->uid = uid;
 	__alarm_info->pid = pid;
 	__alarm_info->alarm_id = -1;
 
@@ -695,7 +696,7 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 	__alarm_info->quark_caller_pkgid = g_quark_from_string("null");
 
 	if (aul_app_get_appid_bypid(pid, caller_appid, 256) == AUL_R_OK) {
-		if (pkgmgrinfo_appinfo_get_appinfo(caller_appid, &caller_handle) == PMINFO_R_OK) {
+		if (pkgmgrinfo_appinfo_get_usr_appinfo(caller_appid, uid, &caller_handle) == PMINFO_R_OK) {
 			if (pkgmgrinfo_appinfo_get_pkgid(caller_handle, &caller_pkgid) == PMINFO_R_OK) {
 				if (caller_pkgid) {
 					__alarm_info->quark_caller_pkgid = g_quark_from_string(caller_pkgid);
@@ -710,7 +711,7 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 
 	b = bundle_decode((bundle_raw *)bundle_data, strlen(bundle_data));
 	callee_appid = appsvc_get_appid(b);
-	if (pkgmgrinfo_appinfo_get_appinfo(callee_appid, &callee_handle) == PMINFO_R_OK) {
+	if (pkgmgrinfo_appinfo_get_usr_appinfo(callee_appid, uid, &callee_handle) == PMINFO_R_OK) {
 		if (pkgmgrinfo_appinfo_get_pkgid(callee_handle, &callee_pkgid) == PMINFO_R_OK) {
 			if (callee_pkgid) {
 				__alarm_info->quark_callee_pkgid = g_quark_from_string(callee_pkgid);
@@ -790,7 +791,7 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 	return true;
 }
 
-static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
+static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id, uid_t uid,
 			int pid, periodic_method_e method, long requested_interval, int is_ref,
 			char *app_service_name, char *app_service_name_mod,
 			const char *dst_service_name, const char *dst_service_name_mod,
@@ -812,6 +813,7 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
 		*error_code = ERR_ALARM_SYSTEM_FAIL;
 		return false;
 	}
+	__alarm_info->uid = uid;
 	__alarm_info->pid = pid;
 	__alarm_info->alarm_id = -1;
 	__alarm_info->quark_caller_pkgid = g_quark_from_string("null");
@@ -821,7 +823,7 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
 
 	// Get caller_appid to get caller's package id. There is no callee.
 	if (aul_app_get_appid_bypid(pid, caller_appid, 256) == AUL_R_OK) {
-		if (pkgmgrinfo_appinfo_get_appinfo(caller_appid, &caller_handle) == PMINFO_R_OK) {
+		if (pkgmgrinfo_appinfo_get_usr_appinfo(caller_appid, uid, &caller_handle) == PMINFO_R_OK) {
 			if (pkgmgrinfo_appinfo_get_pkgid(caller_handle, &caller_pkgid) == PMINFO_R_OK) {
 				if (caller_pkgid) {
 					__alarm_info->quark_caller_pkgid = g_quark_from_string(caller_pkgid);
@@ -1109,6 +1111,30 @@ static void __alarm_send_noti_to_application(const char *app_service_name, alarm
 						NULL,
 						NULL,
 						NULL);
+}
+
+static uid_t __get_caller_uid(const char *name)
+{
+	guint uid;
+	GVariant *ret;
+	GError *error = NULL;
+
+	ret = g_dbus_connection_call_sync(
+			alarm_context.connection,
+			"org.freedesktop.DBus",
+			"/org/freedesktop/DBus",
+			"org.freedesktop.DBus",
+			"GetConnectionUnixUser",
+			g_variant_new("(s)", name),
+			NULL,
+			G_DBUS_CALL_FLAGS_NONE,
+			-1,
+			NULL,
+			&error);
+	g_variant_get(ret, "(u)", &uid);
+	g_variant_unref(ret);
+
+	return uid;
 }
 
 static int __get_caller_pid(const char *name)
@@ -2069,9 +2095,11 @@ gboolean alarm_manager_alarm_create_appsvc(AlarmManager *pObject, GDBusMethodInv
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
 #endif
 	bool ret = true;
+	uid_t uid;
 	int pid;
 	const char *name = g_dbus_method_invocation_get_sender(invoc);
 
+	uid = __get_caller_uid(name);
 	pid = __get_caller_pid(name);
 
 	alarm_info.start.year = start_year;
@@ -2091,7 +2119,7 @@ gboolean alarm_manager_alarm_create_appsvc(AlarmManager *pObject, GDBusMethodInv
 	alarm_info.alarm_type = alarm_type;
 	alarm_info.reserved_info = reserved_info;
 
-	if (!__alarm_create_appsvc(&alarm_info, &alarm_id, pid, bundle_data, &return_code)) {
+	if (!__alarm_create_appsvc(&alarm_info, &alarm_id, uid, pid, bundle_data, &return_code)) {
 		ALARM_MGR_EXCEPTION_PRINT("Unable to create alarm! return_code[%d]", return_code);
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 		strncpy(log_tag, "FAIL: CREATE", strlen("FAIL: CREATE"));
@@ -2107,8 +2135,8 @@ gboolean alarm_manager_alarm_create_appsvc(AlarmManager *pObject, GDBusMethodInv
 	g_dbus_method_invocation_return_value(invoc, g_variant_new("(ii)", alarm_id, return_code));
 
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-	sprintf(log_message, "alarmID: %d, pid: %d, duetime: %d-%d-%d %02d:%02d:%02d",
-		alarm_id, pid, start_year, start_month, start_day, start_hour, start_min, start_sec);
+	sprintf(log_message, "alarmID: %d, uid: %d, pid: %d, duetime: %d-%d-%d %02d:%02d:%02d",
+		alarm_id, uid, pid, start_year, start_month, start_day, start_hour, start_min, start_sec);
 	__save_module_log(log_tag, log_message);
 #endif
 
@@ -2135,10 +2163,12 @@ gboolean alarm_manager_alarm_create(AlarmManager *obj, GDBusMethodInvocation *in
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
 #endif
 	bool ret = true;
+	uid_t uid;
 	int pid;
 	const char *name = g_dbus_method_invocation_get_sender(invoc);
 
 	pid = __get_caller_pid(name);
+	uid = __get_caller_uid(name);
 
 	alarm_info.start.year = start_year;
 	alarm_info.start.month = start_month;
@@ -2157,7 +2187,7 @@ gboolean alarm_manager_alarm_create(AlarmManager *obj, GDBusMethodInvocation *in
 	alarm_info.alarm_type = alarm_type;
 	alarm_info.reserved_info = reserved_info;
 
-	if (!__alarm_create(&alarm_info, &alarm_id, pid, 0, 0, 0, app_service_name,app_service_name_mod,
+	if (!__alarm_create(&alarm_info, &alarm_id, uid, pid, 0, 0, 0, app_service_name,app_service_name_mod,
 		       reserved_service_name, reserved_service_name_mod, &return_code)) {
 		ALARM_MGR_EXCEPTION_PRINT("Unable to create alarm! return_code[%d]", return_code);
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
@@ -2174,8 +2204,8 @@ gboolean alarm_manager_alarm_create(AlarmManager *obj, GDBusMethodInvocation *in
 	g_dbus_method_invocation_return_value(invoc, g_variant_new("(ii)", alarm_id, return_code));
 
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-	sprintf(log_message, "alarmID: %d, pid: %d, duetime: %d-%d-%d %02d:%02d:%02d",
-		alarm_id, pid, start_year, start_month, start_day, start_hour, start_min, start_sec);
+	sprintf(log_message, "alarmID: %d, uid: %d, pid: %d, duetime: %d-%d-%d %02d:%02d:%02d",
+		alarm_id, uid, pid, start_year, start_month, start_day, start_hour, start_min, start_sec);
 	__save_module_log(log_tag, log_message);
 #endif
 
@@ -2193,9 +2223,11 @@ gboolean alarm_manager_alarm_create_periodic(AlarmManager *obj, GDBusMethodInvoc
 	char log_tag[ALARMMGR_LOG_TAG_SIZE] = {0,};
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
 	bool ret = true;
+	uid_t uid;
 	int pid;
 	const char *name = g_dbus_method_invocation_get_sender(invoc);
 
+	uid = __get_caller_uid(name);
 	pid = __get_caller_pid(name);
 
 	if (retval != ALARMMGR_RESULT_SUCCESS) {
@@ -2203,12 +2235,13 @@ gboolean alarm_manager_alarm_create_periodic(AlarmManager *obj, GDBusMethodInvoc
 		g_dbus_method_invocation_return_value(invoc,
 			g_variant_new("(ii)", alarm_id, return_code));
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
+		/* TODO: fix the log message */
 		if (is_ref)
 			sprintf(log_message,
-				"pid: %d, Smack denied (alarm-server::alarm-ref-periodic, w)", pid);
+				"uid: %d, pid: %d, Smack denied (alarm-server::alarm-ref-periodic, w)", uid, pid);
 		else
 			sprintf(log_message,
-				"pid: %d, Smack denied (alarm-server::alarm-periodic, w)", pid);
+				"uid: %d, pid: %d, Smack denied (alarm-server::alarm-periodic, w)", uid, pid);
 
 		__save_module_log("FAIL: CREATE", log_message);
 #endif
@@ -2243,7 +2276,7 @@ gboolean alarm_manager_alarm_create_periodic(AlarmManager *obj, GDBusMethodInvoc
 			alarm_info.mode.u_interval.interval = __get_proper_interval(interval * 60);
 	}
 
-	if (!__alarm_create(&alarm_info, &alarm_id, pid, method, interval * 60, is_ref,
+	if (!__alarm_create(&alarm_info, &alarm_id, uid, pid, method, interval * 60, is_ref,
 	                    app_service_name, app_service_name_mod,
 	                    "null", "null", &return_code)) {
 		ALARM_MGR_EXCEPTION_PRINT("Unable to create alarm! return_code[%d]", return_code);
@@ -2261,8 +2294,8 @@ gboolean alarm_manager_alarm_create_periodic(AlarmManager *obj, GDBusMethodInvoc
 	g_dbus_method_invocation_return_value(invoc,
 			g_variant_new("(ii)", alarm_id, return_code));
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-	sprintf(log_message, "alarmID: %d, pid: %d, duetime: %d-%d-%d %02d:%02d:%02d",
-			alarm_id, pid, alarm_info.start.year, alarm_info.start.month,
+	sprintf(log_message, "alarmID: %d, uid: %d, pid: %d, duetime: %d-%d-%d %02d:%02d:%02d",
+			alarm_id, uid, pid, alarm_info.start.year, alarm_info.start.month,
 			alarm_info.start.day, alarm_info.start.hour,
 			alarm_info.start.min, alarm_info.start.sec);
 	__save_module_log(log_tag, log_message);
