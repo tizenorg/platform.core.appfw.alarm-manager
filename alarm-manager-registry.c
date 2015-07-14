@@ -60,7 +60,7 @@ bool _save_alarms(__alarm_info_t *__alarm_info)
 			end, uid, pid, caller_pkgid, callee_pkgid, app_unique_name, app_service_name, app_service_name_mod, bundle, year,\
 			month, day, hour, min, sec, day_of_week, repeat,\
 			alarm_type, reserved_info, dst_service_name, dst_service_name_mod)\
-			values (%d,%d,%d,%d,%Q,%Q,%Q,%Q,%Q,%Q,%d,%d,%d,%d,%d,%d,%d,%d,\
+			values (%d,%d,%d,%d,%d,%Q,%Q,%Q,%Q,%Q,%Q,%d,%d,%d,%d,%d,%d,%d,%d,\
 			%d,%d,%Q,%Q)",\
 			__alarm_info->alarm_id,
 			(int)__alarm_info->start,
