@@ -2219,8 +2219,10 @@ gboolean alarm_manager_alarm_create_periodic(AlarmManager *obj, GDBusMethodInvoc
 	int retval = 0;
 	int return_code = ALARMMGR_RESULT_SUCCESS;
 	int alarm_id = 0;
+#ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 	char log_tag[ALARMMGR_LOG_TAG_SIZE] = {0,};
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
+#endif
 	bool ret = true;
 	uid_t uid;
 	int pid;
