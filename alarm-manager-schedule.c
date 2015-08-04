@@ -230,7 +230,17 @@ static time_t __alarm_next_duetime_repeat(__alarm_info_t *__alarm_info)
 	duetime_tm.tm_mday = start->day;
 	duetime_tm.tm_isdst = -1;
 
-	due_time = mktime(&duetime_tm);
+	if (alarm_info->alarm_type & ALARM_TYPE_PERIOD &&
+			alarm_info->mode.u_interval.interval > 0) {
+		/* For minimize 'while loop'
+		 * Duetime should be "periodic_standard_time + (interval * x) >= current" */
+		time_t periodic_standard_time = _get_periodic_alarm_standard_time();
+		time_t temp;
+		temp = (current_time - periodic_standard_time) / alarm_info->mode.u_interval.interval;
+		due_time = periodic_standard_time + (temp * alarm_info->mode.u_interval.interval);
+	} else {
+		due_time = mktime(&duetime_tm);
+	}
 
 	while (__alarm_info->start > due_time || current_time > due_time || ((!is_time_changed) && (current_time == due_time))) {
 		due_time += alarm_info->mode.u_interval.interval;

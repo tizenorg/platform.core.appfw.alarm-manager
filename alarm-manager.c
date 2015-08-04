@@ -123,6 +123,7 @@ sqlite3 *alarmmgr_db;
 bool is_time_changed = false;	// for calculating next duetime
 
 #define BILLION 1000000000	// for calculating nano seconds
+static time_t periodic_alarm_standard_time = 0;
 
 static bool __alarm_add_to_list(__alarm_info_t *__alarm_info);
 static void __alarm_generate_alarm_id(__alarm_info_t *__alarm_info, alarm_id_t *alarm_id);
@@ -2299,6 +2300,18 @@ gboolean alarm_manager_alarm_create(AlarmManager *obj, GDBusMethodInvocation *in
 	return ret;
 }
 
+time_t _get_periodic_alarm_standard_time(void)
+{
+	/* To avoid start time of all devices are same. */
+	if (periodic_alarm_standard_time == 0) {
+		srand((unsigned int)time(NULL));
+		periodic_alarm_standard_time = rand() % BILLION + 1; /* 1 ~ 1000000000 */
+	}
+
+	ALARM_MGR_LOG_PRINT("periodic_standard_time : [%d]", periodic_alarm_standard_time);
+	return periodic_alarm_standard_time;
+}
+
 gboolean alarm_manager_alarm_create_periodic(AlarmManager *obj, GDBusMethodInvocation *invoc,
 		char *app_service_name, char *app_service_name_mod, int interval,
 		int is_ref, int method, gpointer user_data)
@@ -2318,12 +2331,16 @@ gboolean alarm_manager_alarm_create_periodic(AlarmManager *obj, GDBusMethodInvoc
 	uid = __get_caller_uid(name);
 	pid = __get_caller_pid(name);
 
-	alarm_info.start.year = 1900;
-	alarm_info.start.month = 1;
-	alarm_info.start.day = 0;
-	alarm_info.start.hour = 0;
-	alarm_info.start.min = 0;
-	alarm_info.start.sec = 0;
+	struct tm standard_tm;
+	time_t standard_time = _get_periodic_alarm_standard_time();
+	localtime_r(&standard_time, &standard_tm);
+
+	alarm_info.start.year = standard_tm.tm_year + 1900;
+	alarm_info.start.month = standard_tm.tm_mon + 1;
+	alarm_info.start.day = standard_tm.tm_mday;
+	alarm_info.start.hour = standard_tm.tm_hour;
+	alarm_info.start.min = standard_tm.tm_min;
+	alarm_info.start.sec = standard_tm.tm_sec;
 
 	alarm_info.end.year = 0;
 	alarm_info.end.month = 0;
