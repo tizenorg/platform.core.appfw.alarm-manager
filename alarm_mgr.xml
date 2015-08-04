@@ -139,5 +139,9 @@
       <arg type="s" name="tzpath_str" direction="in" />
       <arg type="i" name="return_code" direction="out" />
     </method>
+    <signal name="alarm_expired">
+      <arg type="i" name="alarm_id" />
+      <arg type="s" name="app_service_name" />
+    </signal>
   </interface>
 </node>

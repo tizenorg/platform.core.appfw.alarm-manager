@@ -70,11 +70,11 @@ application server.*/
 typedef struct {
 	GDBusConnection *connection;
 	GDBusProxy *proxy;
+	guint sid; /* signal subscription id */
 	alarm_cb_t alarm_handler;
 	void *user_param;
-	GQuark quark_app_service_name;	/*dbus_service_name is converted
-	 to quark value*/
-	 GQuark quark_app_service_name_mod;
+	GQuark quark_app_service_name;	/*dbus_service_name is converted to quark value*/
+	GQuark quark_app_service_name_mod;
 } alarm_context_t;
 
 typedef union {

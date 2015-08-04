@@ -42,16 +42,16 @@
 #define EXPORT_API __attribute__ ((visibility("default")))
 #endif
 
-static alarm_context_t alarm_context = { NULL, NULL, NULL, NULL, -1 };
+static alarm_context_t alarm_context = { NULL, NULL, 0, NULL, NULL, -1 };
 
 static bool b_initialized = false;
 static bool sub_initialized = false;
 
 pthread_mutex_t init_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static void __handle_expiry_method_call(GDBusConnection *conn,
-	const gchar *name, const gchar *path, const gchar *interface,
-	const gchar *method, GVariant *param, GDBusMethodInvocation *invocation, gpointer user_data);
+static void __handle_expired_signal(GDBusConnection *conn,
+		const gchar *name, const gchar *path, const gchar *interface,
+		const gchar *signal_name, GVariant *param, gpointer user_data);
 
 static int __alarm_validate_date(alarm_date_t *date, int *error_code);
 static bool __alarm_validate_time(alarm_date_t *date, int *error_code);
@@ -66,27 +66,6 @@ typedef struct _alarm_cb_info_t {
 } alarm_cb_info_t;
 
 static alarm_cb_info_t *alarmcb_head = NULL;
-
-guint registration_id = 0;
-
-static GDBusNodeInfo *introspection_data = NULL;
-
-static const gchar introspection_xml[] =
-  "<node name='/org/tizen/alarm/client'>"
-  "  <interface name='org.tizen.alarm.client'>"
-  "    <method name='alarm_expired'>"
-  "      <arg type='i' name='alarm_id' direction='in'/>"
-  "      <arg type='s' name='service_name' direction='in'/>"
-  "    </method>"
-  "  </interface>"
-  "</node>";
-
-static const GDBusInterfaceVTable interface_vtable =
-{
-	__handle_expiry_method_call,
-	NULL,
-	NULL
-};
 
 static void __add_resultcb(alarm_id_t alarm_id, alarm_cb_t cb_func, void *data)
 {
@@ -142,27 +121,29 @@ static void __remove_resultcb(alarm_cb_info_t *info)
 	}
 }
 
-static void __handle_expiry_method_call(GDBusConnection *conn,
-                const gchar *name, const gchar *path, const gchar *interface,
-                const gchar *method, GVariant *param, GDBusMethodInvocation *invocation, gpointer user_data)
+static void __handle_expired_signal(GDBusConnection *conn,
+		const gchar *name, const gchar *path, const gchar *interface,
+		const gchar *signal_name, GVariant *param, gpointer user_data)
 {
-	if (method && strcmp(method, "alarm_expired") == 0) {
-		gchar *package_name = NULL;
-		alarm_id_t alarm_id = 0;
-		alarm_cb_info_t *info = NULL;
-		g_variant_get(param, "(is)", &alarm_id, &package_name);
-		ALARM_MGR_EXCEPTION_PRINT("[alarm-lib] : Alarm expired for [%s] : Alarm id [%d]", package_name, alarm_id);
+	gchar *package_name = NULL;
+	alarm_id_t alarm_id = 0;
+	alarm_cb_info_t *info;
 
-		if (alarm_context.alarm_handler != NULL) {
-			alarm_context.alarm_handler(alarm_id, alarm_context.user_param);
-		}
+	if (signal_name == NULL || strcmp(signal_name, "alarm_expired") != 0)
+		ALARM_MGR_EXCEPTION_PRINT("[alarm-lib] : unexpected signal");
 
-		info = __find_resultcb(alarm_id);
-		if (info && info->cb_func) {
-			info->cb_func(alarm_id, info->priv_data);
-		}
-		g_free(package_name);
+	g_variant_get(param, "(is)", &alarm_id, &package_name);
+	ALARM_MGR_EXCEPTION_PRINT("[alarm-lib] : Alarm expired for [%s] : Alarm id [%d]", package_name, alarm_id);
+
+	if (alarm_context.alarm_handler != NULL) {
+		alarm_context.alarm_handler(alarm_id, alarm_context.user_param);
 	}
+
+	info = __find_resultcb(alarm_id);
+	if (info && info->cb_func) {
+		info->cb_func(alarm_id, info->priv_data);
+	}
+	g_free(package_name);
 }
 
 static int __alarm_validate_date(alarm_date_t *date, int *error_code)
@@ -288,11 +269,7 @@ EXPORT_API int alarmmgr_init(const char *appid)
 {
 	SECURE_LOGD("Enter");
 	char service_name[MAX_SERVICE_NAME_LEN] = { 0 };
-	char service_name_mod[MAX_SERVICE_NAME_LEN]= { 0 };
-	int ret = ALARMMGR_RESULT_SUCCESS;
-	guint owner_id = 0;
-	int i = 0;
-	int j = 0;
+	int ret;
 	int len = 0;
 
 	if (appid == NULL)
@@ -311,81 +288,37 @@ EXPORT_API int alarmmgr_init(const char *appid)
 	if (ret < 0)
 		return ret;
 
-	memset(service_name_mod, 'a', MAX_SERVICE_NAME_LEN - 1);
+	alarm_context.sid = g_dbus_connection_signal_subscribe(
+			alarm_context.connection,
+			NULL,
+			"org.tizen.alarm.manager",
+			"alarm_expired",
+			"/org/tizen/alarm/manager",
+			NULL,
+			G_DBUS_SIGNAL_FLAGS_NONE,
+			__handle_expired_signal,
+			NULL,
+			NULL);
 
 	len = strlen("ALARM.");
 	strncpy(service_name, "ALARM.", len);
 	strncpy(service_name + len, appid, strlen(appid));
 
-	for(i = 0; i <= strlen(service_name); i++) {
-		if (service_name[i] == '.') {
-			service_name_mod[j] = service_name[i];
-			j++;
-		}
-		else {
-			service_name_mod[j] = service_name[i];
-		}
-		j++;
-	}
-
-	SECURE_LOGD("[alarm-lib]: dbus own name: %s", service_name_mod);
-	owner_id = g_bus_own_name_on_connection(alarm_context.connection, service_name_mod,
-										G_BUS_NAME_OWNER_FLAGS_NONE, NULL, NULL, NULL, NULL);
-	if (owner_id == 0) {
-		ALARM_MGR_EXCEPTION_PRINT("Acquiring the own name is failed. %s", service_name_mod);
-		goto error;
-	}
-
-	introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, NULL);
-	if (introspection_data == NULL) {
-		ALARM_MGR_EXCEPTION_PRINT("g_dbus_node_info_new_for_xml() is failed.");
-		goto error;
-	}
-
-	registration_id = g_dbus_connection_register_object(alarm_context.connection,
-												"/org/tizen/alarm/client",
-												introspection_data->interfaces[0],
-												&interface_vtable, NULL, NULL, NULL);
-	if (registration_id == 0) {
-		ALARM_MGR_EXCEPTION_PRINT("Registering the callback is failed.");
-		goto error;
-	}
-
 	alarm_context.quark_app_service_name = g_quark_from_string(service_name);
-	alarm_context.quark_app_service_name_mod= g_quark_from_string(service_name_mod);
 
 	b_initialized = true;
 
 	SECURE_LOGD("Leave");
 	return ALARMMGR_RESULT_SUCCESS;
-
-error:
-	if (introspection_data) {
-		g_dbus_node_info_unref(introspection_data);
-	}
-	if (registration_id != 0) {
-		g_dbus_connection_unregister_object(alarm_context.connection, registration_id);
-	}
-	g_object_unref(alarm_context.proxy);
-	alarm_context.proxy = NULL;
-
-	g_object_unref(alarm_context.connection);
-	alarm_context.connection = NULL;
-
-	sub_initialized = false;
-	return ERR_ALARM_INVALID_PARAM;
 }
 
 EXPORT_API void alarmmgr_fini()
 {
 	SECURE_LOGD("Enter");
-	if (introspection_data) {
-		g_dbus_node_info_unref(introspection_data);
-	}
 
-	if (alarm_context.connection != NULL && registration_id != 0) {
-		g_dbus_connection_unregister_object(alarm_context.connection, registration_id);
-	}
+	g_dbus_connection_signal_unsubscribe(alarm_context.connection,
+			alarm_context.sid);
+	alarm_context.sid = 0;
 
 	if (alarm_context.proxy) {
 		g_object_unref(alarm_context.proxy);
