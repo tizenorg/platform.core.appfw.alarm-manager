@@ -1209,6 +1209,7 @@ static int __have_ui_apps(bundle *b)
 
 static void __alarm_expired()
 {
+	int ret;
 	const char *destination_app_service_name = NULL;
 	alarm_id_t alarm_id = -1;
 	int app_pid = 0;
@@ -1316,12 +1317,12 @@ static void __alarm_expired()
 
 			if (strncmp(g_quark_to_string(__alarm_info->quark_dst_service_name), "null", 4) == 0) {
 				SECURE_LOGD("[alarm-server]:destination is null, so we send expired alarm to %s(%u).",
-					g_quark_to_string(__alarm_info->quark_app_service_name), __alarm_info->quark_app_service_name);
-					destination_app_service_name = g_quark_to_string(__alarm_info->quark_app_service_name);
+						g_quark_to_string(__alarm_info->quark_app_service_name), __alarm_info->quark_app_service_name);
+				destination_app_service_name = g_quark_to_string(__alarm_info->quark_app_service_name);
 			} else {
 				SECURE_LOGD("[alarm-server]:destination :%s(%u)",
-					g_quark_to_string(__alarm_info->quark_dst_service_name), __alarm_info->quark_dst_service_name);
-					destination_app_service_name = g_quark_to_string(__alarm_info->quark_dst_service_name);
+						g_quark_to_string(__alarm_info->quark_dst_service_name), __alarm_info->quark_dst_service_name);
+				destination_app_service_name = g_quark_to_string(__alarm_info->quark_dst_service_name);
 			}
 
 			/*
@@ -1357,12 +1358,12 @@ static void __alarm_expired()
 				strncpy(appid,g_quark_to_string(__alarm_info->quark_dst_service_name)+6,strlen(g_quark_to_string(__alarm_info->quark_dst_service_name))-6);
 			}
 
-			pkgmgrinfo_appinfo_get_appinfo(appid, &appinfo_handle);
+			ret = pkgmgrinfo_appinfo_get_usr_appinfo(appid, __alarm_info->uid, &appinfo_handle);
 			ALARM_MGR_LOG_PRINT("appid : %s (%x)", appid, appinfo_handle);
 
 			// Case #2. The process was killed && App type
 			// This app is launched and owner of DBus connection is changed. and then, expiration noti is sent by DBus.
-			if (name_has_owner_reply == false && appinfo_handle) {
+			if (name_has_owner_reply == false && ret == PMINFO_R_OK) {
 				__expired_alarm_t *expire_info;
 				char alarm_id_str[32] = { 0, };
 
