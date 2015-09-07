@@ -83,11 +83,6 @@ GSList *g_expired_alarm_list = NULL;
 
 #define ALARM_RTC_WAKEUP	0
 
-#define ALARM_IOW(c, type, size)            _IOW('a', (c) | ((type) << 4), size)
-#define ALARM_SET(type)             ALARM_IOW(2, type, struct timespec)
-#define ALARM_SET_RTC               _IOW('a', 5, struct timespec)
-#define ALARM_CLEAR(type)           _IO('a', 0 | ((type) << 4))
-
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 #define ALARMMGR_LOG_BUFFER_SIZE	10000
 #define ALARMMGR_LOG_BUFFER_STRING_SIZE	200
@@ -112,7 +107,7 @@ static int log_fd = 0;
 // link path for timezone info
 #define TIMEZONE_INFO_LINK_PATH	tzplatform_mkpath(TZ_SYS_ETC, "localtime")
 
-static const char default_rtc[] = "/dev/alarm";
+static const char default_rtc[] = "/dev/rtc";
 
 static int gfd = 0;
 
@@ -210,26 +205,43 @@ static void __rtc_set()
 	ALARM_MGR_LOG_PRINT("alarm_context.c_due_time is %d.", (int)alarm_context.c_due_time);
 
 	if (alarm_context.c_due_time != -1) {
-		retval = ioctl(gfd, ALARM_CLEAR(ALARM_RTC_WAKEUP));
+		struct rtc_wkalrm rtc_wkalarm = { 0, };
+		rtc_wkalarm.enabled = 0;
+		rtc_wkalarm.time.tm_year = 1900;
+		rtc_wkalarm.time.tm_mon = 0;
+		rtc_wkalarm.time.tm_mday = 1;
+		rtc_wkalarm.time.tm_hour = 0;
+		rtc_wkalarm.time.tm_min = 0;
+		rtc_wkalarm.time.tm_sec = 0;
+
+		retval = ioctl(gfd, RTC_WKALM_SET, &rtc_wkalarm);
 		if (retval == -1) {
 			if (errno == ENOTTY) {
 				ALARM_MGR_EXCEPTION_PRINT("Alarm IRQs is not supported.");
 			}
-			ALARM_MGR_EXCEPTION_PRINT("ALARM_CLEAR ioctl is failed. errno = %s", strerror(errno));
+			ALARM_MGR_EXCEPTION_PRINT("RTC_WKALM_SET disabled ioctl is failed. errno = %s", strerror(errno));
+
+			close(gfd);
+			gfd = 0;
 			return;
 		}
-		ALARM_MGR_EXCEPTION_PRINT("[alarm-server]ALARM_CLEAR ioctl is successfully done.");
+		ALARM_MGR_EXCEPTION_PRINT("[alarm-server]RTC_WKALM_SET disabled ioctl is successfully done.");
 
 		time_t due_time = alarm_context.c_due_time;
-		gmtime_r(&due_time, &due_tm);
+		localtime_r(&due_time, &due_tm);
 
 		ALARM_MGR_EXCEPTION_PRINT("Setted RTC Alarm date/time is %d-%d-%d, %02d:%02d:%02d (UTC).",
 			due_tm.tm_mday, due_tm.tm_mon + 1, due_tm.tm_year + 1900,
 			due_tm.tm_hour, due_tm.tm_min, due_tm.tm_sec);
 
-		alarm_time.tv_sec = due_time - 1;
-		alarm_time.tv_nsec = 500000000;	// Wakeup is 500ms faster than expiring time to correct RTC error.
-		retval = ioctl(gfd, ALARM_SET(ALARM_RTC_WAKEUP), &alarm_time);
+		rtc_wkalarm.enabled = 1;
+		rtc_wkalarm.time.tm_year = due_tm.tm_year;
+		rtc_wkalarm.time.tm_mon = due_tm.tm_mon;
+		rtc_wkalarm.time.tm_mday = due_tm.tm_mday;
+		rtc_wkalarm.time.tm_hour = due_tm.tm_hour;
+		rtc_wkalarm.time.tm_min = due_tm.tm_min;
+		rtc_wkalarm.time.tm_sec = due_tm.tm_sec - 1; /* Wakeup is 1000ms faster than expiring time to correct RTC error. */
+		retval = ioctl(gfd, RTC_WKALM_SET, &rtc_wkalarm);
 		if (retval == -1) {
 			if (errno == ENOTTY) {
 				ALARM_MGR_EXCEPTION_PRINT("Alarm IRQs is not supported.");
@@ -238,6 +250,9 @@ static void __rtc_set()
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 			__save_module_log("FAIL: SET RTC", log_message);
 #endif
+
+			close(gfd);
+			gfd = 0;
 			return;
 		}
 		ALARM_MGR_EXCEPTION_PRINT("[alarm-server]RTC ALARM_SET ioctl is successfully done.");
@@ -250,6 +265,9 @@ static void __rtc_set()
 			"less than 10 sec. RTC alarm does not need to be set");
 	}
 #endif				/* __WAKEUP_USING_RTC__ */
+
+			close(gfd);
+			gfd = 0;
 	return;
 }
 
@@ -258,7 +276,9 @@ int __set_time(time_t _time)
 	// Using /dev/alarm, this function changes both OS time and RTC.
 	int ret = 0;
 	const char *rtc0 = default_rtc;
-	struct timespec rtc_time;
+	struct rtc_time _rtc_time;
+	struct timeval tv;
+	struct tm tm, *localtime_res;
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 	char log_tag[ALARMMGR_LOG_TAG_SIZE] = {0,};
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
@@ -272,10 +292,30 @@ int __set_time(time_t _time)
 		}
 	}
 
-	rtc_time.tv_sec = _time;
-	rtc_time.tv_nsec = 0;
+	tv.tv_sec = _time;
+	tv.tv_usec = 0;
 
-	ret = ioctl(gfd, ALARM_SET_RTC, &rtc_time);
+	localtime_res = localtime_r(&(tv.tv_sec), &tm);
+	if (!localtime_res)
+		ALARM_MGR_EXCEPTION_PRINT("localtime_r is failed. [%d]", errno);
+
+	memset(&_rtc_time, 0, sizeof(_rtc_time));
+	_rtc_time.tm_sec = tm.tm_sec;
+	_rtc_time.tm_min = tm.tm_min;
+	_rtc_time.tm_hour = tm.tm_hour;
+	_rtc_time.tm_mday = tm.tm_mday;
+	_rtc_time.tm_mon = tm.tm_mon;
+	_rtc_time.tm_year = tm.tm_year;
+	_rtc_time.tm_wday = tm.tm_wday;
+	_rtc_time.tm_yday = tm.tm_yday;
+	_rtc_time.tm_isdst = tm.tm_isdst;
+
+
+	ret = settimeofday(&tv, NULL);
+	if (ret < 0)
+		ALARM_MGR_EXCEPTION_PRINT("settimeofday is failed.[%d]", errno);
+
+	ret = ioctl(gfd, RTC_SET_TIME, &_rtc_time);
 	if (ret == -1) {
 		ALARM_MGR_EXCEPTION_PRINT("ALARM_SET_RTC ioctl is failed. errno = %s", strerror(errno));
 	#ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
@@ -294,6 +334,9 @@ int __set_time(time_t _time)
 
 	__save_module_log(log_tag, log_message);
 #endif
+
+	close(gfd);
+	gfd = 0;
 
 	return 1;
 }
@@ -1866,7 +1909,7 @@ gboolean alarm_manager_alarm_set_rtc_time(AlarmManager *pObj, GDBusMethodInvocat
 				int hour, int min, int sec,
 				gpointer user_data) {
 	const char *rtc = default_rtc;
-	struct timespec alarm_time;
+	struct rtc_wkalrm rtc_wkalarm;
 	int retval = 0;
 	int return_code = ALARMMGR_RESULT_SUCCESS;
 	struct tm *alarm_tm = NULL;
@@ -1900,10 +1943,15 @@ gboolean alarm_manager_alarm_set_rtc_time(AlarmManager *pObj, GDBusMethodInvocat
 		}
 	}
 
-	alarm_time.tv_sec = rtc_time;
-	alarm_time.tv_nsec = 0;
+	rtc_wkalarm.enabled = 1;
+	rtc_wkalarm.time.tm_year = year;
+	rtc_wkalarm.time.tm_mon = mon;
+	rtc_wkalarm.time.tm_mday = day;
+	rtc_wkalarm.time.tm_hour = hour;
+	rtc_wkalarm.time.tm_min = min;
+	rtc_wkalarm.time.tm_sec = sec;
 
-	retval = ioctl(gfd, ALARM_SET(ALARM_RTC_WAKEUP), &alarm_time);
+	retval = ioctl(gfd, RTC_WKALM_SET, &rtc_wkalarm);
 	if (retval == -1) {
 		if (errno == ENOTTY) {
 			ALARM_MGR_EXCEPTION_PRINT("Alarm IRQs is not supported.");
@@ -1926,6 +1974,8 @@ gboolean alarm_manager_alarm_set_rtc_time(AlarmManager *pObj, GDBusMethodInvocat
 	__save_module_log(log_tag, log_message);
 #endif
 
+	close(gfd);
+	gfd = 0;
 	g_dbus_method_invocation_return_value(invoc, g_variant_new("(i)", return_code));
 	return true;
 }
