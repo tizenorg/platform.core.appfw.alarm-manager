@@ -69,12 +69,12 @@ export CFLAGS="$CFLAGS -DTIZEN_DEBUG_ENABLE"
 export CXXFLAGS="$CXXFLAGS -DTIZEN_DEBUG_ENABLE"
 export FFLAGS="$FFLAGS -DTIZEN_DEBUG_ENABLE"
 %define appfw_feature_alarm_manager_module_log 1
+
 %if 0%{?appfw_feature_alarm_manager_module_log}
 	_APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG=ON
 %endif
 
 %cmake . -DOBS=1 -DFULLVER=%{version} -DMAJORVER=${MAJORVER} -D_APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG:BOOL=${_APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG}
-
 make %{?jobs:-j%jobs}
 
 
