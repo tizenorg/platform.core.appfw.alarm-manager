@@ -198,8 +198,9 @@ static void __rtc_set()
 	int retval = 0;
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 	char *timebuf = ctime(&alarm_context.c_due_time);
-	timebuf[strlen(timebuf) - 1] = '\0';	// to avoid new line
-	sprintf(log_message, "wakeup time: %d, %s", (int)alarm_context.c_due_time, timebuf);
+	if (timebuf)
+		timebuf[strlen(timebuf) - 1] = '\0';	// to avoid new line
+	snprintf(log_message, sizeof(log_message), "wakeup time: %d, %s", (int)alarm_context.c_due_time, timebuf);
 #endif
 
 	ALARM_MGR_LOG_PRINT("alarm_context.c_due_time is %d.", (int)alarm_context.c_due_time);
@@ -220,9 +221,6 @@ static void __rtc_set()
 				ALARM_MGR_EXCEPTION_PRINT("Alarm IRQs is not supported.");
 			}
 			ALARM_MGR_EXCEPTION_PRINT("RTC_WKALM_SET disabled ioctl is failed. errno = %s", strerror(errno));
-
-			close(gfd);
-			gfd = 0;
 			return;
 		}
 		ALARM_MGR_EXCEPTION_PRINT("[alarm-server]RTC_WKALM_SET disabled ioctl is successfully done.");
@@ -250,9 +248,6 @@ static void __rtc_set()
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 			__save_module_log("FAIL: SET RTC", log_message);
 #endif
-
-			close(gfd);
-			gfd = 0;
 			return;
 		}
 		ALARM_MGR_EXCEPTION_PRINT("[alarm-server]RTC ALARM_SET ioctl is successfully done.");
@@ -265,9 +260,6 @@ static void __rtc_set()
 			"less than 10 sec. RTC alarm does not need to be set");
 	}
 #endif				/* __WAKEUP_USING_RTC__ */
-
-			close(gfd);
-			gfd = 0;
 	return;
 }
 
@@ -329,14 +321,12 @@ int __set_time(time_t _time)
 	}
 
 	char *timebuf = ctime(&_time);
-	timebuf[strlen(timebuf) - 1] = '\0';    // to avoid new line
-	sprintf(log_message, "RTC & OS =%d, %s", (int)_time, timebuf);
+	if (timebuf)
+		timebuf[strlen(timebuf) - 1] = '\0';    // to avoid new line
+	snprintf(log_message, sizeof(log_message), "RTC & OS =%d, %s", (int)_time, timebuf);
 
 	__save_module_log(log_tag, log_message);
 #endif
-
-	close(gfd);
-	gfd = 0;
 
 	return 1;
 }
@@ -1450,9 +1440,8 @@ static void __alarm_expired()
 		ALARM_MGR_EXCEPTION_PRINT("alarm_id[%d] is expired.", alarm_id);
 
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-		sprintf(log_message, "alarmID: %d, pid: %d, duetime: %d", alarm_id, app_pid, (int)__alarm_info->due_time);
+		snprintf(log_message, sizeof(log_message), "alarmID: %d, pid: %d, duetime: %d", alarm_id, app_pid, (int)__alarm_info->due_time);
 		__save_module_log("EXPIRED", log_message);
-		memset(log_message, '\0', sizeof(log_message));
 #endif
 
 		if (__alarm_info->alarm_info.mode.repeat == ALARM_REPEAT_MODE_ONCE) {
@@ -1658,7 +1647,7 @@ bool __get_caller_unique_name(int pid, char *unique_name)
 			return false;
 		}
 		else {
-			if (read(fd, process_name, 512) <= 0)
+			if (read(fd, process_name, sizeof(process_name) - 1) <= 0)
 			{
 				ALARM_MGR_EXCEPTION_PRINT("Unable to get the process name.");
 				close(fd);
@@ -1895,8 +1884,9 @@ void __reschedule_alarms_with_newtime(int cur_time, int new_time, double diff_ti
 
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 	char *timebuf = ctime(&new_time);
-	timebuf[strlen(timebuf) - 1] = '\0';	// to avoid newline
-	sprintf(log_message, "Current: %d, New: %d, %s, diff: %f", cur_time, new_time, timebuf, diff_time);
+	if (timebuf)
+		timebuf[strlen(timebuf) - 1] = '\0';	// to avoid newline
+	snprintf(log_message, sizeof(log_message), "Current: %d, New: %d, %s, diff: %f", cur_time, new_time, timebuf, diff_time);
 	__save_module_log("CHANGE TIME", log_message);
 #endif
 
@@ -1922,6 +1912,11 @@ gboolean alarm_manager_alarm_set_rtc_time(AlarmManager *pObj, GDBusMethodInvocat
 
 	current_time = time(NULL);
 	alarm_tm = localtime(&current_time);
+	if (alarm_tm == NULL) {
+		ALARM_MGR_EXCEPTION_PRINT("alarm_tm is NULL");
+		return true;
+	}
+
 
 	alarm_tm->tm_year = year;
 	alarm_tm->tm_mon = mon;
@@ -1970,12 +1965,10 @@ gboolean alarm_manager_alarm_set_rtc_time(AlarmManager *pObj, GDBusMethodInvocat
 	}
 
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-	sprintf(log_message, "wakeup rtc time: %d, %s", (int)rtc_time, ctime(&rtc_time));
+	snprintf(log_message, sizeof(log_message), "wakeup rtc time: %d, %s", (int)rtc_time, ctime(&rtc_time));
 	__save_module_log(log_tag, log_message);
 #endif
 
-	close(gfd);
-	gfd = 0;
 	g_dbus_method_invocation_return_value(invoc, g_variant_new("(i)", return_code));
 	return true;
 }
@@ -2119,7 +2112,7 @@ done:
 	} else {
 		strncpy(log_tag, "FAIL: SET TIMEZONE", strlen("FAIL: SET TIMEZONE"));
 	}
-	sprintf(log_message, "Set the timezone to %s.", tzpath_str);
+	snprintf(log_message, sizeof(log_message), "Set the timezone to %s.", tzpath_str);
 	__save_module_log(log_tag, log_message);
 #endif
 
@@ -2186,7 +2179,7 @@ gboolean alarm_manager_alarm_create_appsvc(AlarmManager *pObject, GDBusMethodInv
 	g_dbus_method_invocation_return_value(invoc, g_variant_new("(ii)", alarm_id, return_code));
 
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-	sprintf(log_message, "alarmID: %d, uid: %d, pid: %d, duetime: %d-%d-%d %02d:%02d:%02d",
+	snprintf(log_message, sizeof(log_message), "alarmID: %d, uid: %d, pid: %d, duetime: %d-%d-%d %02d:%02d:%02d",
 		alarm_id, uid, pid, start_year, start_month, start_day, start_hour, start_min, start_sec);
 	__save_module_log(log_tag, log_message);
 #endif
@@ -2255,7 +2248,7 @@ gboolean alarm_manager_alarm_create(AlarmManager *obj, GDBusMethodInvocation *in
 	g_dbus_method_invocation_return_value(invoc, g_variant_new("(ii)", alarm_id, return_code));
 
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-	sprintf(log_message, "alarmID: %d, uid: %d, pid: %d, duetime: %d-%d-%d %02d:%02d:%02d",
+	snprintf(log_message, sizeof(log_message), "alarmID: %d, uid: %d, pid: %d, duetime: %d-%d-%d %02d:%02d:%02d",
 		alarm_id, uid, pid, start_year, start_month, start_day, start_hour, start_min, start_sec);
 	__save_module_log(log_tag, log_message);
 #endif
@@ -2268,7 +2261,6 @@ gboolean alarm_manager_alarm_create_periodic(AlarmManager *obj, GDBusMethodInvoc
 		int is_ref, int method, gpointer user_data)
 {
 	alarm_info_t alarm_info;
-	int retval = 0;
 	int return_code = ALARMMGR_RESULT_SUCCESS;
 	int alarm_id = 0;
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
@@ -2282,24 +2274,6 @@ gboolean alarm_manager_alarm_create_periodic(AlarmManager *obj, GDBusMethodInvoc
 
 	uid = __get_caller_uid(name);
 	pid = __get_caller_pid(name);
-
-	if (retval != ALARMMGR_RESULT_SUCCESS) {
-		return_code = retval;
-		g_dbus_method_invocation_return_value(invoc,
-			g_variant_new("(ii)", alarm_id, return_code));
-#ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-		/* TODO: fix the log message */
-		if (is_ref)
-			sprintf(log_message,
-				"uid: %d, pid: %d, Smack denied (alarm-server::alarm-ref-periodic, w)", uid, pid);
-		else
-			sprintf(log_message,
-				"uid: %d, pid: %d, Smack denied (alarm-server::alarm-periodic, w)", uid, pid);
-
-		__save_module_log("FAIL: CREATE", log_message);
-#endif
-		return true;
-	}
 
 	alarm_info.start.year = 1900;
 	alarm_info.start.month = 1;
@@ -2347,7 +2321,7 @@ gboolean alarm_manager_alarm_create_periodic(AlarmManager *obj, GDBusMethodInvoc
 	g_dbus_method_invocation_return_value(invoc,
 			g_variant_new("(ii)", alarm_id, return_code));
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-	sprintf(log_message, "alarmID: %d, uid: %d, pid: %d, duetime: %d-%d-%d %02d:%02d:%02d",
+	snprintf(log_message, sizeof(log_message), "alarmID: %d, uid: %d, pid: %d, duetime: %d-%d-%d %02d:%02d:%02d",
 			alarm_id, uid, pid, alarm_info.start.year, alarm_info.start.month,
 			alarm_info.start.day, alarm_info.start.hour,
 			alarm_info.start.min, alarm_info.start.sec);
@@ -2390,7 +2364,7 @@ gboolean alarm_manager_alarm_delete(AlarmManager *obj, GDBusMethodInvocation *in
 	g_dbus_method_invocation_return_value(invoc, g_variant_new("(i)", return_code));
 
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-	sprintf(log_message, "alarmID: %d, uid: %d, pid: %d", alarm_id, uid, pid);
+	snprintf(log_message, sizeof(log_message), "alarmID: %d, uid: %d, pid: %d", alarm_id, uid, pid);
 	__save_module_log(log_tag, log_message);
 #endif
 
@@ -2421,7 +2395,7 @@ gboolean alarm_manager_alarm_delete_all(AlarmManager *obj, GDBusMethodInvocation
 		return_code = ERR_ALARM_SYSTEM_FAIL;
 		g_dbus_method_invocation_return_value(invoc, g_variant_new("(i)", return_code));
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-		sprintf(log_message, "pid: %d. Can not get the unique_name.", pid);
+		snprintf(log_message, sizeof(log_message), "pid: %d. Can not get the unique_name.", pid);
 		__save_module_log("FAIL: DELETE ALL", log_message);
 #endif
 		return true;
@@ -2471,7 +2445,7 @@ gboolean alarm_manager_alarm_delete_all(AlarmManager *obj, GDBusMethodInvocation
 	}
 
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-	sprintf(log_message, "uid: %d, pid: %d, unique_name: %s", uid, pid, app_name);
+	snprintf(log_message, sizeof(log_message), "uid: %d, pid: %d, unique_name: %s", uid, pid, app_name);
 	__save_module_log("DELETE ALL", log_message);
 #endif
 
@@ -2537,7 +2511,7 @@ gboolean alarm_manager_alarm_update(AlarmManager *pObj, GDBusMethodInvocation *i
 	g_dbus_method_invocation_return_value(invoc, g_variant_new("(i)", return_code));
 
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-	sprintf(log_message, "alarmID: %d, appname: %s, uid: %d, pid: %d, duetime: %d-%d-%d %02d:%02d:%02d",
+	snprintf(log_message, sizeof(log_message), "alarmID: %d, appname: %s, uid: %d, pid: %d, duetime: %d-%d-%d %02d:%02d:%02d",
 		alarm_id, app_service_name, uid, pid, start_year, start_month, start_day, start_hour, start_min, start_sec);
 	__save_module_log(log_tag, log_message);
 #endif
@@ -2785,7 +2759,7 @@ gboolean alarm_manager_alarm_get_all_info(AlarmManager *pObject, GDBusMethodInvo
 	// Open a DB
 	time(&current_time);
 	localtime_r(&current_time, &current_tm);
-	sprintf(db_path_tmp, "/tmp/alarmmgr_%d%d%d_%02d%02d%02d.db",
+	snprintf(db_path_tmp, sizeof(db_path_tmp), "/tmp/alarmmgr_%d%d%d_%02d%02d%02d.db",
 		current_tm.tm_year + 1900, current_tm.tm_mon + 1, current_tm.tm_mday, current_tm.tm_hour, current_tm.tm_min, current_tm.tm_sec);
 	db_path = strdup(db_path_tmp);
 

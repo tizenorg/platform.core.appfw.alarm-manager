@@ -453,7 +453,7 @@ time_t _alarm_next_duetime(__alarm_info_t *__alarm_info)
 
 	time(&current_time);
 	cur_tm = localtime(&current_time);
-	if (cur_tm->tm_isdst > 0)
+	if (cur_tm && cur_tm->tm_isdst > 0)
 		is_dst = 1;
 
 	ALARM_MGR_LOG_PRINT("mode->repeat is %d\n", mode->repeat);
@@ -476,14 +476,15 @@ time_t _alarm_next_duetime(__alarm_info_t *__alarm_info)
 
 	if (mode->repeat != ALARM_REPEAT_MODE_WEEKLY && mode->repeat != ALARM_REPEAT_MODE_ONCE) {
 		due_tm = localtime(&due_time);
-		if (is_dst==0 && due_tm->tm_isdst==1){
+		if (is_dst==0 && due_tm && due_tm->tm_isdst==1){
 				ALARM_MGR_LOG_PRINT("DST alarm found, enable\n");
 				due_tm->tm_hour = due_tm->tm_hour - DST_TIME_DIFF;
-		} else if (is_dst==1 && due_tm->tm_isdst==0){
+		} else if (is_dst==1 && due_tm && due_tm->tm_isdst==0){
 				ALARM_MGR_LOG_PRINT("DST alarm found. disable\n");
 				due_tm->tm_hour = due_tm->tm_hour + DST_TIME_DIFF;
 		}
-		due_time = mktime(due_tm);
+		if (due_tm)
+			due_time = mktime(due_tm);
 	}
 
 	ALARM_MGR_EXCEPTION_PRINT("alarm_id: %d, next duetime: %d", __alarm_info->alarm_id, due_time);

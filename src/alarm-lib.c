@@ -622,7 +622,7 @@ EXPORT_API int alarmmgr_add_alarm_appsvc_with_localtime(alarm_entry_t *alarm, vo
 	appid = appsvc_get_appid(b);
 
 	if ( (NULL == appid && (alarm_info->alarm_type & ALARM_TYPE_NOLAUNCH)) ||
-			(NULL == appid && !strcmp(operation, APPSVC_OPERATION_DEFAULT)) )
+			(NULL == appid && operation && !strcmp(operation, APPSVC_OPERATION_DEFAULT)) )
 	{
 		ALARM_MGR_EXCEPTION_PRINT("Invalid parameter\n");
 		return ERR_ALARM_INVALID_PARAM;
@@ -795,7 +795,7 @@ EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 	appid = appsvc_get_appid(b);
 
 	if ( (NULL == appid && (alarm_type & ALARM_TYPE_NOLAUNCH)) ||
-			(NULL == appid && !strcmp(operation, APPSVC_OPERATION_DEFAULT)) )
+			(NULL == appid && operation && !strcmp(operation, APPSVC_OPERATION_DEFAULT)) )
 	{
 		ALARM_MGR_EXCEPTION_PRINT("Invalid parameter\n");
 		return ERR_ALARM_INVALID_PARAM;
