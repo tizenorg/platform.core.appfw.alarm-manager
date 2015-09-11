@@ -1131,9 +1131,14 @@ EXPORT_API int alarmmgr_enum_alarm_ids(alarm_enum_fn_t fn, void *user_param)
 	    (AlarmManager*)alarm_context.proxy, &maxnum_of_ids, &return_code, NULL, &error)) {
 		/* dbus error. error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT(
-		    "alarm_manager_call_alarm_get_number_of_ids_sync() is failed by dbus. return_code[%d], err message[%s]",
-		    return_code, error->message);
-		return ERR_ALARM_SYSTEM_FAIL;
+		    "alarm_manager_call_alarm_get_number_of_ids_sync() is failed by dbus. return_code[%d], err message[%s] err code[%d]",
+		    return_code, error->message, error->code);
+		if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+			ret = ERR_ALARM_NO_PERMISSION;
+		else
+			ret = ERR_ALARM_SYSTEM_FAIL;
+		g_error_free(error);
+		return ret;
 	}
 
 	if (return_code != ALARMMGR_RESULT_SUCCESS) {
@@ -1148,8 +1153,13 @@ EXPORT_API int alarmmgr_enum_alarm_ids(alarm_enum_fn_t fn, void *user_param)
 		     (AlarmManager*)alarm_context.proxy, maxnum_of_ids, &alarm_array, &num_of_ids, &return_code, NULL, &error)) {
 		/* dbus error. error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT(
-		    "alarm_manager_call_alarm_get_list_of_ids_sync() failed by dbus. num_of_ids[%d], return_code[%d].", num_of_ids, return_code);
-		return ERR_ALARM_SYSTEM_FAIL;
+		    "alarm_manager_call_alarm_get_list_of_ids_sync() failed by dbus. num_of_ids[%d], return_code[%d]. err message[%s] err code[%d]", num_of_ids, return_code, error->message, error->code);
+		if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+			ret = ERR_ALARM_NO_PERMISSION;
+		else
+			ret = ERR_ALARM_SYSTEM_FAIL;
+		g_error_free(error);
+		return ret;
 	}
 
 	if (return_code != ALARMMGR_RESULT_SUCCESS) {

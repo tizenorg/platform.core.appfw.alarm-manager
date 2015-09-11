@@ -58,6 +58,7 @@ bool _send_alarm_create_appsvc(alarm_context_t context, alarm_info_t *alarm_info
 			alarm_id_t *alarm_id, bundle *b,
 			int *error_code)
 {
+	gboolean ret;
 	GError *error = NULL;
 	int return_code = 0;
 	bundle_raw *b_data = NULL;
@@ -72,7 +73,7 @@ bool _send_alarm_create_appsvc(alarm_context_t context, alarm_info_t *alarm_info
 		return false;
 	}
 
-	if (!alarm_manager_call_alarm_create_appsvc_sync((AlarmManager*)context.proxy,
+	ret = alarm_manager_call_alarm_create_appsvc_sync((AlarmManager*)context.proxy,
 						    alarm_info->start.year,
 						    alarm_info->start.month,
 						    alarm_info->start.day,
@@ -88,17 +89,26 @@ bool _send_alarm_create_appsvc(alarm_context_t context, alarm_info_t *alarm_info
 						    alarm_info->reserved_info,
 						    (char *)b_data,
 						    alarm_id, &return_code,
-						    NULL, &error)) {
+						    NULL, &error);
+	if (b_data) {
+		free(b_data);
+		b_data = NULL;
+	}
+
+	if (ret != TRUE) {
 		/* g_dbus_proxy_call_sync error */
 		/* error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT(
 		"alarm_manager_call_alarm_create_appsvc_sync()failed. alarm_id[%d], return_code[%d].", alarm_id, return_code);
-		ALARM_MGR_EXCEPTION_PRINT("error->message is %s.", error->message);
-	}
-
-	if (b_data) {
-		free(b_data);
-		b_data = NULL;
+		ALARM_MGR_EXCEPTION_PRINT("error->message is %s(%d)", error->message, error->code);
+		if (error_code) {
+			if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+				*error_code = ERR_ALARM_NO_PERMISSION;
+			else
+				*error_code = ERR_ALARM_SYSTEM_FAIL;
+		}
+		g_error_free(error);
+		return false;
 	}
 
 	if (return_code != 0) {
@@ -153,10 +163,14 @@ bool _send_alarm_create(alarm_context_t context, alarm_info_t *alarm_info,
 		/* error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT(
 		"alarm_manager_call_alarm_create_sync()failed. alarm_id[%d], return_code[%d]", alarm_id, return_code);
-		ALARM_MGR_EXCEPTION_PRINT("error->message is %s", error->message);
+		ALARM_MGR_EXCEPTION_PRINT("error->message is %s(%d)", error->message, error->code);
 		if (error_code) {
-			*error_code = ERR_ALARM_SYSTEM_FAIL;
+			if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+				*error_code = ERR_ALARM_NO_PERMISSION;
+			else
+				*error_code = ERR_ALARM_SYSTEM_FAIL;
 		}
+		g_error_free(error);
 		return false;
 	}
 
@@ -191,10 +205,14 @@ bool _send_alarm_create_periodic(alarm_context_t context, int interval, int is_r
 		    alarm_id, &return_code, NULL, &error)) {
 		ALARM_MGR_EXCEPTION_PRINT("alarm_manager_call_alarm_create_periodic_sync()failed. alarm_id[%d], return_code[%d]",
 			alarm_id, return_code);
-		ALARM_MGR_EXCEPTION_PRINT("error->message is %s", error->message);
+		ALARM_MGR_EXCEPTION_PRINT("error->message is %s(%d)", error->message, error->code);
 		if (error_code) {
-			*error_code = ERR_ALARM_SYSTEM_FAIL;
+			if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+				*error_code = ERR_ALARM_NO_PERMISSION;
+			else
+				*error_code = ERR_ALARM_SYSTEM_FAIL;
 		}
+		g_error_free(error);
 		return false;
 	}
 
@@ -220,10 +238,14 @@ bundle *_send_alarm_get_appsvc_info(alarm_context_t context, alarm_id_t alarm_id
 		/* g_dbus_proxy_call_sync error */
 		/*error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT("alarm_manager_call_alarm_get_appsvc_info_sync() failed. alarm_id[%d], return_code[%d].", alarm_id, return_code);
-
+		ALARM_MGR_EXCEPTION_PRINT("error->message is %s(%d)", error->message, error->code);
 		if (error_code) {
-			*error_code = ERR_ALARM_SYSTEM_FAIL;
+			if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+				*error_code = ERR_ALARM_NO_PERMISSION;
+			else
+				*error_code = ERR_ALARM_SYSTEM_FAIL;
 		}
+		g_error_free(error);
 
 		if (b_data) {
 			g_free(b_data);
@@ -259,9 +281,14 @@ bool _send_alarm_set_rtc_time(alarm_context_t context, alarm_date_t *time, int *
 		/* g_dbus_proxy_call_sync error */
 		/*error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT("alarm_manager_call_alarm_set_rtc_time() failed. return_code[%d]", return_code);
+		ALARM_MGR_EXCEPTION_PRINT("error->message is %s(%d)", error->message, error->code);
 		if (error_code) {
-			*error_code = ERR_ALARM_SYSTEM_FAIL;
+			if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+				*error_code = ERR_ALARM_NO_PERMISSION;
+			else
+				*error_code = ERR_ALARM_SYSTEM_FAIL;
 		}
+		g_error_free(error);
 
 		return false;
 	}
@@ -286,9 +313,14 @@ bool _send_alarm_delete(alarm_context_t context, alarm_id_t alarm_id, int *error
 		/* g_dbus_proxy_call_sync error */
 		/*error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT("alarm_manager_call_alarm_delete_sync() failed. alarm_id[%d], return_code[%d]", alarm_id, return_code);
+		ALARM_MGR_EXCEPTION_PRINT("error->message is %s(%d)", error->message, error->code);
 		if (error_code) {
-			*error_code = ERR_ALARM_SYSTEM_FAIL;
+			if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+				*error_code = ERR_ALARM_NO_PERMISSION;
+			else
+				*error_code = ERR_ALARM_SYSTEM_FAIL;
 		}
+		g_error_free(error);
 
 		return false;
 	}
@@ -313,9 +345,14 @@ bool _send_alarm_delete_all(alarm_context_t context, int *error_code)
 		/* g_dbus_proxy_call_sync error */
 		/*error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT("alarm_manager_call_alarm_delete_all_sync() failed. return_code[%d]", return_code);
+		ALARM_MGR_EXCEPTION_PRINT("error->message is %s(%d)", error->message, error->code);
 		if (error_code) {
-			*error_code = ERR_ALARM_SYSTEM_FAIL;
+			if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+				*error_code = ERR_ALARM_NO_PERMISSION;
+			else
+				*error_code = ERR_ALARM_SYSTEM_FAIL;
 		}
+		g_error_free(error);
 
 		return false;
 	}
@@ -345,9 +382,14 @@ bool _send_alarm_get_list_of_ids(alarm_context_t context, int maxnum_of_ids,
 		/*error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT(
 		"alarm_manager_call_alarm_get_list_of_ids_sync() failed by dbus. alarm_id[%d], return_code[%d]\n", alarm_id, return_code);
+		ALARM_MGR_EXCEPTION_PRINT("error->message is %s(%d)", error->message, error->code);
 		if (error_code) {
-			*error_code = ERR_ALARM_SYSTEM_FAIL;
+			if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+				*error_code = ERR_ALARM_NO_PERMISSION;
+			else
+				*error_code = ERR_ALARM_SYSTEM_FAIL;
 		}
+		g_error_free(error);
 
 		return false;
 	}
@@ -388,10 +430,15 @@ bool _send_alarm_get_number_of_ids(alarm_context_t context, int *num_of_ids,
 		ALARM_MGR_EXCEPTION_PRINT(
 		"alarm_manager_call_alarm_get_number_of_ids_sync() failed by dbus. return_code[%d], return_code[%s].",
 		return_code, error->message);
+		ALARM_MGR_EXCEPTION_PRINT("error->message is %s(%d)", error->message, error->code);
 
 		if (error_code) {
-			*error_code = ERR_ALARM_SYSTEM_FAIL;
+			if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+				*error_code = ERR_ALARM_NO_PERMISSION;
+			else
+				*error_code = ERR_ALARM_SYSTEM_FAIL;
 		}
+		g_error_free(error);
 		return false;
 	}
 
@@ -424,9 +471,14 @@ bool _send_alarm_get_info(alarm_context_t context, alarm_id_t alarm_id,
 		/* error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT(
 		"alarm_manager_call_alarm_get_info_sync() failed by dbus. alarm_id[%d], return_code[%d]\n", alarm_id, return_code);
+		ALARM_MGR_EXCEPTION_PRINT("error->message is %s(%d)", error->message, error->code);
 		if (error_code) {
-			*error_code = ERR_ALARM_SYSTEM_FAIL;
+			if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+				*error_code = ERR_ALARM_NO_PERMISSION;
+			else
+				*error_code = ERR_ALARM_SYSTEM_FAIL;
 		}
+		g_error_free(error);
 		return false;
 	}
 
@@ -453,9 +505,14 @@ bool _send_alarm_get_next_duetime(alarm_context_t context,
 		/*error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT(
 		"alarm_manager_call_alarm_get_next_duetime_sync() failed by dbus. alarm_id[%d], return_code[%d]\n", alarm_id, return_code);
+		ALARM_MGR_EXCEPTION_PRINT("error->message is %s(%d)", error->message, error->code);
 		if (error_code) {
-			*error_code = ERR_ALARM_SYSTEM_FAIL;
+			if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+				*error_code = ERR_ALARM_NO_PERMISSION;
+			else
+				*error_code = ERR_ALARM_SYSTEM_FAIL;
 		}
+		g_error_free(error);
 		return false;
 	}
 
@@ -478,9 +535,14 @@ bool _send_alarm_get_all_info(alarm_context_t context, char ** db_path, int *err
 		/*g_dbus_proxy_call_sync error */
 		/*error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT("alarm_manager_call_alarm_get_all_info_sync() failed by dbus. return_code[%d][%s]", return_code, error->message);
+		ALARM_MGR_EXCEPTION_PRINT("error->message is %s(%d)", error->message, error->code);
 		if (error_code) {
-			*error_code = ERR_ALARM_SYSTEM_FAIL;
+			if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+				*error_code = ERR_ALARM_NO_PERMISSION;
+			else
+				*error_code = ERR_ALARM_SYSTEM_FAIL;
 		}
+		g_error_free(error);
 		return false;
 	}
 
@@ -503,9 +565,14 @@ bool _send_alarm_set_time_with_propagation_delay(alarm_context_t context, unsign
 		/*g_dbus_proxy_call_sync error */
 		/*error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT("alarm_manager_call_alarm_set_time_with_propagation_delay_sync() failed by dbus. return_code[%d][%s]", return_code, error->message);
+		ALARM_MGR_EXCEPTION_PRINT("error->message is %s(%d)", error->message, error->code);
 		if (error_code) {
-			*error_code = ERR_ALARM_SYSTEM_FAIL;
+			if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+				*error_code = ERR_ALARM_NO_PERMISSION;
+			else
+				*error_code = ERR_ALARM_SYSTEM_FAIL;
 		}
+		g_error_free(error);
 		return false;
 	}
 
@@ -528,9 +595,14 @@ bool _send_alarm_set_timezone(alarm_context_t context, char *tzpath_str, int *er
 		/*g_dbus_proxy_call_sync error */
 		/*error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT("alarm_manager_call_alarm_set_timezone_sync() failed by dbus. return_code[%d][%s]", return_code, error->message);
+		ALARM_MGR_EXCEPTION_PRINT("error->message is %s(%d)", error->message, error->code);
 		if (error_code) {
-			*error_code = ERR_ALARM_SYSTEM_FAIL;
+			if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+				*error_code = ERR_ALARM_NO_PERMISSION;
+			else
+				*error_code = ERR_ALARM_SYSTEM_FAIL;
 		}
+		g_error_free(error);
 		return false;
 	}
 
