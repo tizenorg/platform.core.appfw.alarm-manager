@@ -172,6 +172,12 @@ int __display_unlock_state(char *state, char *flag);
 
 int __set_time(time_t _time);
 
+struct filtered_alarm_app_s
+{
+	int is_ui_app;
+	uid_t uid;
+};
+
 static void __rtc_set()
 {
 #ifdef __WAKEUP_USING_RTC__
@@ -1193,7 +1199,7 @@ static int __get_caller_pid(const char *name)
 	return pid;
 }
 
-static int __is_ui_app(const char *appid)
+static int __is_ui_app(const char *appid, uid_t uid)
 {
 	if (appid == NULL)
 		return 0;
@@ -1201,7 +1207,7 @@ static int __is_ui_app(const char *appid)
 	int ret = 0;
 	pkgmgrinfo_appinfo_h appinfo_h = NULL;
 
-	ret = pkgmgrinfo_appinfo_get_appinfo(appid, &appinfo_h);
+	ret = pkgmgrinfo_appinfo_get_usr_appinfo(appid, uid, &appinfo_h);
 
 	if (ret < 0 ) {
 		return 0;
@@ -1223,21 +1229,22 @@ static int __is_ui_app(const char *appid)
 
 static int __iter_fn(const char* appid, void *data)
 {
-	int *found = data;
+	struct filtered_alarm_app_s *app = data;
 
-	if (__is_ui_app(appid)) {
-		*found = 1;
+	if (__is_ui_app(appid, app->uid)) {
+		app->is_ui_app = 1;
 		return 1;
 	}
 
 	return 0;
 }
 
-static int __have_ui_apps(bundle *b)
+static int __have_ui_apps(bundle *b, uid_t uid)
 {
-	int found = 0;
-	appsvc_get_list(b, __iter_fn, &found);
-	return found;
+	struct filtered_alarm_app_s app;
+	app.uid = uid;
+	appsvc_usr_get_list(b, __iter_fn, &app, uid);
+	return app.is_ui_app;
 }
 
 static void __alarm_expired()
@@ -1311,7 +1318,7 @@ static void __alarm_expired()
 				else
 				{
 					appid = (char *)appsvc_get_appid(b);
-					if (appid && !__is_ui_app(appid)) {
+					if (appid && !__is_ui_app(appid, __alarm_info->uid)) {
 							ALARM_MGR_EXCEPTION_PRINT("ui-application can only be launched\n");
 					}
 					else if( (__alarm_info->alarm_info.alarm_type & ALARM_TYPE_NOLAUNCH) && !aul_app_is_running(appid))
@@ -1320,9 +1327,9 @@ static void __alarm_expired()
 					}
 					else
 					{
-						if (__have_ui_apps(b))
+						if (__have_ui_apps(b, __alarm_info->uid))
 						{
-							if ( appsvc_run_service(b, 0, NULL, NULL) < 0)
+							if ( appsvc_usr_run_service(b, 0, NULL, NULL, __alarm_info->uid) < 0)
 							{
 								ALARM_MGR_EXCEPTION_PRINT("Unable to run app svc\n");
 							}
@@ -1422,7 +1429,7 @@ static void __alarm_expired()
 				bundle *kb;
 				kb = bundle_create();
 				bundle_add_str(kb, "__ALARM_MGR_ID", alarm_id_str);
-				aul_launch_app(appid, kb);	// on_bus_name_owner_changed will be called.
+				aul_launch_app_for_uid(appid, kb, __alarm_info->uid);	// on_bus_name_owner_changed will be called.
 				bundle_free(kb);
 			} else {
 				// Case #3. The process is alive or was killed && non-app type(daemon)
