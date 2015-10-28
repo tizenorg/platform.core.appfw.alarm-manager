@@ -92,9 +92,6 @@ ln -s ../alarm-server.service %{buildroot}%{_unitdir}/multi-user.target.wants/al
 
 %post -n alarm-server
 
-vconftool set -t double db/system/timechange_external 0 -u 200 -g 5000 -s system::vconf_system
-vconftool set -t int memory/system/timechanged 0 -i -u 200 -g 5000 -s system::vconf_system
-
 chsmack -a System %{TZ_SYS_DB}/.alarmmgr.db
 chsmack -a System %{TZ_SYS_DB}/.alarmmgr.db-journal
 chown system:system /var/log/alarmmgr.log
