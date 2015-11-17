@@ -84,6 +84,7 @@ bool _send_alarm_create_appsvc(alarm_context_t context, alarm_info_t *alarm_info
 						    alarm_info->end.month,
 						    alarm_info->end.day,
 						    alarm_info->mode.u_interval.day_of_week,
+						    alarm_info->mode.u_interval.interval,
 						    alarm_info->mode.repeat,
 						    alarm_info->alarm_type,
 						    alarm_info->reserved_info,
