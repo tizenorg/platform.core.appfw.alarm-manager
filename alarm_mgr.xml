@@ -42,6 +42,7 @@
       <arg type="i" name="alarm_info_end_month" direction="in" />
       <arg type="i" name="alarm_info_end_day" direction="in" />
       <arg type="i" name="alarm_info_mode_day_of_week" direction="in" />
+      <arg type="i" name="alarm_info_mode_interval" direction="in" />
       <arg type="i" name="alarm_info_mode_repeat" direction="in" />
       <arg type="i" name="alarm_info_alarm_type" direction="in" />
       <arg type="i" name="alarm_info_reserved_info" direction="in" />
