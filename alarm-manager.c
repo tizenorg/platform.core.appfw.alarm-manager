@@ -139,7 +139,7 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id, uid_t
 			const char *dst_service_name, const char *dst_service_name_mod,
 			int *error_code);
 static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
-			   uid_t uid, int pid, char *bundle_data, int *error_code);
+			   long requested_interval, uid_t uid, int pid, char *bundle_data, int *error_code);
 
 static bool __alarm_delete(uid_t uid, alarm_id_t alarm_id, int *error_code);
 static bool __alarm_update(uid_t uid, int pid, char *app_service_name, alarm_id_t alarm_id,
@@ -160,7 +160,7 @@ static bool __initialize_db();
 static void __initialize();
 void on_bus_name_owner_changed(GDBusConnection *connection, const gchar *sender_name, const gchar *object_path,
              const gchar *interface_name, const gchar *signal_name, GVariant *parameters, gpointer user_data);
-bool __get_caller_unique_name(int pid, char *unique_name);
+bool __get_caller_unique_name(int pid, char *unique_name, uid_t uid);
 
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 static void __initialize_module_log(void);
@@ -691,7 +691,7 @@ static bool __alarm_update_due_time_of_all_items_in_list(double diff_time)
 }
 
 static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id,
-			   uid_t uid, int pid, char *bundle_data, int *error_code)
+			   long requested_interval, uid_t uid, int pid, char *bundle_data, int *error_code)
 {
 	time_t current_time;
 	time_t due_time;
@@ -720,8 +720,9 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 	__alarm_info->uid = uid;
 	__alarm_info->pid = pid;
 	__alarm_info->alarm_id = -1;
+	__alarm_info->requested_interval = requested_interval;
 
-	if (!__get_caller_unique_name(pid, app_name)) {
+	if (!__get_caller_unique_name(pid, app_name, uid)) {
 		*error_code = ERR_ALARM_SYSTEM_FAIL;
 		free(__alarm_info);
 		return false;
@@ -732,7 +733,7 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 	// caller
 	__alarm_info->quark_caller_pkgid = g_quark_from_string("null");
 
-	if (aul_app_get_appid_bypid(pid, caller_appid, 256) == AUL_R_OK) {
+	if (aul_app_get_appid_bypid_for_uid(pid, caller_appid, 256, uid) == AUL_R_OK) {
 		if (pkgmgrinfo_appinfo_get_usr_appinfo(caller_appid, uid, &caller_handle) == PMINFO_R_OK) {
 			if (pkgmgrinfo_appinfo_get_pkgid(caller_handle, &caller_pkgid) == PMINFO_R_OK) {
 				if (caller_pkgid) {
@@ -859,7 +860,7 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id, uid_t
 	__alarm_info->is_ref = is_ref;
 
 	// Get caller_appid to get caller's package id. There is no callee.
-	if (aul_app_get_appid_bypid(pid, caller_appid, 256) == AUL_R_OK) {
+	if (aul_app_get_appid_bypid_for_uid(pid, caller_appid, 256, uid) == AUL_R_OK) {
 		if (pkgmgrinfo_appinfo_get_usr_appinfo(caller_appid, uid, &caller_handle) == PMINFO_R_OK) {
 			if (pkgmgrinfo_appinfo_get_pkgid(caller_handle, &caller_pkgid) == PMINFO_R_OK) {
 				if (caller_pkgid) {
@@ -873,7 +874,7 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id, uid_t
 	__alarm_info->quark_callee_pkgid = g_quark_from_string("null");
 	SECURE_LOGD("caller_pkgid = %s, callee_pkgid = null", g_quark_to_string(__alarm_info->quark_caller_pkgid));
 
-	if (!__get_caller_unique_name(pid, app_name)) {
+	if (!__get_caller_unique_name(pid, app_name, uid)) {
 		*error_code = ERR_ALARM_SYSTEM_FAIL;
 		free(__alarm_info);
 		return false;
@@ -1247,6 +1248,30 @@ static int __have_ui_apps(bundle *b, uid_t uid)
 	return app.is_ui_app;
 }
 
+static int __check_api_version(int *result, uid_t uid) {
+	int ret = 0;
+	pkgmgrinfo_pkginfo_h pkginfo = NULL;
+	char pkgid[512] = {0, };
+	char *pkg_version;
+
+	if (aul_app_get_pkgid_bypid_for_uid(getpid(), pkgid, sizeof(pkgid), uid) != AUL_R_OK) {
+		ALARM_MGR_EXCEPTION_PRINT("aul_app_get_pkgid_bypid() is failed. PID %d may not be app.", getpid());
+	} else {
+		ret = pkgmgrinfo_pkginfo_get_usr_pkginfo(pkgid, uid, &pkginfo);
+		if (ret != PMINFO_R_OK) {
+			ALARM_MGR_EXCEPTION_PRINT("Failed to get pkginfo\n");
+		} else {
+			ret = pkgmgrinfo_pkginfo_get_version(pkginfo, &pkg_version);
+			if (ret != PMINFO_R_OK) {
+				ALARM_MGR_EXCEPTION_PRINT("Failed to check api version [%d]\n", ret);
+			}
+			*result = strverscmp(pkg_version, "2.4");
+			pkgmgrinfo_pkginfo_destroy_pkginfo(pkginfo);
+		}
+	}
+	return ret;
+}
+
 static void __alarm_expired()
 {
 	int ret;
@@ -1315,37 +1340,38 @@ static void __alarm_expired()
 				if (bundle_add_str(b,"http://tizen.org/appcontrol/data/alarm_id", alarm_id_val)){
 					ALARM_MGR_EXCEPTION_PRINT("Unable to add alarm id to the bundle\n");
 				}
-				else
-				{
-					appid = (char *)appsvc_get_appid(b);
-					if (appid && !__is_ui_app(appid, __alarm_info->uid)) {
-							ALARM_MGR_EXCEPTION_PRINT("ui-application can only be launched\n");
+				else {
+					int result = 0;
+
+					if (__check_api_version(&result, __alarm_info->uid) < 0) {
+						ALARM_MGR_EXCEPTION_PRINT("Unable to check api version\n");
+						result = -1;
 					}
-					else if( (__alarm_info->alarm_info.alarm_type & ALARM_TYPE_NOLAUNCH) && !aul_app_is_running(appid))
-					{
-						ALARM_MGR_EXCEPTION_PRINT("This alarm is ignored\n");
-					}
-					else
-					{
-						if (__have_ui_apps(b, __alarm_info->uid))
-						{
-							if ( appsvc_usr_run_service(b, 0, NULL, NULL, __alarm_info->uid) < 0)
-							{
-								ALARM_MGR_EXCEPTION_PRINT("Unable to run app svc\n");
+
+					if (result < 0) { /* before 2.4 */
+						if ( appsvc_usr_run_service(b, 0, NULL, NULL, __alarm_info->uid) < 0) {
+							ALARM_MGR_EXCEPTION_PRINT("Unable to run app svc\n");
+						}
+						else {
+							ALARM_MGR_LOG_PRINT("Successfuly ran app svc\n");
+						}
+					} else { /* since 2.4 */
+						appid = (char *)appsvc_get_appid(b);
+						if( (__alarm_info->alarm_info.alarm_type & ALARM_TYPE_NOLAUNCH) && !aul_app_is_running(appid))  {
+							ALARM_MGR_EXCEPTION_PRINT("This alarm is ignored\n");
+						} else if ( !(__alarm_info->alarm_info.alarm_type & ALARM_TYPE_INEXACT) ||
+								!__can_skip_expired_cb(__alarm_info->alarm_id) ) {
+							if (appsvc_usr_run_service(b, 0, NULL, NULL, __alarm_info->uid ) < 0) {
+								ALARM_MGR_EXCEPTION_PRINT("Unable to launch app [%s] \n", appid);
 							}
-							else
-							{
-								device_display_change_state(DISPLAY_STATE_NORMAL);
+							else {
 								ALARM_MGR_LOG_PRINT("Successfuly ran app svc\n");
+								if (__is_ui_app(appid, __alarm_info->uid)) {
+									device_display_change_state(DISPLAY_STATE_NORMAL);
+								}
 							}
 						}
-						else
-						{
-							ALARM_MGR_EXCEPTION_PRINT("ui-application can only be launched\n");
-						}
-
 					}
-
 				}
 				bundle_free(b);
 			}
@@ -1624,7 +1650,7 @@ static int __on_app_uninstalled(uid_t target_uid, int req_id, const char *pkg_ty
 	return ALARMMGR_RESULT_SUCCESS;
 }
 
-bool __get_caller_unique_name(int pid, char *unique_name)
+bool __get_caller_unique_name(int pid, char *unique_name, uid_t uid)
 {
 	char caller_appid[256] = {0,};
 	char caller_cmdline[512] = {0,};
@@ -1634,8 +1660,8 @@ bool __get_caller_unique_name(int pid, char *unique_name)
 		return false;
 	}
 
-	if (aul_app_get_appid_bypid(pid, caller_appid,
-				sizeof(caller_appid)) == AUL_R_OK) {
+	if (aul_app_get_appid_bypid_for_uid(pid, caller_appid,
+				sizeof(caller_appid), uid) == AUL_R_OK) {
 		/* When a caller is an application, the unique name is appID. */
 		strncpy(unique_name, caller_appid, strlen(caller_appid));
 	} else {
@@ -1816,7 +1842,7 @@ int __display_unlock_state(char *state, char *flag)
 	return ret;
 }
 
-static long __get_proper_interval(long interval)
+static long __get_proper_interval(long interval, int alarm_type)
 {
 	GSList *gs_iter = NULL;
 	__alarm_info_t *entry = NULL;
@@ -1832,7 +1858,8 @@ static long __get_proper_interval(long interval)
 		}
 	}
 
-	while (maxInterval * 2 <= interval) {
+	while (maxInterval * 2 <= interval ||
+			(alarm_type & ALARM_TYPE_INEXACT && maxInterval < MIN_INEXACT_INTERVAL) ) {
 		maxInterval *= 2;
 	}
 
@@ -2132,6 +2159,7 @@ gboolean alarm_manager_alarm_create_appsvc(AlarmManager *pObject, GDBusMethodInv
 				    int start_hour, int start_min,
 				    int start_sec, int end_year, int end_month,
 				    int end_day, int mode_day_of_week,
+				    unsigned int mode_interval,
 				    int mode_repeat, int alarm_type,
 				    int reserved_info,
 				    char *bundle_data,
@@ -2170,7 +2198,15 @@ gboolean alarm_manager_alarm_create_appsvc(AlarmManager *pObject, GDBusMethodInv
 	alarm_info.alarm_type = alarm_type;
 	alarm_info.reserved_info = reserved_info;
 
-	if (!__alarm_create_appsvc(&alarm_info, &alarm_id, uid, pid, bundle_data, &return_code)) {
+	if ((alarm_info.alarm_type & ALARM_TYPE_INEXACT)) {
+		alarm_info.alarm_type |= ALARM_TYPE_PERIOD;
+		alarm_info.mode.u_interval.interval =
+			__get_proper_interval(mode_interval, alarm_info.alarm_type);
+	} else if (mode_interval <= 0){
+		alarm_info.mode.u_interval.interval = 0;
+	}
+
+	if (!__alarm_create_appsvc(&alarm_info, &alarm_id, mode_interval, uid, pid, bundle_data, &return_code)) {
 		ALARM_MGR_EXCEPTION_PRINT("Unable to create alarm! return_code[%d]", return_code);
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 		strncpy(log_tag, "FAIL: CREATE", strlen("FAIL: CREATE"));
@@ -2307,7 +2343,7 @@ gboolean alarm_manager_alarm_create_periodic(AlarmManager *obj, GDBusMethodInvoc
 		if (is_ref)
 			alarm_info.mode.u_interval.interval = interval * 60;
 		else
-			alarm_info.mode.u_interval.interval = __get_proper_interval(interval * 60);
+			alarm_info.mode.u_interval.interval = __get_proper_interval(interval * 60, alarm_info.alarm_type);
 	}
 
 	if (!__alarm_create(&alarm_info, &alarm_id, uid, pid, method, interval * 60, is_ref,
@@ -2398,7 +2434,7 @@ gboolean alarm_manager_alarm_delete_all(AlarmManager *obj, GDBusMethodInvocation
 	uid = __get_caller_uid(name);
 	pid = __get_caller_pid(name);
 
-	if (!__get_caller_unique_name(pid, app_name)) {
+	if (!__get_caller_unique_name(pid, app_name, uid)) {
 		return_code = ERR_ALARM_SYSTEM_FAIL;
 		g_dbus_method_invocation_return_value(invoc, g_variant_new("(i)", return_code));
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
@@ -2542,7 +2578,7 @@ gboolean alarm_manager_alarm_get_number_of_ids(AlarmManager *pObject, GDBusMetho
 	uid = __get_caller_uid(name);
 	pid = __get_caller_pid(name);
 
-	if (!__get_caller_unique_name(pid, app_name)) {
+	if (!__get_caller_unique_name(pid, app_name, uid)) {
 		return_code = ERR_ALARM_SYSTEM_FAIL;
 		g_dbus_method_invocation_return_value(invoc, g_variant_new("(ii)", num_of_ids, return_code));
 		return true;
@@ -2589,7 +2625,7 @@ gboolean alarm_manager_alarm_get_list_of_ids(AlarmManager *pObject, GDBusMethodI
 		return true;
 	}
 
-	if (!__get_caller_unique_name(pid, app_name)) {
+	if (!__get_caller_unique_name(pid, app_name, uid)) {
 		return_code = ERR_ALARM_SYSTEM_FAIL;
 		g_dbus_method_invocation_return_value(invoc, g_variant_new("(@aiii)", g_variant_new("ai", NULL), num_of_ids, return_code));
 		return true;
