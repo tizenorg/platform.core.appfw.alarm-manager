@@ -37,6 +37,7 @@
 #include <appsvc.h>
 #include <aul.h>
 #include <gio/gio.h>
+#include <pkgmgr-info.h>
 
 #ifndef EXPORT_API
 #define EXPORT_API __attribute__ ((visibility("default")))
@@ -214,6 +215,92 @@ static bool __alarm_validate_time(alarm_date_t *date, int *error_code)
 	}
 
 	return true;
+}
+
+static int __compare_api_version(int *result, uid_t uid) {
+	int ret = 0;
+	pkgmgrinfo_pkginfo_h pkginfo = NULL;
+	char pkgid[512] = {0, };
+	char *pkg_version;
+
+	if (aul_app_get_pkgid_bypid_for_uid(getpid(), pkgid, sizeof(pkgid), uid) != AUL_R_OK) {
+		ALARM_MGR_EXCEPTION_PRINT("aul_app_get_pkgid_bypid() is failed. PID %d may not be app.", getpid());
+	} else {
+		ret = pkgmgrinfo_pkginfo_get_usr_pkginfo(pkgid, uid, &pkginfo);
+		if (ret != PMINFO_R_OK) {
+			ALARM_MGR_EXCEPTION_PRINT("Failed to get pkginfo\n");
+		} else {
+			ret = pkgmgrinfo_pkginfo_get_api_version(pkginfo, &pkg_version);
+			if (ret != PMINFO_R_OK) {
+				ALARM_MGR_EXCEPTION_PRINT("Failed to check api version [%d]\n", ret);
+			}
+			*result = strverscmp(pkg_version, "2.4");
+			pkgmgrinfo_pkginfo_destroy_pkginfo(pkginfo);
+		}
+	}
+	return ret;
+}
+
+static int __bg_category_func(const char *name, void *user_data)
+{
+	bg_category_cb_info_t *info = (bg_category_cb_info_t *)user_data;
+	ALARM_MGR_LOG_PRINT("appid[%s], bg name = %s", info->appid, name);
+	if (name &&
+			strncmp("enable", name, strlen(name)) && strncmp("disable", name, strlen(name))) {
+		info->has_bg = true;
+		return -1;
+	}
+
+	return 0;
+}
+
+static bool __is_permitted(const char *app_id, int alarm_type)
+{
+	if (app_id == NULL) {
+		ALARM_MGR_EXCEPTION_PRINT("app_id is NULL. Only expicit launch is permitted\n");
+		return false;
+	}
+
+	pkgmgrinfo_appinfo_h handle = NULL;
+	int ret;
+	bool _return = false;
+
+	ret = pkgmgrinfo_appinfo_get_usr_appinfo(app_id, getuid(), &handle);
+	if (ret != PMINFO_R_OK) {
+		ALARM_MGR_EXCEPTION_PRINT("Failed to get appinfo [%s]\n", app_id);
+	} else {
+		char *app_type = NULL;
+		ret = pkgmgrinfo_appinfo_get_component_type(handle, &app_type);
+		if (app_type && strcmp("uiapp", app_type) == 0) {
+			ALARM_MGR_LOG_PRINT("[%s] is ui application. It is allowed", app_id);
+			_return = true;
+			goto out;
+		} else if (app_type && strcmp("svcapp", app_type) == 0) {
+			ALARM_MGR_LOG_PRINT("[%s] is service application.", app_id);
+
+			bg_category_cb_info_t info = {
+				.appid = app_id,
+				.has_bg = false
+			};
+
+			if (alarm_type & ALARM_TYPE_INEXACT) {
+				_return = true;
+				ret = pkgmgrinfo_appinfo_foreach_background_category(handle, __bg_category_func, &info);
+				if (ret == PMINFO_R_OK && info.has_bg) {
+					ALARM_MGR_LOG_PRINT("[%s] has background categories.", app_id);
+					_return = true;
+					goto out;
+				} else {
+					ALARM_MGR_EXCEPTION_PRINT("Failed to foreach background category. [%s] is not allowed\n", app_id);
+				}
+			}
+		}
+	}
+
+out :
+	if (handle)
+		pkgmgrinfo_appinfo_destroy_appinfo(handle);
+	return _return;
 }
 
 static int __sub_init()
@@ -449,6 +536,9 @@ EXPORT_API int alarmmgr_set_repeat_mode(alarm_entry_t *alarm,
 
 	if (repeat == ALARM_REPEAT_MODE_REPEAT
 	    || repeat == ALARM_REPEAT_MODE_WEEKLY) {
+		if (interval <= 0) {
+			return ERR_ALARM_INVALID_PARAM;
+		}
 		alarm_info->mode.u_interval.interval = interval;
 	}
 
@@ -769,7 +859,8 @@ EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 				  time_t interval, void *bundle_data,
 				  alarm_id_t *alarm_id)
 {
-	int error_code = 0;;
+	int error_code = 0;
+	int result;
 	struct timeval current_time;
 	struct tm duetime_tm;
 	alarm_info_t alarm_info;
@@ -818,6 +909,20 @@ EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 	alarm_info.alarm_type = alarm_type;
 	alarm_info.alarm_type |= ALARM_TYPE_RELATIVE;
 
+	if (__compare_api_version(&result, getuid()) < 0)
+		return ERR_ALARM_SYSTEM_FAIL;
+
+	if (result < 0) {
+		if (alarm_info.alarm_type & ALARM_TYPE_INEXACT) {
+			alarm_info.alarm_type ^= ALARM_TYPE_INEXACT;
+		}
+	} else { //Since 2.4
+		if (!__is_permitted(appid, alarm_info.alarm_type)) {
+			ALARM_MGR_EXCEPTION_PRINT("[%s] is not permitted \n", appid);
+			return ERR_ALARM_NOT_PERMITTED_APP;
+		}
+	}
+
 	gettimeofday(&current_time, NULL);
 
 	if (current_time.tv_usec > 500 * 1000)
@@ -846,6 +951,10 @@ EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 	alarm_info.start.min = duetime_tm.tm_min;
 	alarm_info.start.sec = duetime_tm.tm_sec;
 
+	if ((alarm_info.alarm_type & ALARM_TYPE_INEXACT) && interval < MIN_INEXACT_INTERVAL) {
+		interval = MIN_INEXACT_INTERVAL;
+	}
+
 	if (interval <= 0) {
 		alarm_info.mode.repeat = ALARM_REPEAT_MODE_ONCE;
 		alarm_info.mode.u_interval.interval = 0;
@@ -857,7 +966,7 @@ EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 	ALARM_MGR_EXCEPTION_PRINT("trigger_at_time(%d), start(%d-%d-%d, %02d:%02d:%02d), repeat(%d), interval(%d), type(%d)",
 		trigger_at_time, alarm_info.start.day, alarm_info.start.month, alarm_info.start.year,
 		alarm_info.start.hour, alarm_info.start.min, alarm_info.start.sec,
-		alarm_info.mode.repeat, alarm_info.mode.u_interval, alarm_info.alarm_type);
+		alarm_info.mode.repeat, alarm_info.mode.u_interval.interval, alarm_info.alarm_type);
 
 	if (!_send_alarm_create_appsvc(alarm_context, &alarm_info, alarm_id, b, &error_code)) {
 		return error_code;
@@ -875,6 +984,7 @@ EXPORT_API int alarmmgr_add_alarm(int alarm_type, time_t trigger_at_time,
 	char dst_service_name_mod[MAX_SERVICE_NAME_LEN] = { 0 };
 	int i = 0;
 	int j = 0;
+	int result;
 	int error_code;
 	struct timeval current_time;
 	struct tm duetime_tm;
@@ -984,6 +1094,7 @@ EXPORT_API int alarmmgr_add_alarm(int alarm_type, time_t trigger_at_time,
 EXPORT_API int alarmmgr_add_alarm_withcb(int alarm_type, time_t trigger_at_time,
 				  time_t interval, alarm_cb_t handler, void *user_param, alarm_id_t *alarm_id)
 {
+	int result;
 	int error_code = 0;
 	struct timeval current_time;
 	struct tm duetime_tm;
@@ -1012,6 +1123,20 @@ EXPORT_API int alarmmgr_add_alarm_withcb(int alarm_type, time_t trigger_at_time,
 	alarm_info.alarm_type = alarm_type;
 	alarm_info.alarm_type |= ALARM_TYPE_RELATIVE;
 	alarm_info.alarm_type |= ALARM_TYPE_WITHCB;
+
+	if (__compare_api_version(&result, getuid()) < 0)
+		return ERR_ALARM_SYSTEM_FAIL;
+
+	if (result < 0) {
+		if (alarm_info.alarm_type & ALARM_TYPE_INEXACT) {
+			alarm_info.alarm_type ^= ALARM_TYPE_INEXACT;
+		}
+	} else { //Since 2.4
+		if (!__is_permitted(appid, alarm_info.alarm_type)) {
+			ALARM_MGR_EXCEPTION_PRINT("[%s] is not permitted \n", appid);
+			return ERR_ALARM_NOT_PERMITTED_APP;
+		}
+	}
 
 	gettimeofday(&current_time, NULL);
 
