@@ -42,6 +42,7 @@
 #define MAX_SERVICE_NAME_LEN 256
 #define MAX_PKG_NAME_LEN MAX_SERVICE_NAME_LEN-8
 #define MAX_PKG_ID_LEN 256
+#define MIN_INEXACT_INTERVAL 600
 
 #define SYSTEM_TIME_CHANGED "setting_time_changed"
 
@@ -196,6 +197,11 @@ typedef struct {
 	alarm_id_t alarm_id;
 } __expired_alarm_t;
 
+typedef struct _bg_category_cb_info_t {
+	char *appid;
+	bool has_bg;
+} bg_category_cb_info_t;
+
 time_t _alarm_next_duetime(__alarm_info_t *alarm_info);
 bool _alarm_schedule();
 bool _clear_scheduled_alarm_list();
@@ -209,6 +215,8 @@ bool _alarm_destory_timer(timer_t timer);
 bool _alarm_set_timer(__alarm_server_context_t *alarm_context, int timer, time_t due_time);
 bool _alarm_disable_timer(__alarm_server_context_t alarm_context);
 bool _init_scheduled_alarm_list();
+
+time_t _get_periodic_alarm_standard_time(void);
 
 #ifdef _DEBUG_MODE_
 #define ALARM_MGR_LOG_PRINT(FMT, ARG...)  do { printf("%5d", getpid()); printf

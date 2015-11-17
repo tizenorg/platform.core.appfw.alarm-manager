@@ -186,6 +186,7 @@ typedef enum {
 * This enumeration has error codes of alarm
 */
 	typedef enum {
+		ERR_ALARM_NOT_PERMITTED_APP = -11,
 		ERR_ALARM_INVALID_PARAM = -10,
 				     /**<Invalid parameter*/
 		ERR_ALARM_INVALID_ID,	/**<Invalid id*/
@@ -226,6 +227,7 @@ typedef enum {
 #define ALARM_TYPE_DEFAULT	0x0	/*< non volatile */
 #define ALARM_TYPE_VOLATILE	0x02	/*< volatile */
 #define ALARM_TYPE_NOLAUNCH 0x04	/*<without launch */
+#define ALARM_TYPE_INEXACT 0x08	/*<inexact alarm */
 
 
 /**
