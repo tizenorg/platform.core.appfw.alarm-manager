@@ -284,7 +284,6 @@ static bool __is_permitted(const char *app_id, int alarm_type)
 			};
 
 			if (alarm_type & ALARM_TYPE_INEXACT) {
-				_return = true;
 				ret = pkgmgrinfo_appinfo_foreach_background_category(handle, __bg_category_func, &info);
 				if (ret == PMINFO_R_OK && info.has_bg) {
 					ALARM_MGR_LOG_PRINT("[%s] has background categories.", app_id);
@@ -679,6 +678,7 @@ EXPORT_API int alarmmgr_add_alarm_appsvc_with_localtime(alarm_entry_t *alarm, vo
 	const char *operation = NULL;
 	int error_code = 0;
 	const char *appid = NULL;
+	int result;
 
 	bundle *b=(bundle *)bundle_data;
 
@@ -716,6 +716,14 @@ EXPORT_API int alarmmgr_add_alarm_appsvc_with_localtime(alarm_entry_t *alarm, vo
 	{
 		ALARM_MGR_EXCEPTION_PRINT("Invalid parameter\n");
 		return ERR_ALARM_INVALID_PARAM;
+	}
+
+	if (__compare_api_version(&result, getuid()) < 0)
+		return ERR_ALARM_SYSTEM_FAIL;
+
+	if (result >= 0 && !__is_permitted(appid, alarm_info->alarm_type)) {
+		ALARM_MGR_EXCEPTION_PRINT("[%s] is not permitted \n", appid);
+		return ERR_ALARM_NOT_PERMITTED_APP;
 	}
 
 	if (alarm_info == NULL || alarm_id == NULL) {
