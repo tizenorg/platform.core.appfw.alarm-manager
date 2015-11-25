@@ -1102,7 +1102,6 @@ EXPORT_API int alarmmgr_add_alarm(int alarm_type, time_t trigger_at_time,
 EXPORT_API int alarmmgr_add_alarm_withcb(int alarm_type, time_t trigger_at_time,
 				  time_t interval, alarm_cb_t handler, void *user_param, alarm_id_t *alarm_id)
 {
-	int result;
 	int error_code = 0;
 	struct timeval current_time;
 	struct tm duetime_tm;
@@ -1131,20 +1130,6 @@ EXPORT_API int alarmmgr_add_alarm_withcb(int alarm_type, time_t trigger_at_time,
 	alarm_info.alarm_type = alarm_type;
 	alarm_info.alarm_type |= ALARM_TYPE_RELATIVE;
 	alarm_info.alarm_type |= ALARM_TYPE_WITHCB;
-
-	if (__compare_api_version(&result, getuid()) < 0)
-		return ERR_ALARM_SYSTEM_FAIL;
-
-	if (result < 0) {
-		if (alarm_info.alarm_type & ALARM_TYPE_INEXACT) {
-			alarm_info.alarm_type ^= ALARM_TYPE_INEXACT;
-		}
-	} else { //Since 2.4
-		if (!__is_permitted(appid, alarm_info.alarm_type)) {
-			ALARM_MGR_EXCEPTION_PRINT("[%s] is not permitted \n", appid);
-			return ERR_ALARM_NOT_PERMITTED_APP;
-		}
-	}
 
 	gettimeofday(&current_time, NULL);
 
