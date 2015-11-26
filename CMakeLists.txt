@@ -6,7 +6,7 @@ INCLUDE_DIRECTORIES(
 	include
 )
 
-SET(DEPS_PKGS "glib-2.0 dlog aul bundle db-util appsvc pkgmgr-info vconf gio-2.0 gio-unix-2.0 capi-system-device libtzplatform-config")
+SET(DEPS_PKGS "glib-2.0 dlog aul bundle db-util appsvc pkgmgr-info vconf gio-2.0 gio-unix-2.0 capi-system-device libtzplatform-config libsystemd-daemon")
 
 IF(_APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG)
 ADD_DEFINITIONS("-D_APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG")
