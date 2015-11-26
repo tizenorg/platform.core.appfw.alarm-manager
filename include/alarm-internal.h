@@ -138,6 +138,8 @@ bundle *_send_alarm_get_appsvc_info(alarm_context_t context, alarm_id_t alarm_id
 bool _send_alarm_set_rtc_time(alarm_context_t context, alarm_date_t *time, int *error_code);
 bool _send_alarm_set_time_with_propagation_delay(alarm_context_t context, unsigned int new_sec, unsigned int new_nsec, unsigned int req_sec, unsigned int req_nsec, int *error_code);
 bool _send_alarm_set_timezone(alarm_context_t context, char *tzpath_str, int *error_code);
+bool _send_alarm_set_global(alarm_context_t context, int alarm_id, bool global, int *error_code);
+bool _send_alarm_get_global(alarm_context_t context, int alarm_id, bool *global, int *error_code);
 
 /*  alarm manager*/
 typedef struct {
@@ -168,6 +170,7 @@ typedef struct {
 	periodic_method_e method;
 	long requested_interval;
 	int is_ref;
+	bool global;
 } __alarm_info_t;
 
 typedef struct {
