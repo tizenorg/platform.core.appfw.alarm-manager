@@ -140,6 +140,16 @@
       <arg type="s" name="tzpath_str" direction="in" />
       <arg type="i" name="return_code" direction="out" />
     </method>
+    <method name="alarm_set_global">
+      <arg type="i" name="alarm_id" direction="in" />
+      <arg type="b" name="global" direction="in" />
+      <arg type="i" name="return_code" direction="out" />
+    </method>
+    <method name="alarm_get_global">
+      <arg type="i" name="alarm_id" direction="in" />
+      <arg type="b" name="global" direction="out" />
+      <arg type="i" name="return_code" direction="out" />
+    </method>
     <signal name="alarm_expired">
       <arg type="i" name="alarm_id" />
       <arg type="s" name="app_service_name" />

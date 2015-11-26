@@ -57,16 +57,17 @@ bool _save_alarms(__alarm_info_t *__alarm_info)
 	alarm_mode_t *mode = &alarm_info->mode;
 
 	char *query = sqlite3_mprintf("insert into alarmmgr( alarm_id, start,\
-			end, uid, pid, caller_pkgid, callee_pkgid, app_unique_name, app_service_name, app_service_name_mod, bundle, year,\
+			end, uid, pid, global, caller_pkgid, callee_pkgid, app_unique_name, app_service_name, app_service_name_mod, bundle, year,\
 			month, day, hour, min, sec, day_of_week, repeat,\
 			alarm_type, reserved_info, dst_service_name, dst_service_name_mod)\
-			values (%d,%d,%d,%d,%d,%Q,%Q,%Q,%Q,%Q,%Q,%d,%d,%d,%d,%d,%d,%d,%d,\
+			values (%d,%d,%d,%d,%d,%d,%Q,%Q,%Q,%Q,%Q,%Q,%d,%d,%d,%d,%d,%d,%d,%d,\
 			%d,%d,%Q,%Q)",\
 			__alarm_info->alarm_id,
 			(int)__alarm_info->start,
 			(int)__alarm_info->end,
 			__alarm_info->uid,
 			__alarm_info->pid,
+			__alarm_info->global,
 			(char *)g_quark_to_string(__alarm_info->quark_caller_pkgid),
 			(char *)g_quark_to_string(__alarm_info->quark_callee_pkgid),
 			(char *)g_quark_to_string(
@@ -111,7 +112,7 @@ bool _update_alarms(__alarm_info_t *__alarm_info)
 	alarm_mode_t *mode = &alarm_info->mode;
 
 	char *query = sqlite3_mprintf("update alarmmgr set start=%d, end=%d,\
-			uid=%d, pid=%d, caller_pkgid=%Q, callee_pkgid=%Q, app_unique_name=%Q, app_service_name=%Q, app_service_name_mod=%Q,\
+			uid=%d, pid=%d, global=%d, caller_pkgid=%Q, callee_pkgid=%Q, app_unique_name=%Q, app_service_name=%Q, app_service_name_mod=%Q,\
 			bundle=%Q, year=%d, month=%d, day=%d, hour=%d, min=%d, sec=%d,\
 			day_of_week=%d, repeat=%d, alarm_type=%d,\
 			reserved_info=%d, dst_service_name=%Q, dst_service_name_mod=%Q\
@@ -120,6 +121,7 @@ bool _update_alarms(__alarm_info_t *__alarm_info)
 			(int)__alarm_info->end,
 			__alarm_info->uid,
 			__alarm_info->pid,
+			__alarm_info->global,
 			(char *)g_quark_to_string(__alarm_info->quark_caller_pkgid),
 			(char *)g_quark_to_string(__alarm_info->quark_callee_pkgid),
 			(char *)g_quark_to_string(
@@ -215,6 +217,7 @@ bool _load_alarms_from_registry()
 		__alarm_info->end = sqlite3_column_int(stmt, col_idx++);
 		__alarm_info->uid = sqlite3_column_int(stmt, col_idx++);
 		__alarm_info->pid = sqlite3_column_int(stmt, col_idx++);
+		__alarm_info->global = sqlite3_column_int(stmt, col_idx++);
 
 		strncpy(caller_pkgid, (const char *)sqlite3_column_text(stmt, col_idx++),
 			MAX_PKG_ID_LEN - 1);

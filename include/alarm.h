@@ -1404,6 +1404,35 @@ int alarmmgr_set_systime_with_propagation_delay(struct timespec new_time, struct
  */
 int alarmmgr_set_timezone(char *tzpath_str);
 
+/**
+ * This function sets global
+ * @remarks The @a alarm_id must be id of alarm which will launch global application.
+ *          The function returns an error (error code #ERR_ALARM_INVALID_ID) if it is not.
+ * @param	[in] 	alarm_id		the id of the alarm
+ * @param	[in] 	global		value to set global or not
+ *
+ * @return	@c ALARMMGR_RESULT_SUCCESS on success,
+ *			otherwise a negative error value
+ * @retval	#ALARMMGR_RESULT_SUCCESS	Successful
+ * @retval	#ERR_ALARM_INVALID_PARAM	Invalid parameter
+ * @retval	#ERR_ALARM_INVALID_ID	Invaild id of the alarm
+ * @retval	#ERR_ALARM_SYSTEM_FAIL		System failure
+ */
+int alarmmgr_set_global(alarm_id_t alarm_id, bool global);
+
+/**
+ * This function gets global
+ * @param	[in] 	alarm_id		the id of the alarm
+ * @param	[out] 	global	Whether the alarm is global or not
+ *
+ * @return	@c ALARMMGR_RESULT_SUCCESS on success,
+ *			otherwise a negative error value
+ * @retval	#ALARMMGR_RESULT_SUCCESS	Successful
+ * @retval	#ERR_ALARM_INVALID_PARAM	Invalid parameter
+ * @retval	#ERR_ALARM_INVALID_ID	Invaild id of the alarm
+ * @retval	#ERR_ALARM_SYSTEM_FAIL		System failure
+ */
+int alarmmgr_get_global(const alarm_id_t alarm_id, bool *global);
 
 int alarmmgr_add_alarm_withcb(int alarm_type, time_t trigger_at_time,
 				  time_t interval, alarm_cb_t handler, void *user_param, alarm_id_t *alarm_id);
