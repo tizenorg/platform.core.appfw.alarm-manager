@@ -23,5 +23,7 @@
 		<check send_destination="org.tizen.alarm.manager" send_interface="org.tizen.alarm.manager" send_member="alarm_get_appsvc_info" privilege="http://tizen.org/privilege/alarm.get"/>
 		<check send_destination="org.tizen.alarm.manager" send_interface="org.tizen.alarm.manager" send_member="alarm_get_info" privilege="http://tizen.org/privilege/alarm.get"/>
 		<check send_destination="org.tizen.alarm.manager" send_interface="org.tizen.alarm.manager" send_member="alarm_get_next_duetime" privilege="http://tizen.org/privilege/alarm.get"/>
+		<check send_destination="org.tizen.alarm.manager" send_interface="org.tizen.alarm.manager" send_member="alarm_set_global" privilege="http://tizen.org/privilege/alarm.set"/>
+		<check send_destination="org.tizen.alarm.manager" send_interface="org.tizen.alarm.manager" send_member="alarm_get_global" privilege="http://tizen.org/privilege/alarm.get"/>
 	</policy>
 </busconfig>
