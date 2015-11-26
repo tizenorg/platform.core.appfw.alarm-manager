@@ -140,6 +140,8 @@ bool _send_alarm_set_time_with_propagation_delay(alarm_context_t context, unsign
 bool _send_alarm_set_timezone(alarm_context_t context, char *tzpath_str, int *error_code);
 bool _send_alarm_create_periodic(alarm_context_t context, int interval, int is_ref, int method, alarm_id_t *alarm_id, int *error_code);
 bool _send_alarm_set_time(alarm_context_t context, int new_time, int *error_code);
+bool _send_alarm_set_global(alarm_context_t context, int alarm_id, bool global, int *error_code);
+bool _send_alarm_get_global(alarm_context_t context, int alarm_id, bool *global, int *error_code);
 
 /*  alarm manager*/
 typedef struct {
@@ -170,6 +172,7 @@ typedef struct {
 	periodic_method_e method;
 	long requested_interval;
 	int is_ref;
+	bool global;
 } __alarm_info_t;
 
 typedef struct {

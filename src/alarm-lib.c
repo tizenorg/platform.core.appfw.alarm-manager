@@ -1586,3 +1586,35 @@ EXPORT_API int alarmmgr_set_timezone(char *tzpath_str)
 	ALARM_MGR_LOG_PRINT("[alarm-lib]: successfully set the timezone(%s) by pid(%d)", tzpath_str, getpid());
 	return ALARMMGR_RESULT_SUCCESS;
 }
+
+EXPORT_API int alarmmgr_set_global(const alarm_id_t alarm_id,
+					bool global)
+{
+	int error_code;
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarmmgr_set_global() is called.");
+
+	if (!_send_alarm_set_global(alarm_context, alarm_id, global, &error_code)) {
+		return error_code;
+	}
+
+	return ALARMMGR_RESULT_SUCCESS;
+}
+
+
+EXPORT_API int alarmmgr_get_global(const alarm_id_t alarm_id,
+					bool *global)
+{
+	bool _global;
+	int error_code;
+
+	if (global == NULL) {
+		return ERR_ALARM_INVALID_PARAM;
+	}
+
+	if (!_send_alarm_get_global(alarm_context, alarm_id, &_global, &error_code)) {
+		return error_code;
+	}
+
+	return ALARMMGR_RESULT_SUCCESS;
+}
+

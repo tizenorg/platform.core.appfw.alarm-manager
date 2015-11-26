@@ -614,3 +614,65 @@ bool _send_alarm_set_timezone(alarm_context_t context, char *tzpath_str, int *er
 
 	return true;
 }
+
+bool _send_alarm_set_global(alarm_context_t context, const alarm_id_t alarm_id, bool global, int *error_code)
+{
+	GError *error = NULL;
+	int return_code = 0;
+
+	if (!alarm_manager_call_alarm_set_global_sync((AlarmManager *)context.proxy, alarm_id, global, &return_code, NULL, &error)) {
+		/*g_dbus_proxy_call_sync error */
+		/*error_code should be set */
+		ALARM_MGR_EXCEPTION_PRINT("alarm_manager_call_alarm_set_global_sync() failed by dbus. return_code[%d][%s]", return_code, error->message);
+		ALARM_MGR_EXCEPTION_PRINT("error->message is %s(%d)", error->message, error->code);
+		if (error_code) {
+			if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+				*error_code = ERR_ALARM_NO_PERMISSION;
+			else
+				*error_code = ERR_ALARM_SYSTEM_FAIL;
+		}
+		g_error_free(error);
+		return false;
+	}
+
+	if (return_code != ALARMMGR_RESULT_SUCCESS) {
+		if (error_code) {
+			*error_code = return_code;
+		}
+		return false;
+	}
+
+	return true;
+}
+
+bool _send_alarm_get_global(alarm_context_t context, const alarm_id_t alarm_id, bool *global, int *error_code)
+{
+	GError *error = NULL;
+	int return_code = 0;
+	bool _global;
+
+	if (!alarm_manager_call_alarm_get_global_sync((AlarmManager *)context.proxy, alarm_id, &_global, &return_code, NULL, &error)) {
+		/*g_dbus_proxy_call_sync error */
+		/*error_code should be set */
+		ALARM_MGR_EXCEPTION_PRINT("alarm_manager_call_alarm_get_global_sync() failed by dbus. return_code[%d][%s]", return_code, error->message);
+		ALARM_MGR_EXCEPTION_PRINT("error->message is %s(%d)", error->message, error->code);
+		if (error_code) {
+			if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+				*error_code = ERR_ALARM_NO_PERMISSION;
+			else
+				*error_code = ERR_ALARM_SYSTEM_FAIL;
+		}
+		g_error_free(error);
+		return false;
+	}
+
+	if (return_code != ALARMMGR_RESULT_SUCCESS) {
+		if (error_code) {
+			*error_code = return_code;
+		}
+		return false;
+	}
+
+	*global = _global;
+	return true;
+}
