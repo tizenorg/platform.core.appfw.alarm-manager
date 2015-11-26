@@ -35,6 +35,17 @@
 #include <poll.h>
 #include <stdint.h>
 
+#include <tzplatform_config.h>
+#include <aul.h>
+#include <bundle.h>
+#include <db-util.h>
+#include <vconf.h>
+#include <vconf-keys.h>
+#include <dlfcn.h>
+#include <pkgmgr-info.h>
+#include <device/display.h>
+#include <systemd/sd-login.h>
+
 #include <glib.h>
 #if !GLIB_CHECK_VERSION (2, 31, 0)
 #include <glib/gmacros.h>
@@ -45,15 +56,6 @@
 #include "alarm-internal.h"
 #include "alarm-mgr-stub.h"
 
-#include <tzplatform_config.h>
-#include <aul.h>
-#include <bundle.h>
-#include <db-util.h>
-#include <vconf.h>
-#include <vconf-keys.h>
-#include <dlfcn.h>
-#include <pkgmgr-info.h>
-#include <device/display.h>
 
 #define SIG_TIMER 0x32
 #define WAKEUP_ALARM_APP_ID       "org.tizen.alarm.ALARM"
@@ -722,6 +724,7 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 	__alarm_info->pid = pid;
 	__alarm_info->alarm_id = -1;
 	__alarm_info->requested_interval = requested_interval;
+	__alarm_info->global = false;
 
 	if (!__get_caller_unique_name(pid, app_name, uid)) {
 		*error_code = ERR_ALARM_SYSTEM_FAIL;
@@ -859,6 +862,7 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id, uid_t
 	__alarm_info->method = method;
 	__alarm_info->requested_interval = requested_interval;
 	__alarm_info->is_ref = is_ref;
+	__alarm_info->global = false;
 
 	// Get caller_appid to get caller's package id. There is no callee.
 	if (aul_app_get_appid_bypid_for_uid(pid, caller_appid, 256, uid) == AUL_R_OK) {
@@ -1055,6 +1059,24 @@ static bool __alarm_update(uid_t uid, int pid, char *app_service_name, alarm_id_
 
 	return true;
 }
+
+static bool __alarm_set_global_to_db(__alarm_info_t *alarm_info, bool global)
+{
+
+	char *error_message = NULL;
+	char *query = sqlite3_mprintf("update alarmmgr set global=%d where alarm_id=%d",
+			alarm_info->global, alarm_info->alarm_id);
+
+	if (SQLITE_OK != sqlite3_exec(alarmmgr_db, query, NULL, NULL, &error_message)) {
+		SECURE_LOGE("sqlite3_exec() is failed. query = %s, error message = %s", query, error_message);
+		sqlite3_free(query);
+		return false;
+	}
+
+	sqlite3_free(query);
+	return true;
+}
+
 
 static bool __alarm_delete(uid_t uid, alarm_id_t alarm_id, int *error_code)
 {
@@ -1273,6 +1295,36 @@ static int __compare_api_version(int *result, int pid, uid_t uid) {
 	return ret;
 }
 
+static int __find_login_user(uid_t *uid)
+{
+	uid_t *uids;
+	int ret, i;
+	char *state;
+
+	ret = sd_get_uids(&uids);
+	if (ret <= 0)
+		return -1;
+
+	for (i = 0; i < ret ; i++) {
+		if (sd_uid_get_state(uids[i], &state) < 0) {
+			free(uids);
+			return -1;
+		}
+		else {
+			if (!strncmp(state, "online", 6))
+			{
+				*uid = uids[i];
+				free(uids);
+				free(state);
+				return 0;
+			}
+		}
+	}
+	free(uids);
+	free(state);
+	return -1;
+}
+
 static void __alarm_expired()
 {
 	int ret;
@@ -1284,6 +1336,7 @@ static void __alarm_expired()
 	int b_len = 0;
 	bundle *b = NULL;
 	char *appid = NULL;
+	uid_t target_uid;
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
 #endif
@@ -1362,7 +1415,18 @@ static void __alarm_expired()
 							ALARM_MGR_EXCEPTION_PRINT("This alarm is ignored\n");
 						} else if ( !(__alarm_info->alarm_info.alarm_type & ALARM_TYPE_INEXACT) ||
 								!__can_skip_expired_cb(__alarm_info->alarm_id) ) {
-							if (appsvc_usr_run_service(b, 0, NULL, NULL, __alarm_info->uid ) < 0) {
+							if (__alarm_info->global) {
+								if (__find_login_user(&target_uid) < 0) {
+									ALARM_MGR_EXCEPTION_PRINT("Fail to get login user\n");
+									ret = -1;
+								} else {
+									ret = appsvc_usr_run_service(b, 0, NULL, NULL, target_uid);
+								}
+							} else {
+								ret = appsvc_usr_run_service(b, 0, NULL, NULL, __alarm_info->uid);
+							}
+
+							if (ret < 0) {
 								ALARM_MGR_EXCEPTION_PRINT("Unable to launch app [%s] \n", appid);
 							}
 							else {
@@ -1456,7 +1520,17 @@ static void __alarm_expired()
 				bundle *kb;
 				kb = bundle_create();
 				bundle_add_str(kb, "__ALARM_MGR_ID", alarm_id_str);
-				aul_launch_app_for_uid(appid, kb, __alarm_info->uid);	// on_bus_name_owner_changed will be called.
+
+				if (__alarm_info->global) {
+					if (__find_login_user(&target_uid) < 0) {
+						ALARM_MGR_EXCEPTION_PRINT("Fail to get login user\n");
+					} else {
+						aul_launch_app_for_uid(appid, kb, target_uid);	// on_bus_name_owner_changed will be called.
+					}
+				} else {
+					aul_launch_app_for_uid(appid, kb, __alarm_info->uid);	// on_bus_name_owner_changed will be called.
+				}
+
 				bundle_free(kb);
 			} else {
 				// Case #3. The process is alive or was killed && non-app type(daemon)
@@ -2798,6 +2872,7 @@ gboolean alarm_manager_alarm_get_all_info(AlarmManager *pObject, GDBusMethodInvo
 							start_epoch integer,\
 							end_epoch integer,\
 							pid integer,\
+							global integer,\
 							caller_pkgid text,\
 							callee_pkgid text,\
 							app_unique_name text,\
@@ -2812,6 +2887,7 @@ gboolean alarm_manager_alarm_get_all_info(AlarmManager *pObject, GDBusMethodInvo
 	__alarm_info_t *entry = NULL;
 	char *error_message = NULL;
 	uid_t uid;
+
 	const char *name = g_dbus_method_invocation_get_sender(invoc);
 
 	uid = __get_caller_uid(name);
@@ -2860,14 +2936,15 @@ gboolean alarm_manager_alarm_get_all_info(AlarmManager *pObject, GDBusMethodInvo
 		alarm_mode_t *mode = &alarm_info->mode;
 
 		char *query = sqlite3_mprintf("insert into alarmmgr_tool( alarm_id, duetime_epoch, duetime, start_epoch,\
-				end_epoch, pid, caller_pkgid, callee_pkgid, app_unique_name, app_service_name, dst_service_name, day_of_week, repeat, alarm_type)\
-				values (%d,%d,%Q,%d,%d,%d,%Q,%Q,%Q,%Q,%Q,%d,%d,%d)",
+				end_epoch, pid, global, caller_pkgid, callee_pkgid, app_unique_name, app_service_name, dst_service_name, day_of_week, repeat, alarm_type)\
+				values (%d,%d,%Q,%d,%d,%d,%d,%Q,%Q,%Q,%Q,%Q,%d,%d,%d)",
 				entry->alarm_id,
 				(int)entry->due_time,
 				ctime(&(entry->due_time)),
 				(int)entry->start,
 				(int)entry->end,
 				(int)entry->pid,
+				(bool)entry->global,
 				(char *)g_quark_to_string(entry->quark_caller_pkgid),
 				(char *)g_quark_to_string(entry->quark_callee_pkgid),
 				(char *)g_quark_to_string(entry->quark_app_unique_name),
@@ -2891,6 +2968,100 @@ gboolean alarm_manager_alarm_get_all_info(AlarmManager *pObject, GDBusMethodInvo
 	free(db_path);
 	return true;
 }
+
+gboolean alarm_manager_alarm_set_global(AlarmManager *pObject, GDBusMethodInvocation *invoc,
+				      alarm_id_t alarm_id, bool global, gpointer user_data)
+{
+	GSList *gs_iter = NULL;
+	__alarm_info_t *entry = NULL;
+	alarm_info_t *alarm_info = NULL;
+	int retval = 0;
+	int return_code = ALARMMGR_RESULT_SUCCESS;
+	uid_t uid;
+	const char *name = g_dbus_method_invocation_get_sender(invoc);
+
+	uid = __get_caller_uid(name);
+
+	SECURE_LOGD("called for uid(%d), alarm_id(%d)\n", uid, alarm_id);
+	for (gs_iter = alarm_context.alarms; gs_iter != NULL; gs_iter = g_slist_next(gs_iter)) {
+		entry = gs_iter->data;
+		if (entry->uid == uid && entry->alarm_id == alarm_id) {
+			alarm_info = &(entry->alarm_info);
+			break;
+		}
+	}
+
+	if (alarm_info == NULL) {
+		ALARM_MGR_EXCEPTION_PRINT("The alarm(%d) is not found.", alarm_id);
+		return_code = ERR_ALARM_INVALID_ID;
+		g_dbus_method_invocation_return_value(invoc, g_variant_new("(i)", return_code));
+	} else {
+		ALARM_MGR_LOG_PRINT("The alarm(%d) is found.", alarm_id);
+
+		char *callee_pkgid = (char *)g_quark_to_string(entry->quark_callee_pkgid);
+		if (strncmp(callee_pkgid, "null", strlen(callee_pkgid)) == 0) {
+			callee_pkgid = (char *)g_quark_to_string(entry->quark_app_service_name)+6;
+		}
+
+		ALARM_MGR_LOG_PRINT("The alarm pkgid : %s.", callee_pkgid);
+
+		pkgmgrinfo_pkginfo_h handle;
+		retval = pkgmgrinfo_pkginfo_get_pkginfo(callee_pkgid, &handle);
+		if (retval != PMINFO_R_OK) {
+			ALARM_MGR_EXCEPTION_PRINT("The alarm(%d) is not permitted to set global.", alarm_id);
+			return_code = ERR_ALARM_INVALID_ID; //TODO change error code
+		} else {
+			int is_global = 0;
+			retval = pkgmgrinfo_pkginfo_is_global(handle, &is_global);
+			if (retval == PMINFO_R_OK && is_global) {
+				entry->global = global;
+				if (!__alarm_set_global_to_db(entry, global)) {
+					return_code = ERR_ALARM_SYSTEM_FAIL;
+				}
+			} else if (retval == PMINFO_R_OK && !is_global) {
+				return_code = ERR_ALARM_NOT_PERMITTED_APP;
+			}
+
+		}
+		g_dbus_method_invocation_return_value(invoc, g_variant_new("(i)", return_code));
+	}
+
+	return true;
+}
+
+gboolean alarm_manager_alarm_get_global(AlarmManager *pObject, GDBusMethodInvocation *invoc,
+				      alarm_id_t alarm_id, gpointer user_data)
+{
+	GSList *gs_iter = NULL;
+	__alarm_info_t *entry = NULL;
+	__alarm_info_t *find_item = NULL;
+	int retval = 0;
+	int return_code = ALARMMGR_RESULT_SUCCESS;
+	bool global = false;
+
+	SECURE_LOGD("called for alarm_id(%d)\n", alarm_id);
+	for (gs_iter = alarm_context.alarms; gs_iter != NULL; gs_iter = g_slist_next(gs_iter)) {
+		entry = gs_iter->data;
+		if (entry->alarm_id == alarm_id) {
+			find_item = entry;
+			break;
+		}
+	}
+
+	if (find_item == NULL) {
+		ALARM_MGR_EXCEPTION_PRINT("The alarm(%d) is not found.", alarm_id);
+		return_code = ERR_ALARM_INVALID_ID;
+		g_dbus_method_invocation_return_value(invoc, g_variant_new("(bi)", global, return_code));
+		return true;
+	}
+
+	global = find_item->global;
+	ALARM_MGR_LOG_PRINT("Is global : %d", global);
+
+	g_dbus_method_invocation_return_value(invoc, g_variant_new("(bi)", global, return_code));
+	return true;
+}
+
 
 static void __timer_glib_finalize(GSource *src)
 {
@@ -3069,6 +3240,8 @@ static void on_bus_acquired(GDBusConnection *connection, const gchar *name, gpoi
 	g_signal_connect(interface, "handle_alarm_update", G_CALLBACK(alarm_manager_alarm_update), NULL);
 	g_signal_connect(interface, "handle_alarm_get_all_info", G_CALLBACK(alarm_manager_alarm_get_all_info), NULL);
 	g_signal_connect(interface, "handle_alarm_set_time_with_propagation_delay", G_CALLBACK(alarm_manager_alarm_set_time_with_propagation_delay), NULL);
+	g_signal_connect(interface, "handle_alarm_set_global", G_CALLBACK(alarm_manager_alarm_set_global), NULL);
+	g_signal_connect(interface, "handle_alarm_get_global", G_CALLBACK(alarm_manager_alarm_get_global), NULL);
 
 	guint subsc_id = g_dbus_connection_signal_subscribe(connection, "org.freedesktop.DBus", "org.freedesktop.DBus",
 							"NameOwnerChanged", "/org/freedesktop/DBus", NULL, G_DBUS_SIGNAL_FLAGS_NONE,
@@ -3120,6 +3293,7 @@ static bool __initialize_dbus()
 						end integer,\
 						uid integer,\
 						pid integer,\
+						global integer,\
 						caller_pkgid text,\
 						callee_pkgid text,\
 						app_unique_name text,\
