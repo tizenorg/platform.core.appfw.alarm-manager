@@ -20,7 +20,6 @@
  *
  */
 
-#define _BSD_SOURCE		/*localtime_r requires */
 #include<stdio.h>
 #include<stdlib.h>
 #include<time.h>
@@ -371,7 +370,7 @@ static time_t __alarm_next_duetime_weekly(__alarm_info_t *__alarm_info)
 
 	due_time = mktime(&duetime_tm);
 	localtime_r(&due_time, &tmp_tm);
-	ALARM_MGR_EXCEPTION_PRINT("%d:%d:%d. duetime = %d, isdst = %d", tmp_tm.tm_hour, tmp_tm.tm_min, tmp_tm.tm_sec, due_time, tmp_tm.tm_isdst);
+	ALARM_MGR_LOG_PRINT("%d:%d:%d. duetime = %d, isdst = %d", tmp_tm.tm_hour, tmp_tm.tm_min, tmp_tm.tm_sec, due_time, tmp_tm.tm_isdst);
 
 	if (due_time <= current_time) {
 		ALARM_MGR_EXCEPTION_PRINT("duetime is less than or equal to current time. current_dst = %d", current_dst);
@@ -387,7 +386,7 @@ static time_t __alarm_next_duetime_weekly(__alarm_info_t *__alarm_info)
 			duetime_tm.tm_sec = start->sec;
 			duetime_tm.tm_isdst = -1;
 			due_time = mktime(&duetime_tm);
-			ALARM_MGR_EXCEPTION_PRINT("due_time = %d",due_time);
+			ALARM_MGR_LOG_PRINT("due_time = %d", due_time);
 		}
 	}
 	else {
@@ -395,7 +394,7 @@ static time_t __alarm_next_duetime_weekly(__alarm_info_t *__alarm_info)
 			// When the calculated duetime is forwarded 1hour due to DST, Adds 23hours.
 			due_time += 60 * 60 * 23;
 			localtime_r(&due_time, &duetime_tm);
-			ALARM_MGR_EXCEPTION_PRINT("due_time = %d",due_time);
+			ALARM_MGR_LOG_PRINT("due_time = %d", due_time);
 		}
 	}
 
@@ -405,7 +404,7 @@ static time_t __alarm_next_duetime_weekly(__alarm_info_t *__alarm_info)
 
 	wday = duetime_tm.tm_wday;
 
-	ALARM_MGR_EXCEPTION_PRINT("current_time(%d) due_time(%d)", current_time, due_time);
+	ALARM_MGR_LOG_PRINT("current_time(%d) due_time(%d)", current_time, due_time);
 
 	/* CQ defect(72810) : only one time alarm function is not working
 	   under all recurrence_disabled. */
@@ -446,7 +445,7 @@ static time_t __alarm_next_duetime_weekly(__alarm_info_t *__alarm_info)
 		due_time -= 60 * 60;	// Subtract an hour
 	}
 
-	ALARM_MGR_EXCEPTION_PRINT("Final due_time = %d", due_time);
+	ALARM_MGR_LOG_PRINT("Final due_time = %d", due_time);
 	return due_time;
 }
 
@@ -497,7 +496,7 @@ time_t _alarm_next_duetime(__alarm_info_t *__alarm_info)
 			due_time = mktime(due_tm);
 	}
 
-	ALARM_MGR_EXCEPTION_PRINT("alarm_id: %d, next duetime: %d", __alarm_info->alarm_id, due_time);
+	ALARM_MGR_LOG_PRINT("alarm_id: %d, next duetime: %d", __alarm_info->alarm_id, due_time);
 
 	if (__alarm_info->end != 0 && __alarm_info->end < due_time) {
 		ALARM_MGR_LOG_PRINT("due time > end time");
@@ -561,7 +560,7 @@ bool _alarm_schedule()
 	__find_next_alarm_to_be_scheduled(&min_time);
 
 	if (min_time == -1) {
-		ALARM_MGR_LOG_PRINT("[alarm-server][schedule]: There is no alarm to be scheduled.");
+		ALARM_MGR_EXCEPTION_PRINT("[alarm-server][schedule]: There is no alarm to be scheduled.");
 	} else {
 		for (iter = alarm_context.alarms; iter != NULL; iter = g_slist_next(iter)) {
 			entry = iter->data;

@@ -138,6 +138,8 @@ bundle *_send_alarm_get_appsvc_info(alarm_context_t context, alarm_id_t alarm_id
 bool _send_alarm_set_rtc_time(alarm_context_t context, alarm_date_t *time, int *error_code);
 bool _send_alarm_set_time_with_propagation_delay(alarm_context_t context, unsigned int new_sec, unsigned int new_nsec, unsigned int req_sec, unsigned int req_nsec, int *error_code);
 bool _send_alarm_set_timezone(alarm_context_t context, char *tzpath_str, int *error_code);
+bool _send_alarm_create_periodic(alarm_context_t context, int interval, int is_ref, int method, alarm_id_t *alarm_id, int *error_code);
+bool _send_alarm_set_time(alarm_context_t context, int new_time, int *error_code);
 
 /*  alarm manager*/
 typedef struct {
@@ -198,7 +200,7 @@ typedef struct {
 } __expired_alarm_t;
 
 typedef struct _bg_category_cb_info_t {
-	char *appid;
+	const char *appid;
 	bool has_bg;
 } bg_category_cb_info_t;
 

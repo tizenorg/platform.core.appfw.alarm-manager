@@ -40,8 +40,6 @@
 bool _send_alarm_create(alarm_context_t context, alarm_info_t *alarm_info,
 			alarm_id_t *alarm_id, const char *dst_service_name, const char *dst_service_name_mod,
 			int *error_code);
-bool _send_alarm_create_periodic(alarm_context_t context, int interval, int is_ref,
-			int method, alarm_id_t *alarm_id, int *error_code);
 bool _send_alarm_create_appsvc(alarm_context_t context, alarm_info_t *alarm_info,
 			alarm_id_t *alarm_id, bundle *b,int *error_code);
 bool _send_alarm_delete(alarm_context_t context, alarm_id_t alarm_id,

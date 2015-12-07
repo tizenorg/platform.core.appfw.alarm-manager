@@ -20,11 +20,6 @@
  *
  */
 
-
-
-
-#define _BSD_SOURCE		/*gmtime_r requires */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
