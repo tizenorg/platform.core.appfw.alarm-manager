@@ -33,7 +33,9 @@ int main(int argc, char** argv)
 	GMainLoop *mainloop;
 	int result;
 
+#if !(GLIB_CHECK_VERSION(2, 36, 0))
 	g_type_init();
+#endif
 
 	mainloop = g_main_loop_new(NULL, FALSE);
 	result = alarmmgr_init("org.tizen.alarmmgr.periodic");
@@ -45,6 +47,8 @@ int main(int argc, char** argv)
 	}
 
 	g_main_loop_run(mainloop);
+
+	return 0;
 }
 
 

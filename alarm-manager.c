@@ -20,9 +20,7 @@
  *
  */
 
-
-
-#define _BSD_SOURCE /*for localtime_r*/
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -30,6 +28,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <sys/timerfd.h>
 #include <poll.h>
@@ -109,7 +108,7 @@ static int log_fd = 0;
 
 static const char default_rtc[] = "/dev/rtc";
 
-static int gfd = 0;
+static int gfd = -1;
 
 #endif				/*__WAKEUP_USING_RTC__*/
 
@@ -193,9 +192,9 @@ static void __rtc_set()
 	return;
 #endif
 
-	if (gfd == 0) {
+	if (gfd < 0) {
 		gfd = open(rtc, O_RDWR);
-		if (gfd == -1) {
+		if (gfd < 0) {
 			ALARM_MGR_EXCEPTION_PRINT("RTC open failed.");
 			return;
 		}
@@ -205,9 +204,10 @@ static void __rtc_set()
 	int retval = 0;
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 	char *timebuf = ctime(&alarm_context.c_due_time);
-	if (timebuf)
+	if (timebuf) {
 		timebuf[strlen(timebuf) - 1] = '\0';	// to avoid new line
-	snprintf(log_message, sizeof(log_message), "wakeup time: %d, %s", (int)alarm_context.c_due_time, timebuf);
+		snprintf(log_message, sizeof(log_message), "wakeup time: %d, %s", (int)alarm_context.c_due_time, timebuf);
+	}
 #endif
 
 	ALARM_MGR_LOG_PRINT("alarm_context.c_due_time is %d.", (int)alarm_context.c_due_time);
@@ -230,12 +230,12 @@ static void __rtc_set()
 			ALARM_MGR_EXCEPTION_PRINT("RTC_WKALM_SET disabled ioctl is failed. errno = %s", strerror(errno));
 			return;
 		}
-		ALARM_MGR_EXCEPTION_PRINT("[alarm-server]RTC_WKALM_SET disabled ioctl is successfully done.");
+		ALARM_MGR_LOG_PRINT("[alarm-server]RTC_WKALM_SET disabled ioctl is successfully done.");
 
 		time_t due_time = alarm_context.c_due_time;
 		localtime_r(&due_time, &due_tm);
 
-		ALARM_MGR_EXCEPTION_PRINT("Setted RTC Alarm date/time is %d-%d-%d, %02d:%02d:%02d (UTC).",
+		ALARM_MGR_LOG_PRINT("Setted RTC Alarm date/time is %d-%d-%d, %02d:%02d:%02d (UTC).",
 			due_tm.tm_mday, due_tm.tm_mon + 1, due_tm.tm_year + 1900,
 			due_tm.tm_hour, due_tm.tm_min, due_tm.tm_sec);
 
@@ -257,7 +257,7 @@ static void __rtc_set()
 #endif
 			return;
 		}
-		ALARM_MGR_EXCEPTION_PRINT("[alarm-server]RTC ALARM_SET ioctl is successfully done.");
+		ALARM_MGR_LOG_PRINT("[alarm-server]RTC ALARM_SET ioctl is successfully done.");
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 		__save_module_log("SET RTC", log_message);
 #endif
@@ -283,11 +283,12 @@ int __set_time(time_t _time)
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
 #endif
 
-	if (gfd == 0) {
+	if (gfd < 0) {
 		gfd = open(rtc0, O_RDWR);
-		if (gfd == -1) {
+		if (gfd < 0) {
 			ALARM_MGR_EXCEPTION_PRINT("Opening the /dev/alarm is failed.");
 			perror("\t");
+			return 1;
 		}
 	}
 
@@ -328,9 +329,10 @@ int __set_time(time_t _time)
 	}
 
 	char *timebuf = ctime(&_time);
-	if (timebuf)
+	if (timebuf) {
 		timebuf[strlen(timebuf) - 1] = '\0';    // to avoid new line
-	snprintf(log_message, sizeof(log_message), "RTC & OS =%d, %s", (int)_time, timebuf);
+		snprintf(log_message, sizeof(log_message), "RTC & OS =%d, %s", (int)_time, timebuf);
+	}
 
 	__save_module_log(log_tag, log_message);
 #endif
@@ -381,7 +383,7 @@ static bool __alarm_add_to_list(__alarm_info_t *__alarm_info)
 	ALARM_MGR_LOG_PRINT("[alarm-server]: Before add alarm_id(%d)", __alarm_info->alarm_id);
 
 	alarm_context.alarms = g_slist_append(alarm_context.alarms, __alarm_info);
-	ALARM_MGR_EXCEPTION_PRINT("[alarm-server]: After add alarm_id(%d)", __alarm_info->alarm_id);
+	ALARM_MGR_LOG_PRINT("[alarm-server]: After add alarm_id(%d)", __alarm_info->alarm_id);
 
 	// alarm list
 	for (iter = alarm_context.alarms; iter != NULL; iter = g_slist_next(iter)) {
@@ -455,7 +457,7 @@ static bool __alarm_remove_from_list(uid_t uid, alarm_id_t alarm_id,
 		if (entry->uid == uid && entry->alarm_id == alarm_id) {
 			alarm_info = &entry->alarm_info;
 
-			ALARM_MGR_EXCEPTION_PRINT("[alarm-server]:Remove alarm id(%d)", entry->alarm_id);
+			ALARM_MGR_LOG_PRINT("[alarm-server]:Remove alarm id(%d)", entry->alarm_id);
 
 			if (!(alarm_info->alarm_type & ALARM_TYPE_VOLATILE)) {
 				_delete_alarms(alarm_id);
@@ -763,7 +765,7 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 		g_quark_to_string(__alarm_info->quark_caller_pkgid), g_quark_to_string(__alarm_info->quark_callee_pkgid));
 
 	bundle_encode(b, &b_data, &datalen);
-	__alarm_info->quark_bundle=g_quark_from_string(b_data);
+	__alarm_info->quark_bundle=g_quark_from_string((const gchar *)b_data);
 	__alarm_info->quark_app_service_name = g_quark_from_string("null");
 	__alarm_info->quark_dst_service_name = g_quark_from_string("null");
 	__alarm_info->quark_app_service_name_mod = g_quark_from_string("null");
@@ -814,7 +816,7 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 				    due_time_r);
 	}
 
-	ALARM_MGR_EXCEPTION_PRINT("[alarm-server]:alarm_context.c_due_time(%d), due_time(%d)", alarm_context.c_due_time, due_time);
+	ALARM_MGR_LOG_PRINT("[alarm-server]:alarm_context.c_due_time(%d), due_time(%d)", alarm_context.c_due_time, due_time);
 
 	if (alarm_context.c_due_time == -1 || due_time < alarm_context.c_due_time) {
 		_clear_scheduled_alarm_list();
@@ -932,7 +934,7 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id, uid_t
 		SECURE_LOGD("[alarm-server]:Create a new alarm: alarm(%d) due_time(%s)", *alarm_id, due_time_r);
 	}
 
-	ALARM_MGR_EXCEPTION_PRINT("[alarm-server]:alarm_context.c_due_time(%d), due_time(%d)", alarm_context.c_due_time, due_time);
+	ALARM_MGR_LOG_PRINT("[alarm-server]:alarm_context.c_due_time(%d), due_time(%d)", alarm_context.c_due_time, due_time);
 
 	if (alarm_context.c_due_time == -1 || due_time < alarm_context.c_due_time) {
 		_clear_scheduled_alarm_list();
@@ -1034,7 +1036,7 @@ static bool __alarm_update(uid_t uid, int pid, char *app_service_name, alarm_id_
 				    "due_time(%s)\n", alarm_id, due_time_r);
 	}
 
-	ALARM_MGR_EXCEPTION_PRINT("[alarm-server]:alarm_context.c_due_time(%d), due_time(%d)", alarm_context.c_due_time, due_time);
+	ALARM_MGR_LOG_PRINT("[alarm-server]:alarm_context.c_due_time(%d), due_time(%d)", alarm_context.c_due_time, due_time);
 
 	if (alarm_context.c_due_time == -1 || due_time < alarm_context.c_due_time) {
 		_clear_scheduled_alarm_list();
@@ -1354,7 +1356,7 @@ static void __alarm_expired()
 							ALARM_MGR_EXCEPTION_PRINT("Unable to run app svc\n");
 						}
 						else {
-							ALARM_MGR_LOG_PRINT("Successfuly ran app svc\n");
+							ALARM_MGR_LOG_PRINT("Successfuly run app svc\n");
 						}
 					} else { /* since 2.4 */
 						appid = (char *)appsvc_get_appid(b);
@@ -1419,10 +1421,12 @@ static void __alarm_expired()
 				g_variant_get (result, "(b)", &name_has_owner_reply);
 			}
 
-			if (strncmp(g_quark_to_string(__alarm_info->quark_dst_service_name), "null",4) == 0) {
-				strncpy(appid,g_quark_to_string(__alarm_info->quark_app_service_name)+6,strlen(g_quark_to_string(__alarm_info->quark_app_service_name))-6);
+			if (g_quark_to_string(__alarm_info->quark_dst_service_name) != NULL && strncmp(g_quark_to_string(__alarm_info->quark_dst_service_name), "null",4) == 0) {
+				if (g_quark_to_string(__alarm_info->quark_app_service_name) != NULL && strlen(g_quark_to_string(__alarm_info->quark_app_service_name)) > 6)
+					strncpy(appid, g_quark_to_string(__alarm_info->quark_app_service_name) + 6, strlen(g_quark_to_string(__alarm_info->quark_app_service_name)) - 6);
 			} else {
-				strncpy(appid,g_quark_to_string(__alarm_info->quark_dst_service_name)+6,strlen(g_quark_to_string(__alarm_info->quark_dst_service_name))-6);
+				if (g_quark_to_string(__alarm_info->quark_dst_service_name)  != NULL && strlen(g_quark_to_string(__alarm_info->quark_dst_service_name)) > 6)
+					strncpy(appid,	g_quark_to_string(__alarm_info->quark_dst_service_name) + 6, strlen(g_quark_to_string(__alarm_info->quark_dst_service_name)) - 6);
 			}
 
 			ret = pkgmgrinfo_appinfo_get_usr_appinfo(appid, __alarm_info->uid, &appinfo_handle);
@@ -1471,7 +1475,7 @@ static void __alarm_expired()
 			}
 		}
 
-		ALARM_MGR_EXCEPTION_PRINT("alarm_id[%d] is expired.", alarm_id);
+		ALARM_MGR_LOG_PRINT("alarm_id[%d] is expired.", alarm_id);
 
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 		snprintf(log_message, sizeof(log_message), "alarmID: %d, pid: %d, duetime: %d", alarm_id, app_pid, (int)__alarm_info->due_time);
@@ -1506,7 +1510,7 @@ static gboolean __alarm_handler_idle(gpointer user_data)
 		return false;
 	}
 
-	ALARM_MGR_EXCEPTION_PRINT("Lock the display not to enter LCD OFF");
+	ALARM_MGR_LOG_PRINT("Lock the display not to enter LCD OFF");
 	if (__display_lock_state(DEVICED_LCD_OFF, DEVICED_STAY_CUR_STATE, 0) != ALARMMGR_RESULT_SUCCESS) {
 		ALARM_MGR_EXCEPTION_PRINT("__display_lock_state() is failed");
 	}
@@ -1523,7 +1527,7 @@ static gboolean __alarm_handler_idle(gpointer user_data)
 
 	__rtc_set();
 
-	ALARM_MGR_EXCEPTION_PRINT("Unlock the display from LCD OFF");
+	ALARM_MGR_LOG_PRINT("Unlock the display from LCD OFF");
 	if (__display_unlock_state(DEVICED_LCD_OFF, DEVICED_SLEEP_MARGIN) != ALARMMGR_RESULT_SUCCESS) {
 		ALARM_MGR_EXCEPTION_PRINT("__display_unlock_state() is failed");
 	}
@@ -1568,7 +1572,7 @@ static void __on_system_time_external_changed(keynode_t *node, void *data)
 	tzset();
 	time(&cur_time);
 
-	ALARM_MGR_EXCEPTION_PRINT("diff_time is %f, New time is %s\n", diff_time, ctime(&cur_time));
+	ALARM_MGR_LOG_PRINT("diff_time is %f, New time is %s\n", diff_time, ctime(&cur_time));
 
 	ALARM_MGR_LOG_PRINT("[alarm-server] System time has been changed externally\n");
 	ALARM_MGR_LOG_PRINT("1.alarm_context.c_due_time is %d\n",
@@ -1788,7 +1792,7 @@ int __display_lock_state(char *state, char *flag, unsigned int timeout)
 				ALARM_MGR_EXCEPTION_PRINT("Failed to lock display");
 				ret = ERR_ALARM_SYSTEM_FAIL;
 			} else {
-				ALARM_MGR_EXCEPTION_PRINT("Lock LCD OFF is successfully done");
+				ALARM_MGR_LOG_PRINT("Lock LCD OFF is successfully done");
 			}
 		}
 	}
@@ -1831,7 +1835,7 @@ int __display_unlock_state(char *state, char *flag)
 				ALARM_MGR_EXCEPTION_PRINT("Failed to unlock display");
 				ret = ERR_ALARM_SYSTEM_FAIL;
 			} else {
-				ALARM_MGR_EXCEPTION_PRINT("Unlock LCD OFF is successfully done");
+				ALARM_MGR_LOG_PRINT("Unlock LCD OFF is successfully done");
 			}
 		}
 	}
@@ -1918,10 +1922,11 @@ void __reschedule_alarms_with_newtime(int cur_time, int new_time, double diff_ti
 	__rtc_set();
 
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-	char *timebuf = ctime(&new_time);
-	if (timebuf)
+	char *timebuf = ctime((const time_t *)&new_time);
+	if (timebuf) {
 		timebuf[strlen(timebuf) - 1] = '\0';	// to avoid newline
-	snprintf(log_message, sizeof(log_message), "Current: %d, New: %d, %s, diff: %f", cur_time, new_time, timebuf, diff_time);
+		snprintf(log_message, sizeof(log_message), "Current: %d, New: %d, %s, diff: %f", cur_time, new_time, timebuf, diff_time);
+	}
 	__save_module_log("CHANGE TIME", log_message);
 #endif
 
@@ -1963,9 +1968,9 @@ gboolean alarm_manager_alarm_set_rtc_time(AlarmManager *pObj, GDBusMethodInvocat
 	/*convert to calendar time representation*/
 	time_t rtc_time = mktime(alarm_tm);
 
-	if (gfd == 0) {
+	if (gfd < 0) {
 		gfd = open(rtc, O_RDWR);
-		if (gfd == -1) {
+		if (gfd < 0) {
 			ALARM_MGR_EXCEPTION_PRINT("RTC open failed.");
 			return_code = ERR_ALARM_SYSTEM_FAIL;
 			g_dbus_method_invocation_return_value(invoc, g_variant_new("(i)", return_code));
@@ -2030,8 +2035,8 @@ gboolean alarm_manager_alarm_set_time(AlarmManager *pObj, GDBusMethodInvocation 
 	}
 
 	__set_time(time_sec);	// Change both OS time and RTC
-	ALARM_MGR_EXCEPTION_PRINT("[TIMESTAMP]Current time(%d), New time(%d)(%s), diff_time(%f)",
-									cur_time.tv_sec, time_sec, ctime(&time_sec), diff_time);
+	ALARM_MGR_LOG_PRINT("[TIMESTAMP]Current time(%d), New time(%d)(%s), diff_time(%f)",
+									cur_time.tv_sec, time_sec, ctime((const time_t *)&time_sec), diff_time);
 
 	__reschedule_alarms_with_newtime(cur_time.tv_sec, time_sec, diff_time);
 	g_dbus_method_invocation_return_value(invoc, g_variant_new("(i)", return_code));
@@ -2083,7 +2088,7 @@ gboolean alarm_manager_alarm_set_time_with_propagation_delay(AlarmManager *pObj,
 	__set_time(real_newtime);	// Change both OS time and RTC
 
 	diff_time = difftime(real_newtime, cur_time.tv_sec);
-	ALARM_MGR_EXCEPTION_PRINT("[TIMESTAMP]Current time(%d.%09d), New time(%d.%09d), Real Newtime(%d), diff_time(%f)",
+	ALARM_MGR_LOG_PRINT("[TIMESTAMP]Current time(%d.%09d), New time(%d.%09d), Real Newtime(%d), diff_time(%f)",
 		cur_time.tv_sec, cur_time.tv_nsec, new_sec, new_nsec, real_newtime, diff_time);
 	ALARM_MGR_LOG_PRINT("Requested(%d.%09d) Delay(%d.%09d) Sleep(%09d)", req_sec, req_nsec, delay.tv_sec, delay.tv_nsec, sleep_time.tv_nsec);
 	__reschedule_alarms_with_newtime(cur_time.tv_sec, real_newtime, diff_time);
@@ -2101,7 +2106,7 @@ gboolean alarm_manager_alarm_set_timezone(AlarmManager *pObject, GDBusMethodInvo
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
 #endif
 
-	ALARM_MGR_EXCEPTION_PRINT("[TIMESTAMP]Set the timezone to %s.", tzpath_str);
+	ALARM_MGR_LOG_PRINT("[TIMESTAMP]Set the timezone to %s.", tzpath_str);
 
 	if (stat(tzpath_str, &statbuf) == -1 && errno == ENOENT) {
 		ALARM_MGR_EXCEPTION_PRINT("Invalid tzpath, %s", tzpath_str);
@@ -2415,7 +2420,7 @@ gboolean alarm_manager_alarm_delete(AlarmManager *obj, GDBusMethodInvocation *in
 #endif
 		ret = false;
 	} else {
-		ALARM_MGR_EXCEPTION_PRINT("alarm_id[%d] is removed.", alarm_id);
+		ALARM_MGR_LOG_PRINT("alarm_id[%d] is removed.", alarm_id);
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 		strncpy(log_tag, "DELETE", strlen("DELETE"));
 #endif
@@ -2491,7 +2496,7 @@ gboolean alarm_manager_alarm_delete_all(AlarmManager *obj, GDBusMethodInvocation
 
 		if (is_found)
 		{
-			ALARM_MGR_EXCEPTION_PRINT("alarm_id[%d] is removed.", entry->alarm_id);
+			ALARM_MGR_LOG_PRINT("alarm_id[%d] is removed.", entry->alarm_id);
 			SECURE_LOGD("Removing is done. app_name[%s], alarm_id [%d]\n", tmp_appname, entry->alarm_id);
 			alarm_context.alarms = g_slist_remove(alarm_context.alarms, entry);
 			g_free(entry);
@@ -3045,7 +3050,7 @@ void on_bus_name_owner_changed(GDBusConnection  *connection,
 
 static void on_bus_acquired(GDBusConnection *connection, const gchar *name, gpointer user_data)
 {
-	ALARM_MGR_EXCEPTION_PRINT("on_bus_acquired");
+	ALARM_MGR_LOG_PRINT("on_bus_acquired");
 
 	interface = alarm_manager_skeleton_new();
 	if (interface == NULL) {
@@ -3173,7 +3178,9 @@ static bool __initialize_db()
 
 static void __initialize()
 {
+#if !(GLIB_CHECK_VERSION(2, 36, 0))
 	g_type_init();
+#endif
 
 	__initialize_timer();
 	if (__initialize_dbus() == false) {	/* because dbus's initialize

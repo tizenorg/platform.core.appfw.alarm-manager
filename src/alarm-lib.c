@@ -20,12 +20,14 @@
  *
  */
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <string.h>
 #include <glib.h>
 #include <fcntl.h>
@@ -134,7 +136,7 @@ static void __handle_expired_signal(GDBusConnection *conn,
 		ALARM_MGR_EXCEPTION_PRINT("[alarm-lib] : unexpected signal");
 
 	g_variant_get(param, "(is)", &alarm_id, &package_name);
-	ALARM_MGR_EXCEPTION_PRINT("[alarm-lib] : Alarm expired for [%s] : Alarm id [%d]", package_name, alarm_id);
+	ALARM_MGR_LOG_PRINT("[alarm-lib] : Alarm expired for [%s] : Alarm id [%d]", package_name, alarm_id);
 
 	if (alarm_context.alarm_handler != NULL) {
 		alarm_context.alarm_handler(alarm_id, alarm_context.user_param);
@@ -315,10 +317,12 @@ static int __sub_init()
 		return ALARMMGR_RESULT_SUCCESS;
 	}
 
-#if !GLIB_CHECK_VERSION(2,32,0)
+#if !(GLIB_CHECK_VERSION(2, 32, 0))
 	g_thread_init(NULL);
 #endif
+#if !(GLIB_CHECK_VERSION(2, 36, 0))
 	g_type_init();
+#endif
 
 	alarm_context.connection = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
 	if (alarm_context.connection == NULL) {
@@ -798,7 +802,7 @@ EXPORT_API int alarmmgr_add_alarm_with_localtime(alarm_entry_t *alarm,
 	if (ret < 0)
 		return ret;
 
-	ALARM_MGR_EXCEPTION_PRINT("start(%d-%d-%d, %02d:%02d:%02d), end(%d-%d-%d), repeat(%d), interval(%d), type(%d)",
+	ALARM_MGR_LOG_PRINT("start(%d-%d-%d, %02d:%02d:%02d), end(%d-%d-%d), repeat(%d), interval(%d), type(%d)",
 		alarm_info->start.day, alarm_info->start.month, alarm_info->start.year,
 		alarm_info->start.hour, alarm_info->start.min, alarm_info->start.sec,
 		alarm_info->end.year, alarm_info->end.month, alarm_info->end.day,
@@ -971,7 +975,7 @@ EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 		alarm_info.mode.u_interval.interval = interval;
 	}
 
-	ALARM_MGR_EXCEPTION_PRINT("trigger_at_time(%d), start(%d-%d-%d, %02d:%02d:%02d), repeat(%d), interval(%d), type(%d)",
+	ALARM_MGR_LOG_PRINT("trigger_at_time(%d), start(%d-%d-%d, %02d:%02d:%02d), repeat(%d), interval(%d), type(%d)",
 		trigger_at_time, alarm_info.start.day, alarm_info.start.month, alarm_info.start.year,
 		alarm_info.start.hour, alarm_info.start.min, alarm_info.start.sec,
 		alarm_info.mode.repeat, alarm_info.mode.u_interval.interval, alarm_info.alarm_type);
@@ -1057,7 +1061,7 @@ EXPORT_API int alarmmgr_add_alarm(int alarm_type, time_t trigger_at_time,
 		alarm_info.mode.u_interval.interval = interval;
 	}
 
-	ALARM_MGR_EXCEPTION_PRINT("trigger_at_time(%d), start(%d-%d-%d, %02d:%02d:%02d), repeat(%d), interval(%d), type(%d)",
+	ALARM_MGR_LOG_PRINT("trigger_at_time(%d), start(%d-%d-%d, %02d:%02d:%02d), repeat(%d), interval(%d), type(%d)",
 		trigger_at_time, alarm_info.start.day, alarm_info.start.month, alarm_info.start.year,
 		alarm_info.start.hour, alarm_info.start.min, alarm_info.start.sec,
 		alarm_info.mode.repeat, alarm_info.mode.u_interval, alarm_info.alarm_type);
@@ -1110,7 +1114,7 @@ EXPORT_API int alarmmgr_add_alarm_withcb(int alarm_type, time_t trigger_at_time,
 	char appid[256] = {0,};
 
 	if (aul_app_get_appid_bypid(getpid(), appid, sizeof(appid)) != AUL_R_OK) {
-		ALARM_MGR_LOG_PRINT("aul_app_get_appid_bypid() is failed. PID %d may not be app.", getpid());
+		ALARM_MGR_EXCEPTION_PRINT("aul_app_get_appid_bypid() is failed. PID %d may not be app.", getpid());
 	}
 
 	ret = alarmmgr_init(appid);
@@ -1167,7 +1171,7 @@ EXPORT_API int alarmmgr_add_alarm_withcb(int alarm_type, time_t trigger_at_time,
 		alarm_info.mode.u_interval.interval = interval;
 	}
 
-	ALARM_MGR_EXCEPTION_PRINT("trigger_at_time(%d), start(%d-%d-%d, %02d:%02d:%02d), repeat(%d), interval(%d), type(%d)",
+	ALARM_MGR_LOG_PRINT("trigger_at_time(%d), start(%d-%d-%d, %02d:%02d:%02d), repeat(%d), interval(%d), type(%d)",
 		trigger_at_time, alarm_info.start.day, alarm_info.start.month, alarm_info.start.year,
 		alarm_info.start.hour, alarm_info.start.min, alarm_info.start.sec,
 		alarm_info.mode.repeat, alarm_info.mode.u_interval.interval, alarm_info.alarm_type);
@@ -1285,12 +1289,12 @@ EXPORT_API int alarmmgr_enum_alarm_ids(alarm_enum_fn_t fn, void *user_param)
 	}
 
 	if (error != NULL) {
-		ALARM_MGR_LOG_PRINT("Alarm server is not ready dbus. error message %s.", error->message);
+		ALARM_MGR_EXCEPTION_PRINT("Alarm server is not ready dbus. error message %s.", error->message);
 		return ERR_ALARM_SYSTEM_FAIL;
 	}
 
 	if (alarm_array == NULL) {
-		ALARM_MGR_LOG_PRINT("alarm server is not initilized.");
+		ALARM_MGR_EXCEPTION_PRINT("alarm server is not initilized.");
 		return ERR_ALARM_SYSTEM_FAIL;
 	}
 
@@ -1471,7 +1475,7 @@ EXPORT_API int alarmmgr_add_periodic_alarm_withcb(int interval, periodic_method_
 	char appid[256] = {0,};
 
 	if (aul_app_get_appid_bypid(getpid(), appid, sizeof(appid)) != AUL_R_OK) {
-		ALARM_MGR_LOG_PRINT("aul_app_get_appid_bypid() is failed. PID %d may not be app.",
+		ALARM_MGR_EXCEPTION_PRINT("aul_app_get_appid_bypid() is failed. PID %d may not be app.",
 			getpid());
 	}
 
@@ -1501,7 +1505,7 @@ EXPORT_API int alarmmgr_add_reference_periodic_alarm_withcb(int interval,
 	char appid[256] = {0,};
 
 	if (aul_app_get_appid_bypid(getpid(), appid, sizeof(appid)) != AUL_R_OK) {
-		ALARM_MGR_LOG_PRINT("aul_app_get_appid_bypid() is failed. PID %d may not be app.",
+		ALARM_MGR_EXCEPTION_PRINT("aul_app_get_appid_bypid() is failed. PID %d may not be app.",
 			getpid());
 	}
 
