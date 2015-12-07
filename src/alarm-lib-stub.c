@@ -555,6 +555,36 @@ bool _send_alarm_get_all_info(alarm_context_t context, char ** db_path, int *err
 	return true;
 }
 
+bool _send_alarm_set_time(alarm_context_t context, int new_time, int *error_code)
+{
+	GError *error = NULL;
+	int return_code = 0;
+
+	if (!alarm_manager_call_alarm_set_time_sync((AlarmManager *)context.proxy, new_time, &return_code, NULL, &error)) {
+		/*g_dbus_proxy_call_sync error */
+		/*error_code should be set */
+		ALARM_MGR_EXCEPTION_PRINT("alarm_manager_call_alarm_set_time_sync() failed by dbus. return_code[%d]", return_code);
+		if (error) {
+			ALARM_MGR_EXCEPTION_PRINT("dbus error message: %s", error->message);
+			g_error_free(error);
+		}
+		if (error_code) {
+			*error_code = ERR_ALARM_SYSTEM_FAIL;
+		}
+		return false;
+	}
+
+	if (return_code != ALARMMGR_RESULT_SUCCESS) {
+		if (error_code) {
+			*error_code = return_code;
+		}
+		return false;
+	}
+
+	return true;
+}
+
+
 bool _send_alarm_set_time_with_propagation_delay(alarm_context_t context, unsigned int new_sec, unsigned int new_nsec, unsigned int req_sec, unsigned int req_nsec, int *error_code)
 {
 	GError *error = NULL;

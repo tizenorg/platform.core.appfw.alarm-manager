@@ -109,6 +109,7 @@ chown system:system /var/log/alarmmgr.log
 %attr(0755,root,root) %{_bindir}/alarm-server
 %attr(0644,root,root) %{_unitdir}/alarm-server.service
 %{_unitdir}/multi-user.target.wants/alarm-server.service
+%attr(0644,root,root) %{_datadir}/dbus-1/system-services/org.tizen.alarm.manager.service
 %license LICENSE
 %config %{_sysconfdir}/dbus-1/system.d/alarm-service.conf
 %if 0%{?appfw_feature_alarm_manager_module_log}

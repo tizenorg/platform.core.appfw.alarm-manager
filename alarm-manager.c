@@ -1120,7 +1120,7 @@ static bool __can_skip_expired_cb(alarm_id_t alarm_id)
 			int dur = entry->requested_interval;
 			int from, to;
 
-			if (!(alarm->alarm_type & ALARM_TYPE_PERIOD) || entry->method == CUT_OFF)
+			if (dur == 0 || !(alarm->alarm_type & ALARM_TYPE_PERIOD) || entry->method == CUT_OFF)
 				return false;
 
 			ts_tm.tm_hour = alarm->start.hour;
@@ -1572,6 +1572,8 @@ static gboolean __alarm_handler_idle(gpointer user_data)
 {
 	GPollFD *gpollfd = (GPollFD *) user_data;
 	uint64_t exp;
+	time_t current_time;
+
 	if (gpollfd == NULL) {
 		ALARM_MGR_EXCEPTION_PRINT("gpollfd is NULL");
 		return false;
@@ -1596,6 +1598,17 @@ static gboolean __alarm_handler_idle(gpointer user_data)
 	}
 
 	_alarm_schedule();
+
+	/*
+	 * Previous alarm can be expired late as tolerance of RTC.
+	 * In this case, Expire alarms forcibly if real duetime is same to current time.
+	 */
+	time(&current_time);
+	if (alarm_context.c_due_time == current_time) {
+		ALARM_MGR_LOG_PRINT("Expire alarms forcibly when duetime is same to current time(%d).", current_time)
+		__alarm_expired();
+		_alarm_schedule();
+	}
 
 	__rtc_set();
 
@@ -1871,7 +1884,8 @@ int __display_lock_state(char *state, char *flag, unsigned int timeout)
 
 	g_dbus_connection_flush_sync(alarm_context.connection, NULL, NULL);
 	g_object_unref(msg);
-	g_object_unref(reply);
+	if (reply)
+		g_object_unref(reply);
 
 	return ret;
 }
@@ -1914,7 +1928,8 @@ int __display_unlock_state(char *state, char *flag)
 
 	g_dbus_connection_flush_sync(alarm_context.connection, NULL, NULL);
 	g_object_unref(msg);
-	g_object_unref(reply);
+	if (reply)
+		g_object_unref(reply);
 
 	return ret;
 }
@@ -3133,6 +3148,10 @@ static void __initialize_timer()
 	src = g_source_new(&funcs, sizeof(GSource));
 
 	gpollfd = (GPollFD *) g_malloc(sizeof(GPollFD));
+	if (gpollfd == NULL) {
+		ALARM_MGR_EXCEPTION_PRINT("Out of memory\n");
+		exit(1);
+	}
 	gpollfd->events = POLLIN;
 	gpollfd->fd = fd;
 

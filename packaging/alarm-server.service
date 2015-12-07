@@ -3,6 +3,8 @@ Description=Alarm server
 After=system-server.service
 
 [Service]
+BusName=org.tizen.alarm.manager
+Type=dbus
 ExecStart=/usr/bin/alarm-server
 TimeoutStopSec=3s
 Restart=always

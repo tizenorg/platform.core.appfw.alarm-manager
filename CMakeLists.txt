@@ -54,3 +54,6 @@ IF(_APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG)
 	INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/alarmmgr_log_dump.sh DESTINATION ${SYSCONF_INSTALL_DIR}/dump.d/module.d/)
 ENDIF(_APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG)
 INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/alarm-service.conf DESTINATION ${SYSCONF_INSTALL_DIR}/dbus-1/system.d/)
+
+CONFIGURE_FILE(org.tizen.alarm.manager.service.in org.tizen.alarm.manager.service @ONLY)
+INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/org.tizen.alarm.manager.service DESTINATION ${SHARE_INSTALL_PREFIX}/dbus-1/system-services/)

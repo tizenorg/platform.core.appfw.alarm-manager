@@ -1189,7 +1189,6 @@ EXPORT_API int alarmmgr_remove_alarm(alarm_id_t alarm_id)
 	int error_code;
 	int ret;
 	alarm_cb_info_t *info;
-	alarm_info_t alarm;
 
 	ret = __sub_init();
 	if (ret < 0)
@@ -1530,16 +1529,14 @@ EXPORT_API int alarmmgr_add_reference_periodic_alarm_withcb(int interval,
 EXPORT_API int alarmmgr_set_systime(int new_time)
 {
 	int error_code;
-	struct timespec req_time = {0,};
 	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarmmgr_set_systime(%d) is called.", new_time);
 
 	if (__sub_init() < 0) {
 		return ERR_ALARM_SYSTEM_FAIL;
 	}
 
-	clock_gettime(CLOCK_REALTIME, &req_time);
-	if (!_send_alarm_set_time_with_propagation_delay(alarm_context, new_time, 0, req_time.tv_sec, req_time.tv_nsec, &error_code)) {
-		ALARM_MGR_EXCEPTION_PRINT("Failed to set time with propagation delay. error: %d", error_code);
+	if (!_send_alarm_set_time(alarm_context, new_time, &error_code)) {
+		ALARM_MGR_EXCEPTION_PRINT("Failed to set time. error: %d", error_code);
 		return error_code;
 	}
 
