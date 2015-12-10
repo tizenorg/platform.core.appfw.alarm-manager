@@ -44,6 +44,7 @@
 #include <pkgmgr-info.h>
 #include <device/display.h>
 #include <systemd/sd-login.h>
+#include <eventsystem.h>
 
 #include <glib.h>
 #if !GLIB_CHECK_VERSION (2, 31, 0)
@@ -1666,6 +1667,11 @@ static void __on_system_time_external_changed(keynode_t *node, void *data)
 	__set_time(cur_time);
 
 	vconf_set_int(VCONFKEY_SYSTEM_TIME_CHANGED,(int)diff_time);
+	bundle *b = NULL;
+	b = bundle_create();
+	bundle_add_str(b, EVT_KEY_TIME_CHANGED, EVT_VAL_TIME_CHANGED_TRUE);
+	eventsystem_send_system_event(SYS_EVENT_TIME_CHANGED, b);
+	bundle_free(b);
 
 	__alarm_update_due_time_of_all_items_in_list(diff_time);
 
@@ -2000,6 +2006,11 @@ void __reschedule_alarms_with_newtime(int cur_time, int new_time, double diff_ti
 #endif
 
 	vconf_set_int(VCONFKEY_SYSTEM_TIME_CHANGED,(int)diff_time);
+	bundle *b = NULL;
+	b = bundle_create();
+	bundle_add_str(b, EVT_KEY_TIME_CHANGED, EVT_VAL_TIME_CHANGED_TRUE);
+	eventsystem_send_system_event(SYS_EVENT_TIME_CHANGED, b);
+	bundle_free(b);
 
 	__alarm_update_due_time_of_all_items_in_list(diff_time);	// Rescheduling alarms with ALARM_TYPE_RELATIVE
 	ALARM_MGR_LOG_PRINT("Next duetime is %d", alarm_context.c_due_time);
@@ -2230,6 +2241,17 @@ gboolean alarm_manager_alarm_set_timezone(AlarmManager *pObject, GDBusMethodInvo
 	__rtc_set();
 
 	vconf_set_int(VCONFKEY_SYSTEM_TIME_CHANGED, 0);
+	bundle *b = NULL;
+	b = bundle_create();
+	bundle_add_str(b, EVT_KEY_TIME_CHANGED, EVT_VAL_TIME_CHANGED_TRUE);
+	eventsystem_send_system_event(SYS_EVENT_TIME_CHANGED, b);
+	bundle_free(b);
+
+	b = NULL;
+	b = bundle_create();
+	bundle_add_str(b, EVT_KEY_TIME_ZONE, tzpath_str);
+	eventsystem_send_system_event(SYS_EVENT_TIME_ZONE, b);
+	bundle_free(b);
 
 done:
 	g_dbus_method_invocation_return_value(invoc, g_variant_new("(i)", return_code));

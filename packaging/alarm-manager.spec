@@ -24,6 +24,7 @@ BuildRequires: pkgconfig(gio-unix-2.0)
 BuildRequires: pkgconfig(capi-system-device)
 BuildRequires: pkgconfig(libtzplatform-config)
 BuildRequires: pkgconfig(libsystemd-login)
+BuildRequires: pkgconfig(eventsystem)
 BuildRequires: python-xml
 
 %description
