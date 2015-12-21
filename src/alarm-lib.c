@@ -963,15 +963,14 @@ EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 	alarm_info.start.min = duetime_tm.tm_min;
 	alarm_info.start.sec = duetime_tm.tm_sec;
 
-	if ((alarm_info.alarm_type & ALARM_TYPE_INEXACT) && interval < MIN_INEXACT_INTERVAL) {
-		interval = MIN_INEXACT_INTERVAL;
-	}
-
 	if (interval <= 0) {
 		alarm_info.mode.repeat = ALARM_REPEAT_MODE_ONCE;
 		alarm_info.mode.u_interval.interval = 0;
 	} else {
 		alarm_info.mode.repeat = ALARM_REPEAT_MODE_REPEAT;
+		if ((alarm_info.alarm_type & ALARM_TYPE_INEXACT) && interval < MIN_INEXACT_INTERVAL) {
+			interval = MIN_INEXACT_INTERVAL;
+		}
 		alarm_info.mode.u_interval.interval = interval;
 	}
 
