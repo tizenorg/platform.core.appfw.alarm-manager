@@ -681,7 +681,7 @@ bool _send_alarm_get_global(alarm_context_t context, const alarm_id_t alarm_id, 
 	int return_code = 0;
 	bool _global;
 
-	if (!alarm_manager_call_alarm_get_global_sync((AlarmManager *)context.proxy, alarm_id, &_global, &return_code, NULL, &error)) {
+	if (!alarm_manager_call_alarm_get_global_sync((AlarmManager *)context.proxy, alarm_id, (gboolean *)&_global, &return_code, NULL, &error)) {
 		/*g_dbus_proxy_call_sync error */
 		/*error_code should be set */
 		ALARM_MGR_EXCEPTION_PRINT("alarm_manager_call_alarm_get_global_sync() failed by dbus. return_code[%d][%s]", return_code, error->message);
