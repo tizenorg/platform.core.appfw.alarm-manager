@@ -32,7 +32,7 @@
 #include"alarm.h"
 #include"alarm-internal.h"
 #define WAKEUP_ALARM_APP_ID "org.tizen.alarm.ALARM"	/*alarm ui
-							   application's alarm's dbus_service name instead of 21 value */
+							  application's alarm's dbus_service name instead of 21 value */
 #define DST_TIME_DIFF 1
 
 extern __alarm_server_context_t alarm_context;
@@ -64,14 +64,14 @@ bool _init_scheduled_alarm_list()
 
 bool _add_to_scheduled_alarm_list(__alarm_info_t *__alarm_info)
 {
-/*
- *	20080328. Sewook Park(sewook7.park@samsung.com)
- *	When multiple alarms are expired at same time, dbus rpc call for alarm
- *	ui should be invoked first.(Ui conflicting manager cannot manage the
- *	different kinds of alarm popups(wake up alarm/org alarm) correctly,
- *	when they are displayed at same time)So when arranging the schedule
- *	alarm list, wake up alarm element is located ahead.
- */
+	/*
+	 * 20080328. Sewook Park(sewook7.park@samsung.com)
+	 * When multiple alarms are expired at same time, dbus rpc call for alarm
+	 * ui should be invoked first.(Ui conflicting manager cannot manage the
+	 * different kinds of alarm popups(wake up alarm/org alarm) correctly,
+	 * when they are displayed at same time)So when arranging the schedule
+	 * alarm list, wake up alarm element is located ahead.
+	 */
 
 	bool prior = false;
 	gint count = 0;
@@ -80,9 +80,8 @@ bool _add_to_scheduled_alarm_list(__alarm_info_t *__alarm_info)
 	__scheduled_alarm_t *entry = NULL;
 
 	alarm = g_malloc(sizeof(__scheduled_alarm_t));
-	if (alarm == NULL) {
+	if (alarm == NULL)
 		return false;
-	}
 
 	alarm->used = true;
 	alarm->alarm_id = __alarm_info->alarm_id;
@@ -97,8 +96,7 @@ bool _add_to_scheduled_alarm_list(__alarm_info_t *__alarm_info)
 
 	if (alarm->__alarm_info->quark_app_service_name != g_quark_from_string(WAKEUP_ALARM_APP_ID)) {
 		g_scheduled_alarm_list = g_slist_append(g_scheduled_alarm_list, alarm);
-	}
-	else {
+	} else {
 		for (iter = g_scheduled_alarm_list; iter != NULL; iter = g_slist_next(iter)) {
 			count++;
 			entry = iter->data;
@@ -111,8 +109,7 @@ bool _add_to_scheduled_alarm_list(__alarm_info_t *__alarm_info)
 		if (!prior) {
 			g_scheduled_alarm_list = g_slist_append(g_scheduled_alarm_list, alarm);
 			ALARM_MGR_LOG_PRINT("appended : prior is %d\tcount is %d\n", prior, count);
-		}
-		else {
+		} else {
 			g_scheduled_alarm_list = g_slist_insert(g_scheduled_alarm_list, alarm, count - 1);
 			ALARM_MGR_LOG_PRINT("appended : prior is %d\tcount is %d\n", prior, count);
 		}
@@ -137,9 +134,8 @@ bool _remove_from_scheduled_alarm_list(uid_t uid, alarm_id_t alarm_id)
 		}
 	}
 
-	if (g_slist_length(g_scheduled_alarm_list) == 0) {
+	if (g_slist_length(g_scheduled_alarm_list) == 0)
 		alarm_context.c_due_time = -1;
-	}
 
 	return result;
 }
@@ -166,12 +162,11 @@ static time_t __alarm_next_duetime_once(__alarm_info_t *__alarm_info)
 	current_dst = duetime_tm.tm_isdst;
 	duetime_tm.tm_isdst = -1;
 
-	if (start->year == 0 && start->month == 0 && start->day == 0)
-		/*any date */  {
+	if (start->year == 0 && start->month == 0 && start->day == 0) {
+		/*any date */
 		due_time = mktime(&duetime_tm);
-		if (!(due_time > current_time)) {
+		if (!(due_time > current_time))
 			due_time = due_time + 60 * 60 * 24;
-		}
 	} else	/*specific date*/ {
 		duetime_tm.tm_year = start->year - 1900;
 		duetime_tm.tm_mon = start->month - 1;
@@ -181,30 +176,29 @@ static time_t __alarm_next_duetime_once(__alarm_info_t *__alarm_info)
 
 	if (due_time <= current_time) {
 		ALARM_MGR_EXCEPTION_PRINT("duetime is less than or equal to current time. current_dst = %d", current_dst);
-		duetime_tm.tm_isdst = 0;	// DST off
+		duetime_tm.tm_isdst = 0; /* DST off */
 
 		due_time_tmp = mktime(&duetime_tm);
 		localtime_r(&due_time_tmp, &tmp_tm);
 
 		ALARM_MGR_LOG_PRINT("%d:%d:%d. duetime = %d", tmp_tm.tm_hour, tmp_tm.tm_min, tmp_tm.tm_sec, due_time);
-		if (tmp_tm.tm_hour == start->hour && tmp_tm.tm_min == start->min && tmp_tm.tm_sec == start->sec ) {
+		if (tmp_tm.tm_hour == start->hour && tmp_tm.tm_min == start->min && tmp_tm.tm_sec == start->sec) {
 			due_time = due_time_tmp;
-			ALARM_MGR_EXCEPTION_PRINT("due_time = %d",due_time);
+			ALARM_MGR_EXCEPTION_PRINT("due_time = %d", due_time);
 		}
-	}
-	else {
+	} else {
 		localtime_r(&due_time, &tmp_tm);
 		ALARM_MGR_LOG_PRINT("%d:%d:%d. current_dst = %d, duetime_dst = %d", tmp_tm.tm_hour, tmp_tm.tm_min, tmp_tm.tm_sec, current_dst, tmp_tm.tm_isdst);
 
 		if (current_dst == 1 && tmp_tm.tm_isdst == 1 && tmp_tm.tm_hour == start->hour + 1) {
-			// When the calculated duetime is forwarded 1hour due to DST, Adds 23hours.
+			/* When the calculated duetime is forwarded 1hour due to DST, Adds 23hours. */
 			due_time += 60 * 60 * 23;
 			localtime_r(&due_time, &duetime_tm);
-			ALARM_MGR_EXCEPTION_PRINT("due_time = %d",due_time);
+			ALARM_MGR_EXCEPTION_PRINT("due_time = %d", due_time);
 		}
 	}
 
-	ALARM_MGR_EXCEPTION_PRINT("Final due_time = %d, %s",due_time, ctime(&due_time));
+	ALARM_MGR_EXCEPTION_PRINT("Final due_time = %d, %s", due_time, ctime(&due_time));
 	return due_time;
 }
 
@@ -241,9 +235,8 @@ static time_t __alarm_next_duetime_repeat(__alarm_info_t *__alarm_info)
 		due_time = mktime(&duetime_tm);
 	}
 
-	while (__alarm_info->start > due_time || current_time > due_time || ((!is_time_changed) && (current_time == due_time))) {
+	while (__alarm_info->start > due_time || current_time > due_time || ((!is_time_changed) && (current_time == due_time)))
 		due_time += alarm_info->mode.u_interval.interval;
-	}
 
 	if (due_time - current_time < 10)
 		due_time += alarm_info->mode.u_interval.interval;
@@ -276,9 +269,8 @@ static time_t __alarm_next_duetime_annually(__alarm_info_t *__alarm_info)
 	duetime_tm.tm_min = start->min;
 	duetime_tm.tm_sec = start->sec;
 
-	if (start->year != 0) {
+	if (start->year != 0)
 		duetime_tm.tm_year = start->year - 1900;
-	}
 
 	duetime_tm.tm_mon = start->month - 1;
 	duetime_tm.tm_mday = start->day;
@@ -291,7 +283,6 @@ static time_t __alarm_next_duetime_annually(__alarm_info_t *__alarm_info)
 	}
 
 	return due_time;
-
 }
 
 static time_t __alarm_next_duetime_monthly(__alarm_info_t *__alarm_info)
@@ -309,13 +300,11 @@ static time_t __alarm_next_duetime_monthly(__alarm_info_t *__alarm_info)
 	duetime_tm.tm_min = start->min;
 	duetime_tm.tm_sec = start->sec;
 
-	if (start->year != 0) {
+	if (start->year != 0)
 		duetime_tm.tm_year = start->year - 1900;
-	}
 
-	if (start->month != 0) {
+	if (start->month != 0)
 		duetime_tm.tm_mon = start->month - 1;
-	}
 
 	duetime_tm.tm_mday = start->day;
 
@@ -331,7 +320,6 @@ static time_t __alarm_next_duetime_monthly(__alarm_info_t *__alarm_info)
 	}
 
 	return due_time;
-
 }
 
 static time_t __alarm_next_duetime_weekly(__alarm_info_t *__alarm_info)
@@ -380,7 +368,7 @@ static time_t __alarm_next_duetime_weekly(__alarm_info_t *__alarm_info)
 		localtime_r(&due_time, &tmp_tm);
 
 		SECURE_LOGD("%d:%d:%d. duetime = %d", tmp_tm.tm_hour, tmp_tm.tm_min, tmp_tm.tm_sec, due_time);
-		if (tmp_tm.tm_hour != start->hour || tmp_tm.tm_min != start->min || tmp_tm.tm_sec != start->sec ) {
+		if (tmp_tm.tm_hour != start->hour || tmp_tm.tm_min != start->min || tmp_tm.tm_sec != start->sec) {
 			duetime_tm.tm_hour = start->hour;
 			duetime_tm.tm_min = start->min;
 			duetime_tm.tm_sec = start->sec;
@@ -388,17 +376,16 @@ static time_t __alarm_next_duetime_weekly(__alarm_info_t *__alarm_info)
 			due_time = mktime(&duetime_tm);
 			ALARM_MGR_LOG_PRINT("due_time = %d", due_time);
 		}
-	}
-	else {
+	} else {
 		if (current_dst == 1 && tmp_tm.tm_isdst == 1 && tmp_tm.tm_hour == start->hour + 1) {
-			// When the calculated duetime is forwarded 1hour due to DST, Adds 23hours.
+			/* When the calculated duetime is forwarded 1hour due to DST, Adds 23hours. */
 			due_time += 60 * 60 * 23;
 			localtime_r(&due_time, &duetime_tm);
 			ALARM_MGR_LOG_PRINT("due_time = %d", due_time);
 		}
 	}
 
-	// Gets the dst before calculating the duedate as interval
+	/* Gets the dst before calculating the duedate as interval */
 	localtime_r(&due_time, &before_tm);
 	SECURE_LOGD("before_dst = %d", before_tm.tm_isdst);
 
@@ -408,42 +395,38 @@ static time_t __alarm_next_duetime_weekly(__alarm_info_t *__alarm_info)
 
 	/* CQ defect(72810) : only one time alarm function is not working
 	   under all recurrence_disabled. */
-	if (due_time > current_time && mode->u_interval.day_of_week == 0) {
+	if (due_time > current_time && mode->u_interval.day_of_week == 0)
 		return due_time;
-	}
 
 	if (current_time > due_time || !(mode->u_interval.day_of_week & 1 << wday) || ((!is_time_changed) && (current_time == due_time))) {
 		int day = wday + 1;
 		int interval = 1;
 		/*this week */
 
-		if (day == 7) {
+		if (day == 7)
 			day = 0;
-		}
 
 		while (!(mode->u_interval.day_of_week & 1 << day) && interval < 8) {
 			day += 1;
 			interval += 1;
 
-			if (day == 7) {
+			if (day == 7)
 				day = 0;
-			}
 		}
 
 		ALARM_MGR_LOG_PRINT("interval : %d\n", interval);
 		due_time += 60 * 60 * 24 * interval;
 	}
 
-	// Gets the dst after calculating the duedate as interval
+	/* Gets the dst after calculating the duedate as interval */
 	localtime_r(&due_time, &after_tm);
 	SECURE_LOGD("after_dst = %d", after_tm.tm_isdst);
 
-	// Revise the duetime as difference in tm_isdst
-	if (before_tm.tm_isdst == 1 && after_tm.tm_isdst == 0) {
-		due_time += 60 * 60;	// Add an hour
-	} else if (before_tm.tm_isdst == 0 && after_tm.tm_isdst == 1) {
-		due_time -= 60 * 60;	// Subtract an hour
-	}
+	/* Revise the duetime as difference in tm_isdst */
+	if (before_tm.tm_isdst == 1 && after_tm.tm_isdst == 0)
+		due_time += 60 * 60;	/* Add an hour */
+	else if (before_tm.tm_isdst == 0 && after_tm.tm_isdst == 1)
+		due_time -= 60 * 60;	/* Subtract an hour */
 
 	ALARM_MGR_LOG_PRINT("Final due_time = %d", due_time);
 	return due_time;
@@ -451,7 +434,7 @@ static time_t __alarm_next_duetime_weekly(__alarm_info_t *__alarm_info)
 
 time_t _alarm_next_duetime(__alarm_info_t *__alarm_info)
 {
-	int is_dst=0;
+	int is_dst = 0;
 	time_t current_time = 0;
 	time_t due_time = 0;
 	struct tm *cur_tm = NULL ;
@@ -479,18 +462,18 @@ time_t _alarm_next_duetime(__alarm_info_t *__alarm_info)
 		due_time = __alarm_next_duetime_weekly(__alarm_info);
 	} else {
 		ALARM_MGR_EXCEPTION_PRINT("repeat mode(%d) is wrong\n",
-					  mode->repeat);
+				mode->repeat);
 		return 0;
 	}
 
 	if (mode->repeat != ALARM_REPEAT_MODE_WEEKLY && mode->repeat != ALARM_REPEAT_MODE_ONCE) {
 		due_tm = localtime(&due_time);
-		if (is_dst==0 && due_tm && due_tm->tm_isdst==1){
-				ALARM_MGR_LOG_PRINT("DST alarm found, enable\n");
-				due_tm->tm_hour = due_tm->tm_hour - DST_TIME_DIFF;
-		} else if (is_dst==1 && due_tm && due_tm->tm_isdst==0){
-				ALARM_MGR_LOG_PRINT("DST alarm found. disable\n");
-				due_tm->tm_hour = due_tm->tm_hour + DST_TIME_DIFF;
+		if (is_dst == 0 && due_tm && due_tm->tm_isdst == 1) {
+			ALARM_MGR_LOG_PRINT("DST alarm found, enable\n");
+			due_tm->tm_hour = due_tm->tm_hour - DST_TIME_DIFF;
+		} else if (is_dst == 1 && due_tm && due_tm->tm_isdst == 0) {
+			ALARM_MGR_LOG_PRINT("DST alarm found. disable\n");
+			due_tm->tm_hour = due_tm->tm_hour + DST_TIME_DIFF;
 		}
 		if (due_tm)
 			due_time = mktime(due_tm);
@@ -519,14 +502,14 @@ static bool __find_next_alarm_to_be_scheduled(time_t *min_due_time)
 	time(&current_time);
 
 	for (iter = alarm_context.alarms; iter != NULL;
-	     iter = g_slist_next(iter)) {
+			iter = g_slist_next(iter)) {
 		entry = iter->data;
 		due_time = entry->due_time;
 
 		double interval = 0;
 
 		SECURE_LOGD("alarm[%d] with duetime(%u) at current(%u) pid: (%d)\n",
-			entry->alarm_id, due_time, current_time, entry->pid);
+				entry->alarm_id, due_time, current_time, entry->pid);
 		if (due_time == 0)	/*0 means this alarm has been disabled*/ {
 			continue;
 		}
@@ -540,10 +523,8 @@ static bool __find_next_alarm_to_be_scheduled(time_t *min_due_time)
 
 		interval = difftime(due_time, min_time);
 
-		if ((interval < 0) || min_time == -1) {
+		if ((interval < 0) || min_time == -1)
 			min_time = due_time;
-		}
-
 	}
 
 	*min_due_time = min_time;
@@ -566,9 +547,8 @@ bool _alarm_schedule()
 			entry = iter->data;
 			due_time = entry->due_time;
 
-			if (due_time == min_time) {
+			if (due_time == min_time)
 				_add_to_scheduled_alarm_list(entry);
-			}
 		}
 		_alarm_set_timer(&alarm_context, alarm_context.timer, min_time);
 	}

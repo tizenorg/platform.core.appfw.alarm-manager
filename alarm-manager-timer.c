@@ -1,10 +1,5 @@
 /*
- *  alarm-manager
- *
- * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
- *
- * Contact: Venkatesha Sarpangala <sarpangala.v@samsung.com>, Jayoun Lee <airjany@samsung.com>,
- * Sewook Park <sewook7.park@samsung.com>, Jaeho Lee <jaeho81.lee@samsung.com>
+ * Copyright (c) 2000 - 2016 Samsung Electronics Co., Ltd. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +12,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 #include <stdio.h>
@@ -28,7 +22,6 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <sys/timerfd.h>
-
 #include <glib.h>
 
 #include "alarm.h"
@@ -85,8 +78,7 @@ bool _alarm_set_timer(__alarm_server_context_t *alarm_context, int timer, time_t
 		g_dummy_timer_is_set = true;
 		strftime(due_time_r, 30, "%c", &ts_ret);
 		ALARM_MGR_LOG_PRINT("create dummy alarm timer(%d), due_time(%s)", timer, due_time_r);
-	}
-	else {
+	} else {
 		g_dummy_timer_is_set = false;
 	}
 

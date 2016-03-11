@@ -1,7 +1,5 @@
 /*
- *  alarm-manager
- *
- * Copyright (c) 2014 Samsung Electronics Co., Ltd. All rights reserved.
+ * Copyright (c) 2014 - 2016 Samsung Electronics Co., Ltd. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,29 +28,23 @@ int main()
 	printf("=== Hi :) I will save info of all registered alarms in /tmp/alarmmgr_{datetime}.db\n");
 
 	int ret = alarmmgr_init("alarmmgr_tool");
-	if (ret != ALARMMGR_RESULT_SUCCESS)
-	{
+	if (ret != ALARMMGR_RESULT_SUCCESS) {
 		LOGE("alarmmgr_init() is failed. ret = %d", ret);
 		printf("=== Failed to get all alarms's info :(\n");
 	}
 
 	char *db_path = NULL;
 	ret = alarmmgr_get_all_info(&db_path);
-	if (ret != ALARMMGR_RESULT_SUCCESS)
-	{
+	if (ret != ALARMMGR_RESULT_SUCCESS) {
 		LOGE("alarmmgr_get_all_info() is failed. ret = %d", ret);
 		printf("=== Failed to get all alarms's info :(\n");
-	}
-	else
-	{
+	} else {
 		LOGE("Getting all alarm's info is done successfully.");
 		printf("=== Success :)\n    Please check %s\n", db_path);
 	}
 
 	if (db_path)
-	{
 		free(db_path);
-	}
 
 	return 0;
 }

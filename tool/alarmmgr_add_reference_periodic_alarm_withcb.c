@@ -37,11 +37,10 @@ int main(int argc, char** argv)
 	mainloop = g_main_loop_new(NULL, FALSE);
 	result = alarmmgr_init("org.tizen.alarmmgr.refperiodic");
 
-	if (result < 0) {
+	if (result < 0)
 		printf("fail to alarmmgr_init : error_code : %d\n", result);
-	} else {
+	else
 		create_test();
-	}
 
 	g_main_loop_run(mainloop);
 

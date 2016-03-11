@@ -231,9 +231,9 @@ time_t _get_periodic_alarm_standard_time(void);
 #define ALARM_MGR_ASSERT_PRINT(FMT, ARG...) do { printf("%5d", getpid()); printf
 	("%s() : "FMT"\n", __FUNCTION__, ##ARG); } while (false)
 #else
-#define ALARM_MGR_LOG_PRINT(FMT, ARG...) LOGD(FMT, ##ARG);
-#define ALARM_MGR_EXCEPTION_PRINT(FMT, ARG...) LOGW(FMT, ##ARG);
-#define ALARM_MGR_ASSERT_PRINT(FMT, ARG...) LOGE(FMT, ##ARG);
+#define ALARM_MGR_LOG_PRINT(FMT, ARG...) LOGD(FMT, ##ARG)
+#define ALARM_MGR_EXCEPTION_PRINT(FMT, ARG...) LOGW(FMT, ##ARG)
+#define ALARM_MGR_ASSERT_PRINT(FMT, ARG...) LOGE(FMT, ##ARG)
 #endif
 
 #endif /*_ALARM_INTERNAL_H*/

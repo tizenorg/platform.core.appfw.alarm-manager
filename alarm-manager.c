@@ -1,10 +1,5 @@
 /*
- *  alarm-manager
- *
- * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
- *
- * Contact: Venkatesha Sarpangala <sarpangala.v@samsung.com>, Jayoun Lee <airjany@samsung.com>,
- * Sewook Park <sewook7.park@samsung.com>, Jaeho Lee <jaeho81.lee@samsung.com>
+ * Copyright (c) 2000 - 2016 Samsung Electronics Co., Ltd. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +12,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 #define _GNU_SOURCE
@@ -47,7 +41,7 @@
 #include <eventsystem.h>
 
 #include <glib.h>
-#if !GLIB_CHECK_VERSION (2, 31, 0)
+#if !GLIB_CHECK_VERSION(2, 31, 0)
 #include <glib/gmacros.h>
 #endif
 
@@ -59,8 +53,8 @@
 
 #define SIG_TIMER 0x32
 #define WAKEUP_ALARM_APP_ID       "org.tizen.alarm.ALARM"
-	/* alarm ui application's alarm's dbus_service name instead of 21
-	   (alarm application's app_id) value */
+/* alarm ui application's alarm's dbus_service name instead of 21
+ * (alarm application's app_id) value */
 
 __alarm_server_context_t alarm_context;
 bool g_dummy_timer_is_set = FALSE;
@@ -72,10 +66,11 @@ GSList *g_expired_alarm_list = NULL;
 #define RTC_WKALM_BOOT_SET _IOW('p', 0x80, struct rtc_wkalrm)
 #endif
 
-/*	2008. 6. 3 sewook7.park
-       When the alarm becoms sleeping mode, alarm timer is not expired.
-       So using RTC, phone is awaken before alarm rings.
-*/
+/*
+ * 2008. 6. 3 sewook7.park
+ * When the alarm becoms sleeping mode, alarm timer is not expired.
+ * So using RTC, phone is awaken before alarm rings.
+ */
 #define __WAKEUP_USING_RTC__
 #ifdef __WAKEUP_USING_RTC__
 #include <errno.h>
@@ -95,7 +90,7 @@ static int log_index = 0;
 static int log_fd = 0;
 #endif
 
-// display lock and unlock
+/* display lock and unlock */
 #define DEVICED_BUS_NAME "org.tizen.system.deviced"
 #define DEVICED_PATH_DISPLAY		"/Org/Tizen/System/DeviceD/Display"
 #define DEVICED_INTERFACE_DISPLAY	"org.tizen.system.deviced.display"
@@ -106,14 +101,14 @@ static int log_fd = 0;
 #define DEVICED_STAY_CUR_STATE	"staycurstate"
 #define DEVICED_SLEEP_MARGIN		"sleepmargin"
 
-// link path for timezone info
+/* link path for timezone info */
 #define TIMEZONE_INFO_LINK_PATH	tzplatform_mkpath(TZ_SYS_ETC, "localtime")
 
 static const char default_rtc[] = "/dev/rtc";
 
 static int gfd = -1;
 
-#endif				/*__WAKEUP_USING_RTC__*/
+#endif /*__WAKEUP_USING_RTC__*/
 
 /*  GDBus Declaration */
 #define ALARM_MGR_DBUS_PATH	"/org/tizen/alarm/manager"
@@ -122,9 +117,9 @@ GDBusObjectManagerServer *alarmmgr_server = NULL;
 static AlarmManager* interface = NULL;
 
 sqlite3 *alarmmgr_db;
-bool is_time_changed = false;	// for calculating next duetime
+bool is_time_changed = false; /* for calculating next duetime */
 
-#define BILLION 1000000000	// for calculating nano seconds
+#define BILLION 1000000000 /* for calculating nano seconds */
 static time_t periodic_alarm_standard_time = 0;
 
 static bool __alarm_add_to_list(__alarm_info_t *__alarm_info);
@@ -150,8 +145,6 @@ static bool __alarm_update(uid_t uid, int pid, char *app_service_name, alarm_id_
 static void __alarm_send_noti_to_application(const char *app_service_name, alarm_id_t alarm_id);
 static void __alarm_expired();
 static gboolean __alarm_handler_idle(gpointer user_data);
-static void __clean_registry();
-static bool __alarm_manager_reset();
 static void __on_system_time_external_changed(keynode_t *node, void *data);
 static void __initialize_timer();
 static void __initialize_alarm_list();
@@ -162,7 +155,7 @@ static bool __initialize_dbus();
 static bool __initialize_db();
 static void __initialize();
 void on_bus_name_owner_changed(GDBusConnection *connection, const gchar *sender_name, const gchar *object_path,
-             const gchar *interface_name, const gchar *signal_name, GVariant *parameters, gpointer user_data);
+		const gchar *interface_name, const gchar *signal_name, GVariant *parameters, gpointer user_data);
 bool __get_caller_unique_name(int pid, char *unique_name, uid_t uid);
 
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
@@ -175,8 +168,7 @@ int __display_unlock_state(char *state, char *flag);
 
 int __set_time(time_t _time);
 
-struct filtered_alarm_app_s
-{
+struct filtered_alarm_app_s {
 	int is_ui_app;
 	uid_t uid;
 };
@@ -186,11 +178,10 @@ static void __rtc_set()
 #ifdef __WAKEUP_USING_RTC__
 	const char *rtc = default_rtc;
 	struct tm due_tm;
-	struct timespec alarm_time;
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
 #endif
-#ifdef _SIMUL	// RTC does not work in simulator.
+#ifdef _SIMUL /* RTC does not work in simulator. */
 	ALARM_MGR_EXCEPTION_PRINT("because it is simulator's mode, we don't set RTC.");
 	return;
 #endif
@@ -208,7 +199,7 @@ static void __rtc_set()
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 	char *timebuf = ctime(&alarm_context.c_due_time);
 	if (timebuf) {
-		timebuf[strlen(timebuf) - 1] = '\0';	// to avoid new line
+		timebuf[strlen(timebuf) - 1] = '\0'; /* to avoid new line */
 		snprintf(log_message, sizeof(log_message), "wakeup time: %d, %s", (int)alarm_context.c_due_time, timebuf);
 	}
 #endif
@@ -227,9 +218,9 @@ static void __rtc_set()
 
 		retval = ioctl(gfd, RTC_WKALM_SET, &rtc_wkalarm);
 		if (retval == -1) {
-			if (errno == ENOTTY) {
+			if (errno == ENOTTY)
 				ALARM_MGR_EXCEPTION_PRINT("Alarm IRQs is not supported.");
-			}
+
 			ALARM_MGR_EXCEPTION_PRINT("RTC_WKALM_SET disabled ioctl is failed. errno = %s", strerror(errno));
 			return;
 		}
@@ -251,9 +242,9 @@ static void __rtc_set()
 		rtc_wkalarm.time.tm_sec = due_tm.tm_sec - 1; /* Wakeup is 1000ms faster than expiring time to correct RTC error. */
 		retval = ioctl(gfd, RTC_WKALM_SET, &rtc_wkalarm);
 		if (retval == -1) {
-			if (errno == ENOTTY) {
+			if (errno == ENOTTY)
 				ALARM_MGR_EXCEPTION_PRINT("Alarm IRQs is not supported.");
-			}
+
 			ALARM_MGR_EXCEPTION_PRINT("RTC ALARM_SET ioctl is failed. errno = %s", strerror(errno));
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 			__save_module_log("FAIL: SET RTC", log_message);
@@ -264,18 +255,17 @@ static void __rtc_set()
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 		__save_module_log("SET RTC", log_message);
 #endif
-	}
-	else {
+	} else {
 		ALARM_MGR_EXCEPTION_PRINT("[alarm-server]alarm_context.c_due_time is"
 			"less than 10 sec. RTC alarm does not need to be set");
 	}
-#endif				/* __WAKEUP_USING_RTC__ */
+#endif /* __WAKEUP_USING_RTC__ */
 	return;
 }
 
 int __set_time(time_t _time)
 {
-	// Using /dev/alarm, this function changes both OS time and RTC.
+	/* Using /dev/alarm, this function changes both OS time and RTC. */
 	int ret = 0;
 	const char *rtc0 = default_rtc;
 	struct rtc_time _rtc_time;
@@ -321,19 +311,18 @@ int __set_time(time_t _time)
 	ret = ioctl(gfd, RTC_SET_TIME, &_rtc_time);
 	if (ret == -1) {
 		ALARM_MGR_EXCEPTION_PRINT("ALARM_SET_RTC ioctl is failed. errno = %s", strerror(errno));
-	#ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
+#ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 		strncpy(log_tag, "FAIL: SET RTC", strlen("FAIL: SET RTC"));
-	#endif
+#endif
 		perror("\t");
 	}
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-	else {
+	else
 		strncpy(log_tag, "SET RTC", strlen("SET RTC"));
-	}
 
 	char *timebuf = ctime(&_time);
 	if (timebuf) {
-		timebuf[strlen(timebuf) - 1] = '\0';    // to avoid new line
+		timebuf[strlen(timebuf) - 1] = '\0'; /* to avoid new line */
 		snprintf(log_message, sizeof(log_message), "RTC & OS =%d, %s", (int)_time, timebuf);
 	}
 
@@ -388,16 +377,15 @@ static bool __alarm_add_to_list(__alarm_info_t *__alarm_info)
 	alarm_context.alarms = g_slist_append(alarm_context.alarms, __alarm_info);
 	ALARM_MGR_LOG_PRINT("[alarm-server]: After add alarm_id(%d)", __alarm_info->alarm_id);
 
-	// alarm list
+	/* alarm list */
 	for (iter = alarm_context.alarms; iter != NULL; iter = g_slist_next(iter)) {
 		entry = iter->data;
 		ALARM_MGR_LOG_PRINT("[alarm-server]: alarm_id(%d).", entry->alarm_id);
 	}
 
 	if (!(alarm_info->alarm_type & ALARM_TYPE_VOLATILE)) {
-		if (!_save_alarms(__alarm_info)) {
+		if (!_save_alarms(__alarm_info))
 			ALARM_MGR_EXCEPTION_PRINT("Saving alarm_id(%d) in DB is failed.", __alarm_info->alarm_id);
-		}
 	}
 
 	return true;
@@ -434,9 +422,8 @@ static bool __alarm_update_in_list(__alarm_info_t *__alarm_info,
 	}
 
 	if (!(alarm_info->alarm_type & ALARM_TYPE_VOLATILE)) {
-		if (!_update_alarms(__alarm_info)) {
+		if (!_update_alarms(__alarm_info))
 			ALARM_MGR_EXCEPTION_PRINT("Updating alarm_id(%d) in DB is failed.", __alarm_info->alarm_id);
-		}
 	}
 
 	return true;
@@ -462,9 +449,8 @@ static bool __alarm_remove_from_list(uid_t uid, alarm_id_t alarm_id,
 
 			ALARM_MGR_LOG_PRINT("[alarm-server]:Remove alarm id(%d)", entry->alarm_id);
 
-			if (!(alarm_info->alarm_type & ALARM_TYPE_VOLATILE)) {
+			if (!(alarm_info->alarm_type & ALARM_TYPE_VOLATILE))
 				_delete_alarms(alarm_id);
-			}
 
 			alarm_context.alarms = g_slist_remove(alarm_context.alarms, iter->data);
 			g_free(entry);
@@ -595,9 +581,8 @@ gboolean __update_relative_alarms(gpointer user_data)
 	for (iter = alarm_context.alarms; iter != NULL; iter = g_slist_next(iter)) {
 		entry = iter->data;
 		alarm_info_t *alarm_info = &(entry->alarm_info);
-		if (alarm_info->alarm_type & ALARM_TYPE_RELATIVE) {
+		if (alarm_info->alarm_type & ALARM_TYPE_RELATIVE)
 			_update_alarms(entry);
-		}
 	}
 
 	if (sqlite3_exec(alarmmgr_db, "COMMIT", NULL, NULL, &error_message) != SQLITE_OK) {
@@ -684,9 +669,8 @@ static bool __alarm_update_due_time_of_all_items_in_list(double diff_time)
 
 		interval = difftime(due_time, min_time);
 
-		if ((interval < 0) || min_time == -1) {
+		if ((interval < 0) || min_time == -1)
 			min_time = due_time;
-		}
 	}
 
 	is_time_changed = false;
@@ -736,31 +720,29 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 	}
 	__alarm_info->quark_app_unique_name = g_quark_from_string(app_name);
 
-	// Get caller_appid and callee_appid to get each package id
-	// caller
+	/* Get caller_appid and callee_appid to get each package id */
+	/* caller */
 	__alarm_info->quark_caller_pkgid = g_quark_from_string("null");
 
 	if (aul_app_get_appid_bypid_for_uid(pid, caller_appid, 256, uid) == AUL_R_OK) {
 		if (pkgmgrinfo_appinfo_get_usr_appinfo(caller_appid, uid, &caller_handle) == PMINFO_R_OK) {
 			if (pkgmgrinfo_appinfo_get_pkgid(caller_handle, &caller_pkgid) == PMINFO_R_OK) {
-				if (caller_pkgid) {
+				if (caller_pkgid)
 					__alarm_info->quark_caller_pkgid = g_quark_from_string(caller_pkgid);
-				}
 			}
 			pkgmgrinfo_appinfo_destroy_appinfo(caller_handle);
 		}
 	}
 
-	// callee
+	/* callee */
 	__alarm_info->quark_callee_pkgid = g_quark_from_string("null");
 
 	b = bundle_decode((bundle_raw *)bundle_data, strlen(bundle_data));
 	callee_appid = appsvc_get_appid(b);
 	if (pkgmgrinfo_appinfo_get_usr_appinfo(callee_appid, uid, &callee_handle) == PMINFO_R_OK) {
 		if (pkgmgrinfo_appinfo_get_pkgid(callee_handle, &callee_pkgid) == PMINFO_R_OK) {
-			if (callee_pkgid) {
+			if (callee_pkgid)
 				__alarm_info->quark_callee_pkgid = g_quark_from_string(callee_pkgid);
-			}
 		}
 		pkgmgrinfo_appinfo_destroy_appinfo(callee_handle);
 	}
@@ -867,13 +849,12 @@ static bool __alarm_create(alarm_info_t *alarm_info, alarm_id_t *alarm_id, uid_t
 	__alarm_info->is_ref = is_ref;
 	__alarm_info->global = false;
 
-	// Get caller_appid to get caller's package id. There is no callee.
+	/* Get caller_appid to get caller's package id. There is no callee. */
 	if (aul_app_get_appid_bypid_for_uid(pid, caller_appid, 256, uid) == AUL_R_OK) {
 		if (pkgmgrinfo_appinfo_get_usr_appinfo(caller_appid, uid, &caller_handle) == PMINFO_R_OK) {
 			if (pkgmgrinfo_appinfo_get_pkgid(caller_handle, &caller_pkgid) == PMINFO_R_OK) {
-				if (caller_pkgid) {
+				if (caller_pkgid)
 					__alarm_info->quark_caller_pkgid = g_quark_from_string(caller_pkgid);
-				}
 			}
 			pkgmgrinfo_appinfo_destroy_appinfo(caller_handle);
 		}
@@ -1010,9 +991,9 @@ static bool __alarm_update(uid_t uid, int pid, char *app_service_name, alarm_id_
 
 		__rtc_set();
 
-		if (due_time == 0) {
+		if (due_time == 0)
 			ALARM_MGR_EXCEPTION_PRINT("[alarm-server]:Update alarm: due_time is 0.");
-		}
+
 		free(__alarm_info);
 		return true;
 	}
@@ -1028,7 +1009,7 @@ static bool __alarm_update(uid_t uid, int pid, char *app_service_name, alarm_id_
 		due_time);
 		free(__alarm_info);
 		return true;
-	} else if (difftime(due_time, current_time)< 0) {
+	} else if (difftime(due_time, current_time) < 0) {
 		ALARM_MGR_EXCEPTION_PRINT("[alarm-server]: Expired Due Time.[Due time=%d, Current Time=%d]!!!Do not add to schedule list\n", due_time, current_time);
 		free(__alarm_info);
 		return true;
@@ -1138,9 +1119,8 @@ static bool __can_skip_expired_cb(alarm_id_t alarm_id)
 			from = (ts / dur) * dur;
 			to = from + dur;
 
-			if ( ts >= from && ts < to && from > ts - alarm->mode.u_interval.interval) {
+			if (ts >= from && ts < to && from > ts - alarm->mode.u_interval.interval)
 				return false;
-			}
 
 			return true;
 		}
@@ -1209,19 +1189,19 @@ static int __get_caller_pid(const char *name)
 	GVariant *ret;
 	GError *error = NULL;
 
-	ret = g_dbus_connection_call_sync (alarm_context.connection,
-	                                   "org.freedesktop.DBus",
-	                                   "/org/freedesktop/DBus",
-	                                   "org.freedesktop.DBus",
-	                                   "GetConnectionUnixProcessID",
-	                                   g_variant_new ("(s)", name),
-	                                   NULL,
-	                                   G_DBUS_CALL_FLAGS_NONE,
-	                                   -1,
-	                                   NULL,
-	                                   &error);
-	g_variant_get (ret, "(u)", &pid);
-	g_variant_unref (ret);
+	ret = g_dbus_connection_call_sync(alarm_context.connection,
+					"org.freedesktop.DBus",
+					"/org/freedesktop/DBus",
+					"org.freedesktop.DBus",
+					"GetConnectionUnixProcessID",
+					g_variant_new("(s)", name),
+					NULL,
+					G_DBUS_CALL_FLAGS_NONE,
+					-1,
+					NULL,
+					&error);
+	g_variant_get(ret, "(u)", &pid);
+	g_variant_unref(ret);
 
 	return pid;
 }
@@ -1236,17 +1216,15 @@ static int __is_ui_app(const char *appid, uid_t uid)
 
 	ret = pkgmgrinfo_appinfo_get_usr_appinfo(appid, uid, &appinfo_h);
 
-	if (ret < 0 ) {
+	if (ret < 0)
 		return 0;
-	}
 
 	char *component = NULL;
 	int found = 0;
 
 	ret = pkgmgrinfo_appinfo_get_component_type(appinfo_h, &component);
-	if (ret == 0 && component != NULL && strncmp(component, "uiapp", 5) == 0) {
+	if (ret == 0 && component != NULL && strncmp(component, "uiapp", 5) == 0)
 		found = 1;
-	}
 
 	if (appinfo_h)
 		pkgmgrinfo_appinfo_destroy_appinfo(appinfo_h);
@@ -1254,27 +1232,8 @@ static int __is_ui_app(const char *appid, uid_t uid)
 	return found;
 }
 
-static int __iter_fn(const char* appid, void *data)
+static int __compare_api_version(int *result, int pid, uid_t uid)
 {
-	struct filtered_alarm_app_s *app = data;
-
-	if (__is_ui_app(appid, app->uid)) {
-		app->is_ui_app = 1;
-		return 1;
-	}
-
-	return 0;
-}
-
-static int __have_ui_apps(bundle *b, uid_t uid)
-{
-	struct filtered_alarm_app_s app;
-	app.uid = uid;
-	appsvc_usr_get_list(b, __iter_fn, &app, uid);
-	return app.is_ui_app;
-}
-
-static int __compare_api_version(int *result, int pid, uid_t uid) {
 	int ret = 0;
 	pkgmgrinfo_pkginfo_h pkginfo = NULL;
 	char pkgid[512] = {0, };
@@ -1288,9 +1247,8 @@ static int __compare_api_version(int *result, int pid, uid_t uid) {
 			ALARM_MGR_EXCEPTION_PRINT("Failed to get pkginfo\n");
 		} else {
 			ret = pkgmgrinfo_pkginfo_get_api_version(pkginfo, &pkg_version);
-			if (ret != PMINFO_R_OK) {
+			if (ret != PMINFO_R_OK)
 				ALARM_MGR_EXCEPTION_PRINT("Failed to check api version [%d]\n", ret);
-			}
 			*result = strverscmp(pkg_version, "2.4");
 			pkgmgrinfo_pkginfo_destroy_pkginfo(pkginfo);
 		}
@@ -1333,7 +1291,7 @@ static void __alarm_expired()
 	alarm_id_t alarm_id = -1;
 	int app_pid = 0;
 	__alarm_info_t *__alarm_info = NULL;
-	char alarm_id_val[32]={0,};
+	char alarm_id_val[32];
 	int b_len = 0;
 	bundle *b = NULL;
 	char *appid = NULL;
@@ -1361,7 +1319,7 @@ static void __alarm_expired()
 			alarm_context.c_due_time - current_time);
 		goto done;
 	}
-	// 10 seconds is maximum permitted delay from timer expire to this function
+	/* 10 seconds is maximum permitted delay from timer expire to this function */
 	if (alarm_context.c_due_time + 10 < current_time) {
 		ALARM_MGR_EXCEPTION_PRINT("[alarm-server]: False Alarm. due time is (%d) seconds past.",
 			current_time - alarm_context.c_due_time);
@@ -1377,25 +1335,21 @@ static void __alarm_expired()
 		__alarm_info = alarm->__alarm_info;
 		app_pid = __alarm_info->pid;
 
-		// Case #1. The process is an application launched by app_control.
-		// It registered an alarm using launch-based APIs like alarm_schedule_xxx, alarmmgr_xxx_appsvc.
+		/* Case #1. The process is an application launched by app_control.
+		 * It registered an alarm using launch-based APIs like alarm_schedule_xxx, alarmmgr_xxx_appsvc. */
 		if (strncmp(g_quark_to_string(__alarm_info->quark_bundle), "null", 4) != 0) {
 			b_len = strlen(g_quark_to_string(__alarm_info->quark_bundle));
 
 			b = bundle_decode((bundle_raw *)g_quark_to_string(__alarm_info->quark_bundle), b_len);
 
-			if (b == NULL)
-			{
+			if (b == NULL) {
 				ALARM_MGR_EXCEPTION_PRINT("Error!!!..Unable to decode the bundle!!\n");
-			}
-			else
-			{
-				snprintf(alarm_id_val,31,"%d",alarm_id);
+			} else {
+				snprintf(alarm_id_val, sizeof(alarm_id_val), "%d", alarm_id);
 
-				if (bundle_add_str(b,"http://tizen.org/appcontrol/data/alarm_id", alarm_id_val)){
+				if (bundle_add_str(b, "http://tizen.org/appcontrol/data/alarm_id", alarm_id_val)) {
 					ALARM_MGR_EXCEPTION_PRINT("Unable to add alarm id to the bundle\n");
-				}
-				else {
+				} else {
 					int result = 0;
 
 					if (__compare_api_version(&result, app_pid, __alarm_info->uid) < 0) {
@@ -1403,19 +1357,19 @@ static void __alarm_expired()
 						result = -1;
 					}
 
-					if (result < 0) { /* before 2.4 */
-						if ( appsvc_usr_run_service(b, 0, NULL, NULL, __alarm_info->uid) < 0) {
+					if (result < 0) {
+						/* before 2.4 */
+						if (appsvc_usr_run_service(b, 0, NULL, NULL, __alarm_info->uid) < 0)
 							ALARM_MGR_EXCEPTION_PRINT("Unable to run app svc\n");
-						}
-						else {
+						else
 							ALARM_MGR_LOG_PRINT("Successfuly run app svc\n");
-						}
-					} else { /* since 2.4 */
+					} else {
+						/* since 2.4 */
 						appid = (char *)appsvc_get_appid(b);
-						if( (__alarm_info->alarm_info.alarm_type & ALARM_TYPE_NOLAUNCH) && !aul_app_is_running(appid))  {
+						if ((__alarm_info->alarm_info.alarm_type & ALARM_TYPE_NOLAUNCH) && !aul_app_is_running(appid)) {
 							ALARM_MGR_EXCEPTION_PRINT("This alarm is ignored\n");
-						} else if ( !(__alarm_info->alarm_info.alarm_type & ALARM_TYPE_INEXACT) ||
-								!__can_skip_expired_cb(__alarm_info->alarm_id) ) {
+						} else if (!(__alarm_info->alarm_info.alarm_type & ALARM_TYPE_INEXACT) ||
+								!__can_skip_expired_cb(__alarm_info->alarm_id)) {
 							if (__alarm_info->global) {
 								if (__find_login_user(&target_uid) < 0) {
 									ALARM_MGR_EXCEPTION_PRINT("Fail to get login user\n");
@@ -1429,21 +1383,17 @@ static void __alarm_expired()
 
 							if (ret < 0) {
 								ALARM_MGR_EXCEPTION_PRINT("Unable to launch app [%s] \n", appid);
-							}
-							else {
+							} else {
 								ALARM_MGR_LOG_PRINT("Successfuly ran app svc\n");
-								if (__is_ui_app(appid, __alarm_info->uid)) {
+								if (__is_ui_app(appid, __alarm_info->uid))
 									device_display_change_state(DISPLAY_STATE_NORMAL);
-								}
 							}
 						}
 					}
 				}
 				bundle_free(b);
 			}
-		}
-		else
-		{
+		} else {
 			char appid[MAX_SERVICE_NAME_LEN] = { 0, };
 			pkgmgrinfo_appinfo_h appinfo_handle = NULL;
 
@@ -1471,8 +1421,8 @@ static void __alarm_expired()
 								"/org/freedesktop/DBus",
 								"org.freedesktop.DBus",
 								"NameHasOwner",
-								g_variant_new ("(s)", destination_app_service_name),
-								G_VARIANT_TYPE ("(b)"),
+								g_variant_new("(s)", destination_app_service_name),
+								G_VARIANT_TYPE("(b)"),
 								G_DBUS_CALL_FLAGS_NONE,
 								-1,
 								NULL,
@@ -1481,7 +1431,7 @@ static void __alarm_expired()
 				ALARM_MGR_EXCEPTION_PRINT("g_dbus_connection_call_sync() is failed. err: %s", error->message);
 				g_error_free(error);
 			} else {
-				g_variant_get (result, "(b)", &name_has_owner_reply);
+				g_variant_get(result, "(b)", &name_has_owner_reply);
 			}
 
 			if (g_quark_to_string(__alarm_info->quark_dst_service_name) != NULL && strncmp(g_quark_to_string(__alarm_info->quark_dst_service_name), "null", 4) == 0) {
@@ -1495,8 +1445,8 @@ static void __alarm_expired()
 			ret = pkgmgrinfo_appinfo_get_usr_appinfo(appid, __alarm_info->uid, &appinfo_handle);
 			ALARM_MGR_LOG_PRINT("appid : %s (%x)", appid, appinfo_handle);
 
-			// Case #2. The process was killed && App type
-			// This app is launched and owner of DBus connection is changed. and then, expiration noti is sent by DBus.
+			/* Case #2. The process was killed && App type
+			 * This app is launched and owner of DBus connection is changed. and then, expiration noti is sent by DBus. */
 			if (name_has_owner_reply == false && ret == PMINFO_R_OK) {
 				__expired_alarm_t *expire_info;
 				char alarm_id_str[32] = { 0, };
@@ -1525,25 +1475,24 @@ static void __alarm_expired()
 				bundle_add_str(kb, "__ALARM_MGR_ID", alarm_id_str);
 
 				if (__alarm_info->global) {
-					if (__find_login_user(&target_uid) < 0) {
+					if (__find_login_user(&target_uid) < 0)
 						ALARM_MGR_EXCEPTION_PRINT("Fail to get login user\n");
-					} else {
-						aul_launch_app_for_uid(appid, kb, target_uid);	// on_bus_name_owner_changed will be called.
-					}
+					else
+						aul_launch_app_for_uid(appid, kb, target_uid); /* on_bus_name_owner_changed will be called. */
 				} else {
-					aul_launch_app_for_uid(appid, kb, __alarm_info->uid);	// on_bus_name_owner_changed will be called.
+					aul_launch_app_for_uid(appid, kb, __alarm_info->uid); /* on_bus_name_owner_changed will be called. */
 				}
 
 				bundle_free(kb);
 			} else {
-				// Case #3. The process is alive or was killed && non-app type(daemon)
-				// Expiration noti is sent by DBus. it makes the process alive. (dbus auto activation)
+				/* Case #3. The process is alive or was killed && non-app type(daemon)
+				 * Expiration noti is sent by DBus. it makes the process alive. (dbus auto activation) */
 				ALARM_MGR_LOG_PRINT("before alarm_send_noti_to_application");
 				ALARM_MGR_LOG_PRINT("WAKEUP pid: %d", __alarm_info->pid);
 
 				/* TODO: implement aul_update_freezer_status */
-				//aul_update_freezer_status(__alarm_info->pid, "wakeup");
-				__alarm_send_noti_to_application(destination_app_service_name, alarm_id);	// dbus auto activation
+				/* aul_update_freezer_status(__alarm_info->pid, "wakeup"); */
+				__alarm_send_noti_to_application(destination_app_service_name, alarm_id); /* dbus auto activation */
 				ALARM_MGR_LOG_PRINT("after __alarm_send_noti_to_application");
 			}
 		}
@@ -1555,14 +1504,13 @@ static void __alarm_expired()
 		__save_module_log("EXPIRED", log_message);
 #endif
 
-		if (__alarm_info->alarm_info.mode.repeat == ALARM_REPEAT_MODE_ONCE) {
+		if (__alarm_info->alarm_info.mode.repeat == ALARM_REPEAT_MODE_ONCE)
 			__alarm_remove_from_list(__alarm_info->uid, alarm_id, NULL);
-		} else {
+		else
 			_alarm_next_duetime(__alarm_info);
-		}
 	}
 
- done:
+done:
 	_clear_scheduled_alarm_list();
 	alarm_context.c_due_time = -1;
 
@@ -1586,14 +1534,12 @@ static gboolean __alarm_handler_idle(gpointer user_data)
 	}
 
 	ALARM_MGR_LOG_PRINT("Lock the display not to enter LCD OFF");
-	if (__display_lock_state(DEVICED_LCD_OFF, DEVICED_STAY_CUR_STATE, 0) != ALARMMGR_RESULT_SUCCESS) {
+	if (__display_lock_state(DEVICED_LCD_OFF, DEVICED_STAY_CUR_STATE, 0) != ALARMMGR_RESULT_SUCCESS)
 		ALARM_MGR_EXCEPTION_PRINT("__display_lock_state() is failed");
-	}
 
 	if (g_dummy_timer_is_set == true) {
 		ALARM_MGR_LOG_PRINT("dummy alarm timer has expired.");
-	}
-	else {
+	} else {
 		ALARM_MGR_LOG_PRINT("__alarm_handler_idle");
 		__alarm_expired();
 	}
@@ -1606,7 +1552,7 @@ static gboolean __alarm_handler_idle(gpointer user_data)
 	 */
 	time(&current_time);
 	if (alarm_context.c_due_time == current_time) {
-		ALARM_MGR_LOG_PRINT("Expire alarms forcibly when duetime is same to current time(%d).", current_time)
+		ALARM_MGR_LOG_PRINT("Expire alarms forcibly when duetime is same to current time(%d).", current_time);
 		__alarm_expired();
 		_alarm_schedule();
 	}
@@ -1614,29 +1560,10 @@ static gboolean __alarm_handler_idle(gpointer user_data)
 	__rtc_set();
 
 	ALARM_MGR_LOG_PRINT("Unlock the display from LCD OFF");
-	if (__display_unlock_state(DEVICED_LCD_OFF, DEVICED_SLEEP_MARGIN) != ALARMMGR_RESULT_SUCCESS) {
+	if (__display_unlock_state(DEVICED_LCD_OFF, DEVICED_SLEEP_MARGIN) != ALARMMGR_RESULT_SUCCESS)
 		ALARM_MGR_EXCEPTION_PRINT("__display_unlock_state() is failed");
-	}
 
 	return false;
-}
-
-static void __clean_registry()
-{
-
-	/*TODO:remove all db entries */
-}
-
-static bool __alarm_manager_reset()
-{
-	_alarm_disable_timer(alarm_context);
-
-	__alarm_clean_list();
-
-	_clear_scheduled_alarm_list();
-	__clean_registry();
-
-	return true;
 }
 
 static void __on_system_time_external_changed(keynode_t *node, void *data)
@@ -1666,7 +1593,7 @@ static void __on_system_time_external_changed(keynode_t *node, void *data)
 
 	__set_time(cur_time);
 
-	vconf_set_int(VCONFKEY_SYSTEM_TIME_CHANGED,(int)diff_time);
+	vconf_set_int(VCONFKEY_SYSTEM_TIME_CHANGED, (int)diff_time);
 	bundle *b = NULL;
 	b = bundle_create();
 	bundle_add_str(b, EVT_KEY_TIME_CHANGED, EVT_VAL_TIME_CHANGED_TRUE);
@@ -1695,10 +1622,8 @@ static int __on_app_uninstalled(uid_t target_uid, int req_id, const char *pkg_ty
 
 	SECURE_LOGD("pkg_type(%s), pkgid(%s), key(%s), value(%s)", pkg_type, pkgid, key, val);
 
-	if (strncmp(key, "end", 3) == 0 && strncmp(val, "ok", 2) == 0)
-	{
-		for (gs_iter = alarm_context.alarms; gs_iter != NULL; )
-		{
+	if (strncmp(key, "end", 3) == 0 && strncmp(val, "ok", 2) == 0) {
+		for (gs_iter = alarm_context.alarms; gs_iter != NULL;) {
 			bool is_found = false;
 			entry = gs_iter->data;
 
@@ -1706,36 +1631,28 @@ static int __on_app_uninstalled(uid_t target_uid, int req_id, const char *pkg_ty
 			const char* callee_pkgid = g_quark_to_string(entry->quark_callee_pkgid);
 
 			if ((caller_pkgid && strncmp(pkgid, caller_pkgid, strlen(pkgid)) == 0) ||
-				(callee_pkgid && strncmp(pkgid, callee_pkgid, strlen(pkgid)) == 0))
-			{
+					(callee_pkgid && strncmp(pkgid, callee_pkgid, strlen(pkgid)) == 0)) {
 				if (_remove_from_scheduled_alarm_list(entry->uid, entry->alarm_id))
-				{
 					is_deleted = true;
-				}
 
 				alarm_info = &entry->alarm_info;
-				if (!(alarm_info->alarm_type & ALARM_TYPE_VOLATILE))
-				{
-					if(!_delete_alarms(entry->alarm_id))
-					{
+				if (!(alarm_info->alarm_type & ALARM_TYPE_VOLATILE)) {
+					if (!_delete_alarms(entry->alarm_id))
 						SECURE_LOGE("_delete_alarms() is failed. pkgid[%s], alarm_id[%d]", pkgid, entry->alarm_id);
-					}
 				}
 				is_found = true;
 			}
 
 			gs_iter = g_slist_next(gs_iter);
 
-			if (is_found)
-			{
+			if (is_found) {
 				SECURE_LOGD("Remove pkgid[%s], alarm_id[%d]", pkgid, entry->alarm_id);
 				alarm_context.alarms = g_slist_remove(alarm_context.alarms, entry);
 				g_free(entry);
 			}
 		}
 
-		if (is_deleted && (g_slist_length(g_scheduled_alarm_list) == 0))
-		{
+		if (is_deleted && (g_slist_length(g_scheduled_alarm_list) == 0)) {
 			_alarm_disable_timer(alarm_context);
 			_alarm_schedule();
 		}
@@ -1749,7 +1666,6 @@ static int __on_app_uninstalled(uid_t target_uid, int req_id, const char *pkg_ty
 bool __get_caller_unique_name(int pid, char *unique_name, uid_t uid)
 {
 	char caller_appid[256] = {0,};
-	char caller_cmdline[512] = {0,};
 
 	if (unique_name == NULL) {
 		ALARM_MGR_EXCEPTION_PRINT("unique_name should not be NULL.");
@@ -1774,10 +1690,8 @@ bool __get_caller_unique_name(int pid, char *unique_name, uid_t uid)
 			SECURE_LOGE("Caution!! pid(%d) seems to be killed.",
 					pid, proc_file);
 			return false;
-		}
-		else {
-			if (read(fd, process_name, sizeof(process_name) - 1) <= 0)
-			{
+		} else {
+			if (read(fd, process_name, sizeof(process_name) - 1) <= 0) {
 				ALARM_MGR_EXCEPTION_PRINT("Unable to get the process name.");
 				close(fd);
 				return false;
@@ -1823,18 +1737,16 @@ static bool __save_module_log(const char *tag, const char *message)
 {
 	char buffer[ALARMMGR_LOG_BUFFER_STRING_SIZE] = {0,};
 	time_t now;
-	int offset = 0;
 
 	if (log_fd == -1) {
 		ALARM_MGR_EXCEPTION_PRINT("The file is not ready.");
 		return false;
 	}
 
-	if (log_index != 0) {
-		offset = lseek(log_fd, 0, SEEK_CUR);
-	} else {
-		offset = lseek(log_fd, 0, SEEK_SET);
-	}
+	if (log_index != 0)
+		lseek(log_fd, 0, SEEK_CUR);
+	else
+		lseek(log_fd, 0, SEEK_SET);
 
 	time(&now);
 	snprintf(buffer, ALARMMGR_LOG_BUFFER_STRING_SIZE, "[%-6d] %-20s %-120s %d-%s", log_index, tag, message, (int)now, ctime(&now));
@@ -1845,12 +1757,12 @@ static bool __save_module_log(const char *tag, const char *message)
 		return false;
 	}
 
-	if (++log_index >= ALARMMGR_LOG_BUFFER_SIZE) {
+	if (++log_index >= ALARMMGR_LOG_BUFFER_SIZE)
 		log_index = 0;
-	}
+
 	return true;
 }
-#endif	// _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
+#endif /* _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG */
 
 int __display_lock_state(char *state, char *flag, unsigned int timeout)
 {
@@ -1910,7 +1822,7 @@ int __display_unlock_state(char *state, char *flag)
 		return ERR_ALARM_SYSTEM_FAIL;
 	}
 
-	g_dbus_message_set_body(msg, g_variant_new("(ss)", state, flag ));
+	g_dbus_message_set_body(msg, g_variant_new("(ss)", state, flag));
 
 	reply =  g_dbus_connection_send_message_with_reply_sync(alarm_context.connection, msg, G_DBUS_SEND_MESSAGE_FLAGS_NONE, DEVICED_DBUS_REPLY_TIMEOUT, NULL, NULL, NULL);
 	if (!reply) {
@@ -1950,40 +1862,35 @@ static long __get_proper_interval(long interval, int alarm_type)
 		entry = gs_iter->data;
 		if (entry->alarm_info.alarm_type & ALARM_TYPE_PERIOD) {
 			if (entry->alarm_info.mode.u_interval.interval <= interval &&
-					entry->alarm_info.mode.u_interval.interval > maxInterval) {
+					entry->alarm_info.mode.u_interval.interval > maxInterval)
 				maxInterval = entry->alarm_info.mode.u_interval.interval;
-			}
 		}
 	}
 
 	while (maxInterval * 2 <= interval ||
-			(alarm_type & ALARM_TYPE_INEXACT && maxInterval < MIN_INEXACT_INTERVAL) ) {
+			(alarm_type & ALARM_TYPE_INEXACT && maxInterval < MIN_INEXACT_INTERVAL))
 		maxInterval *= 2;
-	}
 
 	return maxInterval;
 }
 
 gboolean __alarm_expired_directly(gpointer user_data)
 {
-	if (g_scheduled_alarm_list == NULL || g_scheduled_alarm_list->data == NULL) {
+	if (g_scheduled_alarm_list == NULL || g_scheduled_alarm_list->data == NULL)
 		return false;
-	}
 
-	int time_sec = (int)user_data;
+	int time_sec = (int)(intptr_t)user_data;
 	__scheduled_alarm_t *alarm = g_scheduled_alarm_list->data;
 	__alarm_info_t *alarm_info = alarm->__alarm_info;
 
-	// Expire alarms with duetime equal to newtime by force
+	/* Expire alarms with duetime equal to newtime by force */
 	if (alarm_info->due_time == time_sec) {
-		if (__display_lock_state(DEVICED_LCD_OFF, DEVICED_STAY_CUR_STATE, 0) != ALARMMGR_RESULT_SUCCESS) {
+		if (__display_lock_state(DEVICED_LCD_OFF, DEVICED_STAY_CUR_STATE, 0) != ALARMMGR_RESULT_SUCCESS)
 			ALARM_MGR_EXCEPTION_PRINT("__display_lock_state() is failed");
-		}
 
 		if (g_dummy_timer_is_set == true) {
 			ALARM_MGR_LOG_PRINT("dummy alarm timer has expired.");
-		}
-		else {
+		} else {
 			ALARM_MGR_LOG_PRINT("due_time=%d is expired.", alarm_info->due_time);
 			__alarm_expired();
 		}
@@ -1991,9 +1898,8 @@ gboolean __alarm_expired_directly(gpointer user_data)
 		_alarm_schedule();
 		__rtc_set();
 
-		if (__display_unlock_state(DEVICED_LCD_OFF, DEVICED_SLEEP_MARGIN) != ALARMMGR_RESULT_SUCCESS) {
+		if (__display_unlock_state(DEVICED_LCD_OFF, DEVICED_SLEEP_MARGIN) != ALARMMGR_RESULT_SUCCESS)
 			ALARM_MGR_EXCEPTION_PRINT("__display_unlock_state() is failed");
-		}
 	}
 
 	return false;
@@ -2005,14 +1911,14 @@ void __reschedule_alarms_with_newtime(int cur_time, int new_time, double diff_ti
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
 #endif
 
-	vconf_set_int(VCONFKEY_SYSTEM_TIME_CHANGED,(int)diff_time);
+	vconf_set_int(VCONFKEY_SYSTEM_TIME_CHANGED, (int)diff_time);
 	bundle *b = NULL;
 	b = bundle_create();
 	bundle_add_str(b, EVT_KEY_TIME_CHANGED, EVT_VAL_TIME_CHANGED_TRUE);
 	eventsystem_send_system_event(SYS_EVENT_TIME_CHANGED, b);
 	bundle_free(b);
 
-	__alarm_update_due_time_of_all_items_in_list(diff_time);	// Rescheduling alarms with ALARM_TYPE_RELATIVE
+	__alarm_update_due_time_of_all_items_in_list(diff_time); /* Rescheduling alarms with ALARM_TYPE_RELATIVE */
 	ALARM_MGR_LOG_PRINT("Next duetime is %d", alarm_context.c_due_time);
 
 	_clear_scheduled_alarm_list();
@@ -2022,13 +1928,13 @@ void __reschedule_alarms_with_newtime(int cur_time, int new_time, double diff_ti
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 	char *timebuf = ctime((const time_t *)&new_time);
 	if (timebuf) {
-		timebuf[strlen(timebuf) - 1] = '\0';	// to avoid newline
+		timebuf[strlen(timebuf) - 1] = '\0'; /* to avoid newline */
 		snprintf(log_message, sizeof(log_message), "Current: %d, New: %d, %s, diff: %f", cur_time, new_time, timebuf, diff_time);
 	}
 	__save_module_log("CHANGE TIME", log_message);
 #endif
 
-	g_idle_add(__alarm_expired_directly, (gpointer)new_time);	// Expire alarms with duetime equal to newtime directly
+	g_idle_add(__alarm_expired_directly, (gpointer)(intptr_t)new_time); /* Expire alarms with duetime equal to newtime directly */
 	return;
 }
 
@@ -2086,16 +1992,15 @@ gboolean alarm_manager_alarm_set_rtc_time(AlarmManager *pObj, GDBusMethodInvocat
 
 	retval = ioctl(gfd, RTC_WKALM_SET, &rtc_wkalarm);
 	if (retval == -1) {
-		if (errno == ENOTTY) {
+		if (errno == ENOTTY)
 			ALARM_MGR_EXCEPTION_PRINT("Alarm IRQs is not supported.");
-		}
+
 		ALARM_MGR_EXCEPTION_PRINT("RTC ALARM_SET ioctl is failed. errno = %s", strerror(errno));
 		return_code = ERR_ALARM_SYSTEM_FAIL;
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 		strncpy(log_tag, "FAIL: SET RTC", strlen("FAIL: SET RTC"));
 #endif
-	}
-	else{
+	} else {
 		ALARM_MGR_LOG_PRINT("[alarm-server]RTC alarm is setted");
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 		strncpy(log_tag, "SET RTC", strlen("SET RTC"));
@@ -2111,7 +2016,7 @@ gboolean alarm_manager_alarm_set_rtc_time(AlarmManager *pObj, GDBusMethodInvocat
 	return true;
 }
 
-static int accrue_msec = 0;	// To check a millisecond part of current time at changing the system time(sec)
+static int accrue_msec = 0; /* To check a millisecond part of current time at changing the system time(sec) */
 
 gboolean alarm_manager_alarm_set_time(AlarmManager *pObj, GDBusMethodInvocation *invoc, int time_sec, gpointer user_data)
 {
@@ -2119,12 +2024,12 @@ gboolean alarm_manager_alarm_set_time(AlarmManager *pObj, GDBusMethodInvocation 
 	struct timeval cur_time = {0,};
 	int return_code = ALARMMGR_RESULT_SUCCESS;
 
-	_alarm_disable_timer(alarm_context);	// Disable the timer to reschedule the alarm before the time is changed.
+	_alarm_disable_timer(alarm_context); /* Disable the timer to reschedule the alarm before the time is changed. */
 
 	tzset();
 	gettimeofday(&cur_time, NULL);
 
-	accrue_msec += (cur_time.tv_usec / 1000);	// Accrue the millisecond to compensate the time
+	accrue_msec += (cur_time.tv_usec / 1000); /* Accrue the millisecond to compensate the time */
 	if (accrue_msec > 500) {
 		diff_time = difftime(time_sec, cur_time.tv_sec) - 1;
 		accrue_msec -= 1000;
@@ -2132,7 +2037,7 @@ gboolean alarm_manager_alarm_set_time(AlarmManager *pObj, GDBusMethodInvocation 
 		diff_time = difftime(time_sec, cur_time.tv_sec);
 	}
 
-	__set_time(time_sec);	// Change both OS time and RTC
+	__set_time(time_sec); /* Change both OS time and RTC */
 	ALARM_MGR_LOG_PRINT("[TIMESTAMP]Current time(%d), New time(%d)(%s), diff_time(%f)",
 									cur_time.tv_sec, time_sec, ctime((const time_t *)&time_sec), diff_time);
 
@@ -2149,14 +2054,14 @@ gboolean alarm_manager_alarm_set_time_with_propagation_delay(AlarmManager *pObj,
 	struct timespec delay = {0,};
 	struct timespec sleep_time = {0,};
 	guint real_newtime = 0;
-	accrue_msec = 0;		// reset accrued msec
+	accrue_msec = 0; /* reset accrued msec */
 
-	_alarm_disable_timer(alarm_context);	// Disable the timer to reschedule the alarm before the time is changed.
+	_alarm_disable_timer(alarm_context); /* Disable the timer to reschedule the alarm before the time is changed. */
 
 	tzset();
 	clock_gettime(CLOCK_REALTIME, &cur_time);
 
-	// Check validation of requested time
+	/* Check validation of requested time */
 	if (req_sec > cur_time.tv_sec || (req_sec == cur_time.tv_sec && req_nsec > cur_time.tv_nsec)) {
 		ALARM_MGR_EXCEPTION_PRINT("The requeted time(%d.%09d) must be equal to or less than current time(%d.%09d).",
 			req_sec, req_nsec, cur_time.tv_sec, cur_time.tv_nsec);
@@ -2164,7 +2069,7 @@ gboolean alarm_manager_alarm_set_time_with_propagation_delay(AlarmManager *pObj,
 		return true;
 	}
 
-	// Compensate propagation delay
+	/* Compensate propagation delay */
 	if (req_nsec > cur_time.tv_nsec) {
 		delay.tv_sec = cur_time.tv_sec - 1 - req_sec;
 		delay.tv_nsec = cur_time.tv_nsec + BILLION - req_nsec;
@@ -2181,9 +2086,9 @@ gboolean alarm_manager_alarm_set_time_with_propagation_delay(AlarmManager *pObj,
 		sleep_time.tv_nsec = BILLION - (delay.tv_nsec + new_nsec);
 	}
 
-	nanosleep(&sleep_time, NULL);	// Wait until 0 nsec to match both OS time and RTC(sec)
+	nanosleep(&sleep_time, NULL); /* Wait until 0 nsec to match both OS time and RTC(sec) */
 
-	__set_time(real_newtime);	// Change both OS time and RTC
+	__set_time(real_newtime); /* Change both OS time and RTC */
 
 	diff_time = difftime(real_newtime, cur_time.tv_sec);
 	ALARM_MGR_LOG_PRINT("[TIMESTAMP]Current time(%d.%09d), New time(%d.%09d), Real Newtime(%d), diff_time(%f)",
@@ -2214,7 +2119,7 @@ gboolean alarm_manager_alarm_set_timezone(AlarmManager *pObject, GDBusMethodInvo
 
 	retval = stat(TIMEZONE_INFO_LINK_PATH, &statbuf);
 	if (retval == 0 || (retval == -1 && errno != ENOENT)) {
-		// unlink the current link
+		/* unlink the current link */
 		if (unlink(TIMEZONE_INFO_LINK_PATH) < 0) {
 			ALARM_MGR_EXCEPTION_PRINT("unlink() is failed.");
 			return_code = ERR_ALARM_SYSTEM_FAIL;
@@ -2222,7 +2127,7 @@ gboolean alarm_manager_alarm_set_timezone(AlarmManager *pObject, GDBusMethodInvo
 		}
 	}
 
-	// create a new symlink when the /opt/etc/localtime is empty.
+	/* create a new symlink when the /opt/etc/localtime is empty. */
 	if (symlink(tzpath_str, TIMEZONE_INFO_LINK_PATH) < 0) {
 		ALARM_MGR_EXCEPTION_PRINT("Failed to create an symlink of %s.", tzpath_str);
 		return_code = ERR_ALARM_SYSTEM_FAIL;
@@ -2231,7 +2136,7 @@ gboolean alarm_manager_alarm_set_timezone(AlarmManager *pObject, GDBusMethodInvo
 
 	tzset();
 
-	// Rescheduling alarms
+	/* Rescheduling alarms */
 	_alarm_disable_timer(alarm_context);
 	__alarm_update_due_time_of_all_items_in_list(0);
 	ALARM_MGR_LOG_PRINT("next expiring due_time is %d", alarm_context.c_due_time);
@@ -2247,7 +2152,6 @@ gboolean alarm_manager_alarm_set_timezone(AlarmManager *pObject, GDBusMethodInvo
 	eventsystem_send_system_event(SYS_EVENT_TIME_CHANGED, b);
 	bundle_free(b);
 
-	b = NULL;
 	b = bundle_create();
 	bundle_add_str(b, EVT_KEY_TIME_ZONE, tzpath_str);
 	eventsystem_send_system_event(SYS_EVENT_TIME_ZONE, b);
@@ -2256,11 +2160,11 @@ gboolean alarm_manager_alarm_set_timezone(AlarmManager *pObject, GDBusMethodInvo
 done:
 	g_dbus_method_invocation_return_value(invoc, g_variant_new("(i)", return_code));
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-	if (return_code == ALARMMGR_RESULT_SUCCESS) {
+	if (return_code == ALARMMGR_RESULT_SUCCESS)
 		strncpy(log_tag, "SET TIMEZONE", strlen("SET TIMEZONE"));
-	} else {
+	else
 		strncpy(log_tag, "FAIL: SET TIMEZONE", strlen("FAIL: SET TIMEZONE"));
-	}
+
 	snprintf(log_message, sizeof(log_message), "Set the timezone to %s.", tzpath_str);
 	__save_module_log(log_tag, log_message);
 #endif
@@ -2281,7 +2185,6 @@ gboolean alarm_manager_alarm_create_appsvc(AlarmManager *pObject, GDBusMethodInv
 				    gpointer user_data)
 {
 	alarm_info_t alarm_info;
-	int retval = 0;
 	int return_code = ALARMMGR_RESULT_SUCCESS;
 	int alarm_id = 0;
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
@@ -2317,7 +2220,7 @@ gboolean alarm_manager_alarm_create_appsvc(AlarmManager *pObject, GDBusMethodInv
 		alarm_info.alarm_type |= ALARM_TYPE_PERIOD;
 		alarm_info.mode.u_interval.interval =
 			__get_proper_interval(mode_interval, alarm_info.alarm_type);
-	} else if (mode_interval <= 0){
+	} else if (mode_interval <= 0) {
 		alarm_info.mode.u_interval.interval = 0;
 	}
 
@@ -2327,12 +2230,11 @@ gboolean alarm_manager_alarm_create_appsvc(AlarmManager *pObject, GDBusMethodInv
 		strncpy(log_tag, "FAIL: CREATE", strlen("FAIL: CREATE"));
 #endif
 		ret = false;
-	}
+	} else {
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-	else {
 		strncpy(log_tag, "CREATE", strlen("CREATE"));
-	}
 #endif
+	}
 
 	g_dbus_method_invocation_return_value(invoc, g_variant_new("(ii)", alarm_id, return_code));
 
@@ -2357,7 +2259,6 @@ gboolean alarm_manager_alarm_create(AlarmManager *obj, GDBusMethodInvocation *in
 				    gpointer user_data)
 {
 	alarm_info_t alarm_info;
-	int retval = 0;
 	int return_code = ALARMMGR_RESULT_SUCCESS;
 	int alarm_id = 0;
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
@@ -2389,19 +2290,18 @@ gboolean alarm_manager_alarm_create(AlarmManager *obj, GDBusMethodInvocation *in
 	alarm_info.alarm_type = alarm_type;
 	alarm_info.reserved_info = reserved_info;
 
-	if (!__alarm_create(&alarm_info, &alarm_id, uid, pid, 0, 0, 0, app_service_name,app_service_name_mod,
-		       reserved_service_name, reserved_service_name_mod, &return_code)) {
+	if (!__alarm_create(&alarm_info, &alarm_id, uid, pid, 0, 0, 0, app_service_name, app_service_name_mod,
+				reserved_service_name, reserved_service_name_mod, &return_code)) {
 		ALARM_MGR_EXCEPTION_PRINT("Unable to create alarm! return_code[%d]", return_code);
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 		strncpy(log_tag, "FAIL: CREATE", strlen("FAIL: CREATE"));
 #endif
 		ret = false;
-	}
+	} else {
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-	else {
 		strncpy(log_tag, "CREATE", strlen("CREATE"));
-	}
 #endif
+	}
 
 	g_dbus_method_invocation_return_value(invoc, g_variant_new("(ii)", alarm_id, return_code));
 
@@ -2478,8 +2378,8 @@ gboolean alarm_manager_alarm_create_periodic(AlarmManager *obj, GDBusMethodInvoc
 	}
 
 	if (!__alarm_create(&alarm_info, &alarm_id, uid, pid, method, interval * 60, is_ref,
-	                    app_service_name, app_service_name_mod,
-	                    "null", "null", &return_code)) {
+				app_service_name, app_service_name_mod,
+				"null", "null", &return_code)) {
 		ALARM_MGR_EXCEPTION_PRINT("Unable to create alarm! return_code[%d]", return_code);
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 		strncpy(log_tag, "FAIL: CREATE", strlen("FAIL: CREATE"));
@@ -2507,7 +2407,6 @@ gboolean alarm_manager_alarm_create_periodic(AlarmManager *obj, GDBusMethodInvoc
 gboolean alarm_manager_alarm_delete(AlarmManager *obj, GDBusMethodInvocation *invoc,
 		alarm_id_t alarm_id, gpointer user_data)
 {
-	int retval = 0;
 	int return_code = ALARMMGR_RESULT_SUCCESS;
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 	char log_tag[ALARMMGR_LOG_TAG_SIZE] = {0,};
@@ -2553,7 +2452,6 @@ gboolean alarm_manager_alarm_delete_all(AlarmManager *obj, GDBusMethodInvocation
 	alarm_info_t* alarm_info = NULL;
 	__alarm_info_t* entry = NULL;
 	bool is_deleted = false;
-	int retval = 0;
 	int return_code = ALARMMGR_RESULT_SUCCESS;
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
@@ -2577,34 +2475,26 @@ gboolean alarm_manager_alarm_delete_all(AlarmManager *obj, GDBusMethodInvocation
 
 	SECURE_LOGD("Called by process (pid:%d, unique_name=%s)", pid, app_name);
 
-	for (gs_iter = alarm_context.alarms; gs_iter != NULL; )
-	{
+	for (gs_iter = alarm_context.alarms; gs_iter != NULL;) {
 		bool is_found = false;
 		entry = gs_iter->data;
 		const char* tmp_appname = g_quark_to_string(entry->quark_app_unique_name);
 		SECURE_LOGD("Try to remove app_name[%s], alarm_id[%d]\n", tmp_appname, entry->alarm_id);
-		if (tmp_appname && strncmp(app_name, tmp_appname, strlen(tmp_appname)) == 0)
-		{
+		if (tmp_appname && strncmp(app_name, tmp_appname, strlen(tmp_appname)) == 0) {
 			if (_remove_from_scheduled_alarm_list(uid, entry->alarm_id))
-			{
 				is_deleted = true;
-			}
 
 			alarm_info = &entry->alarm_info;
-			if (!(alarm_info->alarm_type & ALARM_TYPE_VOLATILE))
-			{
-				if(!_delete_alarms(entry->alarm_id))
-				{
+			if (!(alarm_info->alarm_type & ALARM_TYPE_VOLATILE)) {
+				if (!_delete_alarms(entry->alarm_id))
 					SECURE_LOGE("_delete_alarms() is failed. pid[%d], alarm_id[%d]", pid, entry->alarm_id);
-				}
 			}
 			is_found = true;
 		}
 
 		gs_iter = g_slist_next(gs_iter);
 
-		if (is_found)
-		{
+		if (is_found) {
 			ALARM_MGR_LOG_PRINT("alarm_id[%d] is removed.", entry->alarm_id);
 			SECURE_LOGD("Removing is done. app_name[%s], alarm_id [%d]\n", tmp_appname, entry->alarm_id);
 			alarm_context.alarms = g_slist_remove(alarm_context.alarms, entry);
@@ -2612,8 +2502,7 @@ gboolean alarm_manager_alarm_delete_all(AlarmManager *obj, GDBusMethodInvocation
 		}
 	}
 
-	if (is_deleted && (g_slist_length(g_scheduled_alarm_list) == 0))
-	{
+	if (is_deleted && (g_slist_length(g_scheduled_alarm_list) == 0)) {
 		_alarm_disable_timer(alarm_context);
 		_alarm_schedule();
 	}
@@ -2675,12 +2564,11 @@ gboolean alarm_manager_alarm_update(AlarmManager *pObj, GDBusMethodInvocation *i
 		strncpy(log_tag, "FAIL: UPDATE", strlen("FAIL: UPDATE"));
 #endif
 		ret = false;
-	}
+	} else {
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-	else {
 		strncpy(log_tag, "UPDATE", strlen("UPDATE"));
-	}
 #endif
+	}
 
 	g_dbus_method_invocation_return_value(invoc, g_variant_new("(i)", return_code));
 
@@ -2699,7 +2587,6 @@ gboolean alarm_manager_alarm_get_number_of_ids(AlarmManager *pObject, GDBusMetho
 	GSList *gs_iter = NULL;
 	char app_name[256] = { 0 };
 	__alarm_info_t *entry = NULL;
-	int retval = 0;
 	int num_of_ids = 0;
 	int return_code = ALARMMGR_RESULT_SUCCESS;
 	uid_t uid;
@@ -2764,13 +2651,13 @@ gboolean alarm_manager_alarm_get_list_of_ids(AlarmManager *pObject, GDBusMethodI
 
 	SECURE_LOGD("Called by process (uid: %d, pid:%d, unique_name=%s).", uid, pid, app_name);
 
-	builder = g_variant_builder_new(G_VARIANT_TYPE ("ai"));
+	builder = g_variant_builder_new(G_VARIANT_TYPE("ai"));
 	for (gs_iter = alarm_context.alarms; gs_iter != NULL; gs_iter = g_slist_next(gs_iter)) {
 		entry = gs_iter->data;
 		if (entry->uid == uid &&
 				strncmp(app_name, g_quark_to_string(entry->quark_app_unique_name), strlen(app_name)) == 0) {
-			g_variant_builder_add (builder, "i", entry->alarm_id);
-			index ++;
+			g_variant_builder_add(builder, "i", entry->alarm_id);
+			index++;
 			SECURE_LOGE("called for alarmid(%d), but max_number_of_ids(%d) index %d.", entry->alarm_id, max_number_of_ids, index);
 		}
 	}
@@ -2791,7 +2678,6 @@ gboolean alarm_manager_alarm_get_appsvc_info(AlarmManager *pObject, GDBusMethodI
 	bool found = false;
 	GSList *gs_iter = NULL;
 	__alarm_info_t *entry = NULL;
-	int retval = 0;
 	int return_code = ALARMMGR_RESULT_SUCCESS;
 	gchar *b_data = NULL;
 	uid_t uid;
@@ -2831,7 +2717,6 @@ gboolean alarm_manager_alarm_get_info(AlarmManager *pObject, GDBusMethodInvocati
 	GSList *gs_iter = NULL;
 	__alarm_info_t *entry = NULL;
 	alarm_info_t *alarm_info = NULL;
-	int retval = 0;
 	int return_code = ALARMMGR_RESULT_SUCCESS;
 	uid_t uid;
 	const char *name = g_dbus_method_invocation_get_sender(invoc);
@@ -2867,7 +2752,6 @@ gboolean alarm_manager_alarm_get_next_duetime(AlarmManager *pObject, GDBusMethod
 	GSList *gs_iter = NULL;
 	__alarm_info_t *entry = NULL;
 	__alarm_info_t *find_item = NULL;
-	int retval = 0;
 	int return_code = ALARMMGR_RESULT_SUCCESS;
 	time_t duetime = 0;
 	uid_t uid;
@@ -2927,12 +2811,11 @@ gboolean alarm_manager_alarm_get_all_info(AlarmManager *pObject, GDBusMethodInvo
 	__alarm_info_t *entry = NULL;
 	char *error_message = NULL;
 	uid_t uid;
-
 	const char *name = g_dbus_method_invocation_get_sender(invoc);
 
 	uid = __get_caller_uid(name);
 
-	// Open a DB
+	/* Open a DB */
 	time(&current_time);
 	localtime_r(&current_time, &current_tm);
 	snprintf(db_path_tmp, sizeof(db_path_tmp), "/tmp/alarmmgr_%d%d%d_%02d%02d%02d.db",
@@ -2947,12 +2830,11 @@ gboolean alarm_manager_alarm_get_all_info(AlarmManager *pObject, GDBusMethodInvo
 		return true;
 	}
 
-	// Drop a table
-	if (sqlite3_exec(alarmmgr_tool_db, query_for_deleting_table, NULL, NULL, &error_message) != SQLITE_OK) {
+	/* Drop a table */
+	if (sqlite3_exec(alarmmgr_tool_db, query_for_deleting_table, NULL, NULL, &error_message) != SQLITE_OK)
 		ALARM_MGR_EXCEPTION_PRINT("Deleting the table is failed. error message = %s", error_message);
-	}
 
-	// Create a table if it does not exist
+	/* Create a table if it does not exist */
 	if (sqlite3_exec(alarmmgr_tool_db, query_for_creating_table, NULL, NULL, &error_message) != SQLITE_OK) {
 		ALARM_MGR_EXCEPTION_PRINT("Creating the table is failed. error message = %s", error_message);
 		sqlite3_close(alarmmgr_tool_db);
@@ -2962,7 +2844,7 @@ gboolean alarm_manager_alarm_get_all_info(AlarmManager *pObject, GDBusMethodInvo
 		return true;
 	}
 
-	// Get information of all alarms and save those into the DB.
+	/* Get information of all alarms and save those into the DB. */
 	int index = 0;
 	for (gs_iter = alarm_context.alarms; gs_iter != NULL; gs_iter = g_slist_next(gs_iter)) {
 		entry = gs_iter->data;
@@ -2994,9 +2876,8 @@ gboolean alarm_manager_alarm_get_all_info(AlarmManager *pObject, GDBusMethodInvo
 				mode->repeat,
 				entry->alarm_info.alarm_type);
 
-		if (sqlite3_exec(alarmmgr_tool_db, query, NULL, NULL, &error_message) != SQLITE_OK) {
+		if (sqlite3_exec(alarmmgr_tool_db, query, NULL, NULL, &error_message) != SQLITE_OK)
 			SECURE_LOGE("sqlite3_exec() is failed. error message = %s", error_message);
-		}
 
 		sqlite3_free(query);
 	}
@@ -3019,6 +2900,7 @@ gboolean alarm_manager_alarm_set_global(AlarmManager *pObject, GDBusMethodInvoca
 	int return_code = ALARMMGR_RESULT_SUCCESS;
 	uid_t uid;
 	const char *name = g_dbus_method_invocation_get_sender(invoc);
+	char *callee_pkgid;
 
 	uid = __get_caller_uid(name);
 
@@ -3038,10 +2920,9 @@ gboolean alarm_manager_alarm_set_global(AlarmManager *pObject, GDBusMethodInvoca
 	} else {
 		ALARM_MGR_LOG_PRINT("The alarm(%d) is found.", alarm_id);
 
-		char *callee_pkgid = (char *)g_quark_to_string(entry->quark_callee_pkgid);
-		if (strncmp(callee_pkgid, "null", strlen(callee_pkgid)) == 0) {
+		callee_pkgid = (char *)g_quark_to_string(entry->quark_callee_pkgid);
+		if (strncmp(callee_pkgid, "null", strlen(callee_pkgid)) == 0)
 			callee_pkgid = (char *)g_quark_to_string(entry->quark_app_service_name)+6;
-		}
 
 		ALARM_MGR_LOG_PRINT("The alarm pkgid : %s.", callee_pkgid);
 
@@ -3049,15 +2930,14 @@ gboolean alarm_manager_alarm_set_global(AlarmManager *pObject, GDBusMethodInvoca
 		retval = pkgmgrinfo_pkginfo_get_pkginfo(callee_pkgid, &handle);
 		if (retval != PMINFO_R_OK) {
 			ALARM_MGR_EXCEPTION_PRINT("The alarm(%d) is not permitted to set global.", alarm_id);
-			return_code = ERR_ALARM_INVALID_ID; //TODO change error code
+			return_code = ERR_ALARM_INVALID_ID; /* TODO change error code */
 		} else {
 			bool is_global = 0;
 			retval = pkgmgrinfo_pkginfo_is_global(handle, &is_global);
 			if (retval == PMINFO_R_OK && is_global) {
 				entry->global = global;
-				if (!__alarm_set_global_to_db(entry, global)) {
+				if (!__alarm_set_global_to_db(entry, global))
 					return_code = ERR_ALARM_SYSTEM_FAIL;
-				}
 			} else if (retval == PMINFO_R_OK && !is_global) {
 				return_code = ERR_ALARM_NOT_PERMITTED_APP;
 			}
@@ -3075,7 +2955,6 @@ gboolean alarm_manager_alarm_get_global(AlarmManager *pObject, GDBusMethodInvoca
 	GSList *gs_iter = NULL;
 	__alarm_info_t *entry = NULL;
 	__alarm_info_t *find_item = NULL;
-	int retval = 0;
 	int return_code = ALARMMGR_RESULT_SUCCESS;
 	bool global = false;
 
@@ -3127,9 +3006,9 @@ static gboolean __timer_glib_check(GSource *src)
 	fd_list = src->poll_fds;
 	do {
 		tmp = (GPollFD *) fd_list->data;
-		if (tmp->revents & (POLLIN | POLLPRI)) {
+		if (tmp->revents & (POLLIN | POLLPRI))
 			return TRUE;
-		}
+
 		fd_list = fd_list->next;
 	} while (fd_list);
 
@@ -3210,13 +3089,13 @@ static void __initialize_scheduled_alarm_list()
 
 static bool __initialize_noti()
 {
-	// VCONFKEY_SYSTEM_TIMECHANGE_EXTERNAL is set by OSP app-service.
+	/* VCONFKEY_SYSTEM_TIMECHANGE_EXTERNAL is set by OSP app-service. */
 	if (vconf_notify_key_changed
 	    (VCONFKEY_SYSTEM_TIMECHANGE_EXTERNAL, __on_system_time_external_changed, NULL) < 0) {
 		ALARM_MGR_LOG_PRINT("Failed to add callback for time external changing event.");
 	}
 
-	// If the caller or callee app is uninstalled, all registered alarms will be canceled.
+	/* If the caller or callee app is uninstalled, all registered alarms will be canceled. */
 	int event_type = PMINFO_CLIENT_STATUS_UNINSTALL;
 	pkgmgrinfo_client* pc = pkgmgrinfo_client_new(PMINFO_LISTENING);
 	pkgmgrinfo_client_set_status_type(pc, event_type);
@@ -3226,19 +3105,20 @@ static bool __initialize_noti()
 }
 
 void on_bus_name_owner_changed(GDBusConnection  *connection,
-										const gchar		*sender_name,
-										const gchar		*object_path,
-										const gchar		*interface_name,
-										const gchar		*signal_name,
-										GVariant			*parameters,
-										gpointer			user_data)
+				const gchar *sender_name,
+				const gchar *object_path,
+				const gchar *interface_name,
+				const gchar *signal_name,
+				GVariant *parameters,
+				gpointer user_data)
 {
-	// On expiry, the killed app can be launched by aul. Then, the owner of the bus name which was registered by the app is changed.
-	// In this case, "NameOwnerChange" signal is broadcasted.
+	GSList *entry = NULL;
+	__expired_alarm_t *expire_info = NULL;
+	char *service_name = NULL;
+
+	/* On expiry, the killed app can be launched by aul. Then, the owner of the bus name which was registered by the app is changed.
+	 * In this case, "NameOwnerChange" signal is broadcasted. */
 	if (signal_name && strcmp(signal_name , "NameOwnerChanged") == 0) {
-		GSList *entry = NULL;
-		__expired_alarm_t *expire_info = NULL;
-		char *service_name = NULL;
 		g_variant_get(parameters, "(sss)", &service_name, NULL, NULL);
 
 		for (entry = g_expired_alarm_list; entry; entry = entry->next) {
@@ -3396,15 +3276,16 @@ static void __initialize()
 #endif
 
 	__initialize_timer();
-	if (__initialize_dbus() == false) {	/* because dbus's initialize
-					failed, we cannot continue any more. */
+	if (__initialize_dbus() == false) {
+		/* because dbus's initialize
+		 * failed, we cannot continue any more. */
 		ALARM_MGR_EXCEPTION_PRINT("because __initialize_dbus failed, "
 					  "alarm-server cannot be runned.\n");
 		exit(1);
 	}
 
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
-	__initialize_module_log();	// for module log
+	__initialize_module_log(); /* for module log */
 #endif
 
 	__initialize_scheduled_alarm_list();

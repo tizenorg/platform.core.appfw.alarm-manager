@@ -18,7 +18,7 @@ INCLUDE(FindPkgConfig)
 pkg_check_modules(pkgs REQUIRED ${DEPS_PKGS})
 
 FOREACH(flag ${pkgs_CFLAGS})
-	SET(EXTRA_CFLAGS "${EXTRA_CFLAGS} ${flag} -Wall -Wno-unused")
+	SET(EXTRA_CFLAGS "${EXTRA_CFLAGS} ${flag} -Wall -Werror")
 ENDFOREACH(flag)
 
 SET (${this_target}_SOURCE_FILES

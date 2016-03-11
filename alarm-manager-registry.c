@@ -29,7 +29,7 @@
 
 #include<glib.h>
 #include <db-util.h>
-#if !GLIB_CHECK_VERSION (2, 31, 0)
+#if !GLIB_CHECK_VERSION(2, 31, 0)
 #include <glib/gmacros.h>
 #endif
 #include"alarm.h"
@@ -252,11 +252,11 @@ bool _load_alarms_from_registry()
 		    g_quark_from_string(app_unique_name);
 		__alarm_info->quark_app_service_name =
 		    g_quark_from_string(app_service_name);
-		__alarm_info->quark_app_service_name_mod=
+		__alarm_info->quark_app_service_name_mod =
 		    g_quark_from_string(app_service_name_mod);
 		__alarm_info->quark_dst_service_name =
 		    g_quark_from_string(dst_service_name);
-		__alarm_info->quark_dst_service_name_mod=
+		__alarm_info->quark_dst_service_name_mod =
 		    g_quark_from_string(dst_service_name_mod);
 		__alarm_info->quark_bundle = g_quark_from_string(bundle);
 
