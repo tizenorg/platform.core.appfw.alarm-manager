@@ -1,6 +1,14 @@
 Verified+1: Jiwoong Im <jiwoong.im@samsung.com>
 Code-Review+2: Junghoon Park <jh9216.park@samsung.com>
 Submitted-by: Jiwoong Im <jiwoong.im@samsung.com>
+Submitted-at: Thu, 10 Mar 2016 23:37:49 -0700
+Reviewed-on: https://review.tizen.org/gerrit/61908
+Project: platform/core/appfw/alarm-manager
+Branch: refs/heads/tizen
+
+Verified+1: Jiwoong Im <jiwoong.im@samsung.com>
+Code-Review+2: Junghoon Park <jh9216.park@samsung.com>
+Submitted-by: Jiwoong Im <jiwoong.im@samsung.com>
 Submitted-at: Thu, 10 Mar 2016 22:37:49 -0800
 Reviewed-on: https://review.tizen.org/gerrit/61908
 Project: platform/core/appfw/alarm-manager
