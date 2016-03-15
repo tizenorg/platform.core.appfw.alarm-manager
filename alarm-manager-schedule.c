@@ -444,7 +444,7 @@ time_t _alarm_next_duetime(__alarm_info_t *__alarm_info)
 	alarm_mode_t *mode = &alarm_info->mode;
 
 	time(&current_time);
-	cur_tm = localtime(&current_time);
+	localtime_r(&current_time, cur_tm);
 	if (cur_tm && cur_tm->tm_isdst > 0)
 		is_dst = 1;
 
