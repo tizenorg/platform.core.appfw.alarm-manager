@@ -437,14 +437,14 @@ time_t _alarm_next_duetime(__alarm_info_t *__alarm_info)
 	int is_dst = 0;
 	time_t current_time = 0;
 	time_t due_time = 0;
-	struct tm *cur_tm = NULL ;
+	struct tm tm, *cur_tm = NULL ;
 	struct tm *due_tm = NULL ;
 
 	alarm_info_t *alarm_info = &__alarm_info->alarm_info;
 	alarm_mode_t *mode = &alarm_info->mode;
 
 	time(&current_time);
-	cur_tm = localtime(&current_time);
+	cur_tm = localtime_r(&current_time, &tm);
 	if (cur_tm && cur_tm->tm_isdst > 0)
 		is_dst = 1;
 
@@ -467,7 +467,7 @@ time_t _alarm_next_duetime(__alarm_info_t *__alarm_info)
 	}
 
 	if (mode->repeat != ALARM_REPEAT_MODE_WEEKLY && mode->repeat != ALARM_REPEAT_MODE_ONCE) {
-		due_tm = localtime(&due_time);
+		due_tm = localtime_r(&due_time, &tm);
 		if (is_dst == 0 && due_tm && due_tm->tm_isdst == 1) {
 			ALARM_MGR_LOG_PRINT("DST alarm found, enable\n");
 			due_tm->tm_hour = due_tm->tm_hour - DST_TIME_DIFF;
