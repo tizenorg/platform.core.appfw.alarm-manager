@@ -1946,7 +1946,7 @@ gboolean alarm_manager_alarm_set_rtc_time(AlarmManager *pObj, GDBusMethodInvocat
 	struct rtc_wkalrm rtc_wkalarm;
 	int retval = 0;
 	int return_code = ALARMMGR_RESULT_SUCCESS;
-	struct tm *alarm_tm = NULL;
+	struct tm tm, *alarm_tm = NULL;
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 	char log_tag[ALARMMGR_LOG_TAG_SIZE] = {0,};
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
@@ -1955,7 +1955,7 @@ gboolean alarm_manager_alarm_set_rtc_time(AlarmManager *pObj, GDBusMethodInvocat
 	time_t current_time;
 
 	current_time = time(NULL);
-	alarm_tm = localtime(&current_time);
+	alarm_tm = localtime_r(&current_time, &tm);
 	if (alarm_tm == NULL) {
 		ALARM_MGR_EXCEPTION_PRINT("alarm_tm is NULL");
 		return true;
