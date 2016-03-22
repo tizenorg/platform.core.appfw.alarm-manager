@@ -196,6 +196,7 @@ static void __rtc_set()
 
 	/* Read the RTC time/date */
 	int retval = 0;
+	char buf[1024];
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 	char *timebuf = ctime(&alarm_context.c_due_time);
 	if (timebuf) {
@@ -221,7 +222,7 @@ static void __rtc_set()
 			if (errno == ENOTTY)
 				ALARM_MGR_EXCEPTION_PRINT("Alarm IRQs is not supported.");
 
-			ALARM_MGR_EXCEPTION_PRINT("RTC_WKALM_SET disabled ioctl is failed. errno = %s", strerror(errno));
+			ALARM_MGR_EXCEPTION_PRINT("RTC_WKALM_SET disabled ioctl is failed. errno = %s", strerror_r(errno, buf, sizeof(buf)));
 			return;
 		}
 		ALARM_MGR_LOG_PRINT("[alarm-server]RTC_WKALM_SET disabled ioctl is successfully done.");
@@ -245,7 +246,7 @@ static void __rtc_set()
 			if (errno == ENOTTY)
 				ALARM_MGR_EXCEPTION_PRINT("Alarm IRQs is not supported.");
 
-			ALARM_MGR_EXCEPTION_PRINT("RTC ALARM_SET ioctl is failed. errno = %s", strerror(errno));
+			ALARM_MGR_EXCEPTION_PRINT("RTC ALARM_SET ioctl is failed. errno = %s", strerror_r(errno, buf, sizeof(buf)));
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 			__save_module_log("FAIL: SET RTC", log_message);
 #endif
@@ -275,6 +276,7 @@ int __set_time(time_t _time)
 	char log_tag[ALARMMGR_LOG_TAG_SIZE] = {0,};
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
 #endif
+	char buf[1024];
 
 	if (gfd < 0) {
 		gfd = open(rtc0, O_RDWR);
@@ -310,7 +312,7 @@ int __set_time(time_t _time)
 
 	ret = ioctl(gfd, RTC_SET_TIME, &_rtc_time);
 	if (ret == -1) {
-		ALARM_MGR_EXCEPTION_PRINT("ALARM_SET_RTC ioctl is failed. errno = %s", strerror(errno));
+		ALARM_MGR_EXCEPTION_PRINT("ALARM_SET_RTC ioctl is failed. errno = %s", strerror_r(errno, buf, sizeof(buf)));
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 		strncpy(log_tag, "FAIL: SET RTC", strlen("FAIL: SET RTC"));
 #endif
@@ -1716,9 +1718,11 @@ bool __get_caller_unique_name(int pid, char *unique_name, uid_t uid)
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 static void __initialize_module_log(void)
 {
+	char buf[1024];
+
 	log_fd = open(ALARMMGR_LOG_FILE_PATH, O_CREAT | O_WRONLY, 0644);
 	if (log_fd == -1) {
-		ALARM_MGR_EXCEPTION_PRINT("Opening the file for alarmmgr log is failed. err: %s", strerror(errno));
+		ALARM_MGR_EXCEPTION_PRINT("Opening the file for alarmmgr log is failed. err: %s", strerror_r(errno, buf, sizeof(buf)));
 		return;
 	}
 
@@ -1737,6 +1741,7 @@ static bool __save_module_log(const char *tag, const char *message)
 {
 	char buffer[ALARMMGR_LOG_BUFFER_STRING_SIZE] = {0,};
 	time_t now;
+	char buf[1024];
 
 	if (log_fd == -1) {
 		ALARM_MGR_EXCEPTION_PRINT("The file is not ready.");
@@ -1753,7 +1758,7 @@ static bool __save_module_log(const char *tag, const char *message)
 
 	int ret = write(log_fd, buffer, strlen(buffer));
 	if (ret < 0) {
-		ALARM_MGR_EXCEPTION_PRINT("Writing the alarmmgr log is failed. err: %s", strerror(errno));
+		ALARM_MGR_EXCEPTION_PRINT("Writing the alarmmgr log is failed. err: %s", strerror_r(errno, buf, sizeof(buf)));
 		return false;
 	}
 
@@ -1953,6 +1958,7 @@ gboolean alarm_manager_alarm_set_rtc_time(AlarmManager *pObj, GDBusMethodInvocat
 #endif
 	/*extract day of the week, day in the year & daylight saving time from system*/
 	time_t current_time;
+	char buf[1024];
 
 	current_time = time(NULL);
 	alarm_tm = localtime_r(&current_time, &tm);
@@ -1995,7 +2001,7 @@ gboolean alarm_manager_alarm_set_rtc_time(AlarmManager *pObj, GDBusMethodInvocat
 		if (errno == ENOTTY)
 			ALARM_MGR_EXCEPTION_PRINT("Alarm IRQs is not supported.");
 
-		ALARM_MGR_EXCEPTION_PRINT("RTC ALARM_SET ioctl is failed. errno = %s", strerror(errno));
+		ALARM_MGR_EXCEPTION_PRINT("RTC ALARM_SET ioctl is failed. errno = %s", strerror_r(errno, buf, sizeof(buf)));
 		return_code = ERR_ALARM_SYSTEM_FAIL;
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 		strncpy(log_tag, "FAIL: SET RTC", strlen("FAIL: SET RTC"));
