@@ -1134,8 +1134,6 @@ static bool __can_skip_expired_cb(alarm_id_t alarm_id)
 static void __alarm_send_noti_to_application(const char *app_service_name, alarm_id_t alarm_id)
 {
 	char service_name[MAX_SERVICE_NAME_LEN] = {0,};
-	gboolean ret;
-	GError *err = NULL;
 
 	if (app_service_name == NULL || strlen(app_service_name) == 0) {
 		ALARM_MGR_EXCEPTION_PRINT("This alarm destination is invalid.");
@@ -1148,17 +1146,18 @@ static void __alarm_send_noti_to_application(const char *app_service_name, alarm
 	memcpy(service_name, app_service_name, strlen(app_service_name));
 	SECURE_LOGI("[alarm server][send expired_alarm(alarm_id=%d) to app_service_name(%s)]", alarm_id, service_name);
 
-	ret = g_dbus_connection_emit_signal(alarm_context.connection,
-			NULL,
-			"/org/tizen/alarm/manager",
-			"org.tizen.alarm.manager",
+	g_dbus_connection_call(alarm_context.connection,
+			service_name,
+			"/org/tizen/alarm/client",
+			"org.tizen.alarm.client",
 			"alarm_expired",
 			g_variant_new("(is)", alarm_id, service_name),
-			&err);
-	if (ret != TRUE) {
-		ALARM_MGR_EXCEPTION_PRINT("failed to send expired signal for %d, %s: %s", alarm_id, service_name, err->message);
-		g_error_free(err);
-	}
+			NULL,
+			G_DBUS_CALL_FLAGS_NONE,
+			-1,
+			NULL,
+			NULL,
+			NULL);
 }
 
 static uid_t __get_caller_uid(const char *name)
@@ -1399,14 +1398,14 @@ static void __alarm_expired()
 			char appid[MAX_SERVICE_NAME_LEN] = { 0, };
 			pkgmgrinfo_appinfo_h appinfo_handle = NULL;
 
-			if (strncmp(g_quark_to_string(__alarm_info->quark_dst_service_name), "null", 4) == 0) {
+			if (g_quark_to_string(__alarm_info->quark_bundle) != NULL && strncmp(g_quark_to_string(__alarm_info->quark_dst_service_name), "null", 4) == 0) {
 				SECURE_LOGD("[alarm-server]:destination is null, so we send expired alarm to %s(%u).",
 						g_quark_to_string(__alarm_info->quark_app_service_name), __alarm_info->quark_app_service_name);
-				destination_app_service_name = g_quark_to_string(__alarm_info->quark_app_service_name);
+				destination_app_service_name = g_quark_to_string(__alarm_info->quark_app_service_name_mod);
 			} else {
 				SECURE_LOGD("[alarm-server]:destination :%s(%u)",
 						g_quark_to_string(__alarm_info->quark_dst_service_name), __alarm_info->quark_dst_service_name);
-				destination_app_service_name = g_quark_to_string(__alarm_info->quark_dst_service_name);
+				destination_app_service_name = g_quark_to_string(__alarm_info->quark_dst_service_name_mod);
 			}
 
 			/*
