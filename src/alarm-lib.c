@@ -351,8 +351,11 @@ EXPORT_API int alarmmgr_init(const char *appid)
 {
 	SECURE_LOGD("Enter");
 	char service_name[MAX_SERVICE_NAME_LEN] = { 0 };
+	char service_name_mod[MAX_SERVICE_NAME_LEN]= { 0 };
 	int ret;
 	int len = 0;
+	int i = 0;
+	int j = 0;
 
 	if (appid == NULL)
 		return ERR_ALARM_INVALID_PARAM;
@@ -382,11 +385,24 @@ EXPORT_API int alarmmgr_init(const char *appid)
 			NULL,
 			NULL);
 
+	memset(service_name_mod, 'a', MAX_SERVICE_NAME_LEN - 1);
+
 	len = strlen("ALARM.");
 	strncpy(service_name, "ALARM.", len);
 	strncpy(service_name + len, appid, strlen(appid));
 
+	for(i = 0; i <= strlen(service_name); i++) {
+		if (service_name[i] == '.') {
+			service_name_mod[j] = service_name[i];
+			j++;
+		}
+		else {
+			service_name_mod[j] = service_name[i];
+		}
+		j++;
+	}
 	alarm_context.quark_app_service_name = g_quark_from_string(service_name);
+	alarm_context.quark_app_service_name_mod= g_quark_from_string(service_name_mod);
 
 	b_initialized = true;
 
