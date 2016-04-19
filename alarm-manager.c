@@ -1149,7 +1149,7 @@ static void __alarm_send_noti_to_application(const char *app_service_name, alarm
 	SECURE_LOGI("[alarm server][send expired_alarm(alarm_id=%d) to app_service_name(%s)]", alarm_id, service_name);
 
 	ret = g_dbus_connection_emit_signal(alarm_context.connection,
-			NULL,
+			service_name,
 			"/org/tizen/alarm/manager",
 			"org.tizen.alarm.manager",
 			"alarm_expired",
@@ -1399,14 +1399,14 @@ static void __alarm_expired()
 			char appid[MAX_SERVICE_NAME_LEN] = { 0, };
 			pkgmgrinfo_appinfo_h appinfo_handle = NULL;
 
-			if (strncmp(g_quark_to_string(__alarm_info->quark_dst_service_name), "null", 4) == 0) {
+			if (g_quark_to_string(__alarm_info->quark_bundle) != NULL && strncmp(g_quark_to_string(__alarm_info->quark_dst_service_name), "null", 4) == 0) {
 				SECURE_LOGD("[alarm-server]:destination is null, so we send expired alarm to %s(%u).",
 						g_quark_to_string(__alarm_info->quark_app_service_name), __alarm_info->quark_app_service_name);
-				destination_app_service_name = g_quark_to_string(__alarm_info->quark_app_service_name);
+				destination_app_service_name = g_quark_to_string(__alarm_info->quark_app_service_name_mod);
 			} else {
 				SECURE_LOGD("[alarm-server]:destination :%s(%u)",
 						g_quark_to_string(__alarm_info->quark_dst_service_name), __alarm_info->quark_dst_service_name);
-				destination_app_service_name = g_quark_to_string(__alarm_info->quark_dst_service_name);
+				destination_app_service_name = g_quark_to_string(__alarm_info->quark_dst_service_name_mod);
 			}
 
 			/*
