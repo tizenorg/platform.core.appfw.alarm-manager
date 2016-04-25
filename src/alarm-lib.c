@@ -354,6 +354,7 @@ EXPORT_API int alarmmgr_init(const char *appid)
 	char service_name_mod[MAX_SERVICE_NAME_LEN] = { 0 };
 	int ret;
 	int len = 0;
+	guint owner_id = 0;
 	int i = 0;
 	int j = 0;
 
@@ -373,18 +374,6 @@ EXPORT_API int alarmmgr_init(const char *appid)
 	if (ret < 0)
 		return ret;
 
-	alarm_context.sid = g_dbus_connection_signal_subscribe(
-			alarm_context.connection,
-			NULL,
-			"org.tizen.alarm.manager",
-			"alarm_expired",
-			"/org/tizen/alarm/manager",
-			NULL,
-			G_DBUS_SIGNAL_FLAGS_NONE,
-			__handle_expired_signal,
-			NULL,
-			NULL);
-
 	memset(service_name_mod, 'a', MAX_SERVICE_NAME_LEN - 1);
 
 	len = strlen("ALARM.");
@@ -400,6 +389,26 @@ EXPORT_API int alarmmgr_init(const char *appid)
 		}
 		j++;
 	}
+
+	owner_id = g_bus_own_name_on_connection(alarm_context.connection, service_name_mod,
+										G_BUS_NAME_OWNER_FLAGS_NONE, NULL, NULL, NULL, NULL);
+	if (owner_id == 0) {
+		ALARM_MGR_EXCEPTION_PRINT("Acquiring the own name is failed. %s", service_name_mod);
+		return ERR_ALARM_SYSTEM_FAIL;
+	}
+
+	alarm_context.sid = g_dbus_connection_signal_subscribe(
+			alarm_context.connection,
+			NULL,
+			"org.tizen.alarm.manager",
+			"alarm_expired",
+			"/org/tizen/alarm/manager",
+			NULL,
+			G_DBUS_SIGNAL_FLAGS_NONE,
+			__handle_expired_signal,
+			NULL,
+			NULL);
+
 	alarm_context.quark_app_service_name = g_quark_from_string(service_name);
 	alarm_context.quark_app_service_name_mod = g_quark_from_string(service_name_mod);
 
