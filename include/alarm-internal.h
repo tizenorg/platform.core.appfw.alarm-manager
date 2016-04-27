@@ -91,6 +91,17 @@ typedef struct {
 	alarm_repeat_mode_t repeat;	/**< repeat mode */
 } alarm_mode_t;
 
+typedef struct {
+	alarm_set_time_cb_t callback;
+	void *user_data;
+	GDBusProxy *proxy;
+} alarm_set_time_data_t;
+
+enum async_param_type {
+	SET_SYSTIME = 0,
+	SET_SYSTIME_WITH_PROPAGATION_DELAY,
+};
+
 /**
 *  This enumeration has alarm type
 
@@ -137,9 +148,11 @@ bool _load_alarms_from_registry();
 bundle *_send_alarm_get_appsvc_info(alarm_context_t context, alarm_id_t alarm_id, int *error_code);
 bool _send_alarm_set_rtc_time(alarm_context_t context, alarm_date_t *time, int *error_code);
 bool _send_alarm_set_time_with_propagation_delay(alarm_context_t context, unsigned int new_sec, unsigned int new_nsec, unsigned int req_sec, unsigned int req_nsec, int *error_code);
+bool _send_alarm_set_time_with_propagation_delay_async(alarm_context_t context, unsigned int new_sec, unsigned int new_nsec, unsigned int req_sec, unsigned int req_nsec, alarm_set_time_cb_t result_cb, void *user_data);
 bool _send_alarm_set_timezone(alarm_context_t context, char *tzpath_str, int *error_code);
 bool _send_alarm_create_periodic(alarm_context_t context, int interval, int is_ref, int method, alarm_id_t *alarm_id, int *error_code);
 bool _send_alarm_set_time(alarm_context_t context, int new_time, int *error_code);
+bool _send_alarm_set_time_async(alarm_context_t context, int new_time, alarm_set_time_cb_t result_cb, void *user_data);
 bool _send_alarm_set_global(alarm_context_t context, int alarm_id, bool global, int *error_code);
 bool _send_alarm_get_global(alarm_context_t context, int alarm_id, bool *global, int *error_code);
 
