@@ -44,7 +44,7 @@ static alarm_context_t alarm_context = { NULL, NULL, 0, NULL, NULL, -1 };
 static bool b_initialized = false;
 static bool sub_initialized = false;
 
-pthread_mutex_t init_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t init_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static void __handle_expired_signal(GDBusConnection *conn,
 		const gchar *name, const gchar *path, const gchar *interface,
@@ -61,6 +61,13 @@ typedef struct _alarm_cb_info_t {
 	void *priv_data;
 	struct _alarm_cb_info_t *next;
 } alarm_cb_info_t;
+
+struct alarm_async_param_t {
+	enum async_param_type type;
+	GVariant *v;
+	alarm_set_time_cb_t result_cb;
+	void *user_param;
+};
 
 static alarm_cb_info_t *alarmcb_head = NULL;
 
@@ -296,6 +303,80 @@ out:
 	return _return;
 }
 
+static int __alarm_context_init()
+{
+	int fd = 0;
+	int ret = 0;
+
+	if (sub_initialized)
+		return ALARMMGR_RESULT_SUCCESS;
+
+	alarm_context.proxy = g_dbus_proxy_new_sync(alarm_context.connection,
+			G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START_AT_CONSTRUCTION,
+			NULL,
+			"org.tizen.alarm.manager",
+			"/org/tizen/alarm/manager",
+			"org.tizen.alarm.manager",
+			NULL,
+			NULL);
+
+	if (alarm_context.proxy == NULL) {
+		ALARM_MGR_EXCEPTION_PRINT("Creating a proxy is failed.");
+		g_object_unref(alarm_context.connection);
+		return ERR_ALARM_SYSTEM_FAIL;
+	}
+
+	sub_initialized = true;
+
+	return ALARMMGR_RESULT_SUCCESS;
+}
+
+static void __bus_get_for_async_api(GObject *source_object, GAsyncResult *res,
+		gpointer user_data)
+{
+	GError *error = NULL;
+	struct alarm_async_param_t *param = (struct alarm_async_param_t *)user_data;
+
+	pthread_mutex_lock(&init_lock);
+
+	alarm_context.connection = g_bus_get_finish(res, &error);
+	if (!alarm_context.connection) {
+		ALARM_MGR_EXCEPTION_PRINT("dbus error message: %s", error->message);
+		g_error_free(error);
+		g_variant_unref(param->v);
+		g_free(param);
+		pthread_mutex_unlock(&init_lock);
+		return;
+	}
+
+	if (__alarm_context_init() != ALARMMGR_RESULT_SUCCESS) {
+		g_variant_unref(param->v);
+		g_free(param);
+		pthread_mutex_unlock(&init_lock);
+		return;
+	}
+
+	if (param->type == SET_SYSTIME_WITH_PROPAGATION_DELAY) {
+		struct timespec new_time;
+		struct timespec req_time;
+		g_variant_get(param->v, "(uuuu)", &new_time.tv_sec, &new_time.tv_nsec,
+				&req_time.tv_sec, &req_time.tv_nsec);
+		_send_alarm_set_time_with_propagation_delay_async(alarm_context,
+					new_time.tv_sec, new_time.tv_nsec,
+					req_time.tv_sec, req_time.tv_nsec,
+					param->result_cb, param->user_param);
+	} else if (param->type == SET_SYSTIME) {
+		int new_time;
+		g_variant_get(param->v, "i", &new_time);
+		_send_alarm_set_time_async(alarm_context, new_time,
+					param->result_cb, param->user_param);
+	}
+
+	g_variant_unref(param->v);
+	g_free(param);
+	pthread_mutex_unlock(&init_lock);
+}
+
 static int __sub_init()
 {
 	GError *error = NULL;
@@ -324,24 +405,7 @@ static int __sub_init()
 		return ERR_ALARM_SYSTEM_FAIL;
 	}
 
-	alarm_context.proxy = g_dbus_proxy_new_sync(alarm_context.connection,
-			G_DBUS_PROXY_FLAGS_NONE,
-			NULL,
-			"org.tizen.alarm.manager",
-			"/org/tizen/alarm/manager",
-			"org.tizen.alarm.manager",
-			NULL,
-			NULL);
-
-	if (alarm_context.proxy == NULL) {
-		ALARM_MGR_EXCEPTION_PRINT("Creating a proxy is failed.");
-		g_object_unref(alarm_context.connection);
-		pthread_mutex_unlock(&init_lock);
-		return ERR_ALARM_SYSTEM_FAIL;
-	}
-
-	sub_initialized = true;
-
+	ret = __alarm_context_init();
 	pthread_mutex_unlock(&init_lock);
 
 	return ALARMMGR_RESULT_SUCCESS;
@@ -1464,6 +1528,35 @@ EXPORT_API int alarmmgr_set_systime(int new_time)
 	return ALARMMGR_RESULT_SUCCESS;
 }
 
+EXPORT_API int alarmmgr_set_systime_async(int new_time, alarm_set_time_cb_t result_cb, void *user_param)
+{
+	int error_code;
+	struct alarm_async_param_t *param;
+
+	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarmmgr_set_systime(%d) is called.", new_time);
+
+	if (sub_initialized) {
+		if (!_send_alarm_set_time_async(alarm_context, new_time,
+					result_cb, user_param))
+			return ERR_ALARM_SYSTEM_FAIL;
+	} else {
+#if !(GLIB_CHECK_VERSION(2, 32, 0))
+		g_thread_init(NULL);
+#endif
+#if !(GLIB_CHECK_VERSION(2, 36, 0))
+		g_type_init();
+#endif
+		param = g_try_new0(struct alarm_async_param_t, 1);
+		param->type = SET_SYSTIME;
+		param->v = g_variant_new("i", new_time);
+		param->result_cb = result_cb;
+		param->user_param = user_param;
+		g_bus_get(G_BUS_TYPE_SYSTEM, NULL, __bus_get_for_async_api, param);
+	}
+
+	return ALARMMGR_RESULT_SUCCESS;
+}
+
 EXPORT_API int alarmmgr_set_systime_with_propagation_delay(struct timespec new_time, struct timespec req_time)
 {
 	int error_code;
@@ -1479,6 +1572,38 @@ EXPORT_API int alarmmgr_set_systime_with_propagation_delay(struct timespec new_t
 	}
 
 	ALARM_MGR_LOG_PRINT("[alarm-lib]: successfully set the time by pid(%d).", getpid());
+	return ALARMMGR_RESULT_SUCCESS;
+}
+
+EXPORT_API int alarmmgr_set_systime_with_propagation_delay_async(struct timespec new_time, struct timespec req_time, alarm_set_time_cb_t result_cb, void *user_param)
+{
+	int error_code;
+	struct alarm_async_param_t *param;
+
+	ALARM_MGR_LOG_PRINT("[alarm-lib] New: %d(sec) %09d(nsec), Requested: %d(sec) %09d(nsec)",
+		new_time.tv_sec, new_time.tv_nsec, req_time.tv_sec, req_time.tv_nsec);
+
+	if (sub_initialized) {
+		if (!_send_alarm_set_time_with_propagation_delay_async(alarm_context,
+					new_time.tv_sec, new_time.tv_nsec, req_time.tv_sec,
+					req_time.tv_nsec, result_cb, user_param))
+			return ERR_ALARM_SYSTEM_FAIL;
+	} else {
+#if !(GLIB_CHECK_VERSION(2, 32, 0))
+		g_thread_init(NULL);
+#endif
+#if !(GLIB_CHECK_VERSION(2, 36, 0))
+		g_type_init();
+#endif
+		param = g_try_new0(struct alarm_async_param_t, 1);
+		param->type = SET_SYSTIME_WITH_PROPAGATION_DELAY;
+		param->v = g_variant_new("(uuuu)", new_time.tv_sec, new_time.tv_nsec,
+				req_time.tv_sec, req_time.tv_nsec);
+		param->result_cb = result_cb;
+		param->user_param = user_param;
+		g_bus_get(G_BUS_TYPE_SYSTEM, NULL, __bus_get_for_async_api, param);
+	}
+
 	return ALARMMGR_RESULT_SUCCESS;
 }
 

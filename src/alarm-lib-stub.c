@@ -550,6 +550,44 @@ bool _send_alarm_set_time(alarm_context_t context, int new_time, int *error_code
 	return true;
 }
 
+static void _alarm_set_time_cb(GObject *source_object, GAsyncResult *res,
+		gpointer user_data)
+{
+	int return_code = 0;
+	GError *error = NULL;
+	alarm_set_time_data_t *func_data = (alarm_set_time_data_t *)user_data;
+
+	if (!alarm_manager_call_alarm_set_time_finish((AlarmManager *)func_data->proxy,
+				(gint *)&return_code,
+				res, &error)) {
+		ALARM_MGR_EXCEPTION_PRINT("dbus error message: %s", error->message);
+		g_error_free(error);
+		return_code = ERR_ALARM_SYSTEM_FAIL;
+	}
+
+	if (func_data->callback != NULL)
+		func_data->callback(return_code, func_data->user_data);
+}
+
+bool _send_alarm_set_time_async(alarm_context_t context, int new_time, alarm_set_time_cb_t result_cb, void *user_data)
+{
+	alarm_set_time_data_t *func_data;
+
+	func_data = g_try_new0(alarm_set_time_data_t, 1);
+
+	if (func_data == NULL)
+		return false;
+
+	func_data->callback = result_cb;
+	func_data->user_data = user_data;
+	func_data->proxy = context.proxy;
+
+	alarm_manager_call_alarm_set_time((AlarmManager *)context.proxy, new_time,
+			NULL, _alarm_set_time_cb, func_data);
+
+	return true;
+}
+
 bool _send_alarm_set_time_with_propagation_delay(alarm_context_t context, unsigned int new_sec, unsigned int new_nsec, unsigned int req_sec, unsigned int req_nsec, int *error_code)
 {
 	GError *error = NULL;
@@ -575,6 +613,45 @@ bool _send_alarm_set_time_with_propagation_delay(alarm_context_t context, unsign
 			*error_code = return_code;
 		return false;
 	}
+
+	return true;
+}
+
+static void _alarm_set_time_with_delay_cb(GObject *source_object, GAsyncResult *res,
+		gpointer user_data)
+{
+	int return_code = 0;
+	GError *error = NULL;
+	alarm_set_time_data_t *func_data = (alarm_set_time_data_t *)user_data;
+
+	if (!alarm_manager_call_alarm_set_time_with_propagation_delay_finish((AlarmManager *)func_data->proxy,
+				(gint *)&return_code,
+				res, &error)) {
+		ALARM_MGR_EXCEPTION_PRINT("dbus error message: %s", error->message);
+		g_error_free(error);
+		return_code = ERR_ALARM_SYSTEM_FAIL;
+	}
+
+	if (func_data->callback != NULL)
+		func_data->callback(return_code, func_data->user_data);
+}
+
+bool _send_alarm_set_time_with_propagation_delay_async(alarm_context_t context, unsigned int new_sec, unsigned int new_nsec, unsigned int req_sec, unsigned int req_nsec, alarm_set_time_cb_t result_cb, void *user_data)
+{
+	alarm_set_time_data_t *func_data;
+
+	func_data = g_try_new0(alarm_set_time_data_t, 1);
+
+	if (func_data == NULL)
+		return false;
+
+	func_data->callback = result_cb;
+	func_data->user_data = user_data;
+	func_data->proxy = context.proxy;
+
+	alarm_manager_call_alarm_set_time_with_propagation_delay((AlarmManager *)context.proxy,
+			new_sec, new_nsec, req_sec, req_nsec,
+			NULL, _alarm_set_time_with_delay_cb, func_data);
 
 	return true;
 }

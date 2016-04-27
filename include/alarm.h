@@ -165,6 +165,8 @@ typedef int alarm_id_t;
 * The prototype of alarm handler.
 * param [in] 	alarm_id the id of expired alarm
 */
+typedef int (*alarm_set_time_cb_t) (int result, void *user_param);
+
 typedef int (*alarm_cb_t) (alarm_id_t alarm_id, void *user_param);
 
 typedef int (*alarm_enum_fn_t) (alarm_id_t alarm_id, void *user_param);
@@ -1380,6 +1382,19 @@ int alarmmgr_set_rtc_time(alarm_date_t *time);
 int alarmmgr_set_systime(int new_time);
 
 /**
+ * This function asynchronously changes the system time which tranferred by other module
+ * @param	[in]		new_time		epoch time to be set
+ * @param [in]		result_cb		The asynchronous callback function to get the result
+ * @param [in]		user_param	User parameter to be passed to the callback function
+ *
+ * @return	@c ALARMMGR_RESULT_SUCCESS on success,
+ *			otherwise a negative error value
+ * @retval	#ALARMMGR_RESULT_SUCCESS	Successful
+ * @retval	#ERR_ALARM_SYSTEM_FAIL		System failure
+ */
+int alarmmgr_set_systime_async(int new_time, alarm_set_time_cb_t result_cb, void *user_param);
+
+/**
  * This function changes the system time and compensates the time using propagation delay.
  * @param	[in]		new_time		system time to be set (seconds, nanoseconds)
  * @param	[in]		req_time		time to request to change the system time (seconds, nanoseconds)
@@ -1391,6 +1406,21 @@ int alarmmgr_set_systime(int new_time);
  * @retval	#ERR_ALARM_INVALID_PARAM	invalid parameter
  */
 int alarmmgr_set_systime_with_propagation_delay(struct timespec new_time, struct timespec req_time);
+
+/**
+ * This function asynchronously changes the system time and compensates the time using propagation delay.
+ * @param	[in]		new_time		system time to be set (seconds, nanoseconds)
+ * @param	[in]		req_time		time to request to change the system time (seconds, nanoseconds)
+ * @param [in]		result_cb		The asynchronous callback function to get the result
+ * @param [in]		user_param	User parameter to be passed to the callback function
+ *
+ * @return	@c ALARMMGR_RESULT_SUCCESS on success,
+ *			otherwise a negative error value
+ * @retval	#ALARMMGR_RESULT_SUCCESS	Successful
+ * @retval	#ERR_ALARM_SYSTEM_FAIL		System failure
+ * @retval	#ERR_ALARM_INVALID_PARAM	invalid parameter
+ */
+int alarmmgr_set_systime_with_propagation_delay_async(struct timespec new_time, struct timespec req_time, alarm_set_time_cb_t result_cb, void *user_param);
 
 /**
  * This function changes the timezone which tranferred by other module
