@@ -6,6 +6,7 @@ Group:      System/Libraries
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
 Source1:    alarm-server.service
+Source2:    99-rtc.rules
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 
@@ -87,6 +88,8 @@ rm -rf %{buildroot}
 mkdir -p %{buildroot}%{_unitdir}/multi-user.target.wants
 install -m 0644 %SOURCE1 %{buildroot}%{_unitdir}/alarm-server.service
 ln -s ../alarm-server.service %{buildroot}%{_unitdir}/multi-user.target.wants/alarm-server.service
+mkdir -p %{buildroot}%{_libdir}/udev/rules.d
+install -m 0644 %SOURCE2 %{buildroot}%{_libdir}/udev/rules.d
 
 %post -p /sbin/ldconfig
 
@@ -96,7 +99,7 @@ ln -s ../alarm-server.service %{buildroot}%{_unitdir}/multi-user.target.wants/al
 
 chsmack -a System %{TZ_SYS_DB}/.alarmmgr.db
 chsmack -a System %{TZ_SYS_DB}/.alarmmgr.db-journal
-chown system:system /var/log/alarmmgr.log
+chown app_fw:app_fw /var/log/alarmmgr.log
 
 %post -n libalarm
 /sbin/ldconfig
@@ -113,6 +116,7 @@ chown system:system /var/log/alarmmgr.log
 %attr(0644,root,root) %{_datadir}/dbus-1/system-services/org.tizen.alarm.manager.service
 %license LICENSE
 %config %{_sysconfdir}/dbus-1/system.d/alarm-service.conf
+%{_libdir}/udev/rules.d/99-rtc.rules
 %if 0%{?appfw_feature_alarm_manager_module_log}
 %attr(0755,root,root) %{_sysconfdir}/dump.d/module.d/alarmmgr_log_dump.sh
 %endif
