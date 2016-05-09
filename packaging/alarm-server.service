@@ -3,6 +3,8 @@ Description=Alarm server
 After=system-server.service
 
 [Service]
+User=app_fw
+Group=app_fw
 BusName=org.tizen.alarm.manager
 Type=dbus
 ExecStart=/usr/bin/alarm-server
