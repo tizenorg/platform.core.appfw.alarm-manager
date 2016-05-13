@@ -6,6 +6,8 @@ Group:      System/Libraries
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
 Source1:    alarm-server.service
+Source2:    alarm-session-agent.service
+Source3:    alarm-session-agent.socket
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 
@@ -23,7 +25,7 @@ BuildRequires: pkgconfig(gio-2.0)
 BuildRequires: pkgconfig(gio-unix-2.0)
 BuildRequires: pkgconfig(capi-system-device)
 BuildRequires: pkgconfig(libtzplatform-config)
-BuildRequires: pkgconfig(libsystemd-login)
+BuildRequires: pkgconfig(libsystemd)
 BuildRequires: pkgconfig(eventsystem)
 BuildRequires: python-xml
 
@@ -85,8 +87,12 @@ rm -rf %{buildroot}
 %make_install
 
 mkdir -p %{buildroot}%{_unitdir}/multi-user.target.wants
+mkdir -p %{buildroot}%{_unitdir_user}/sockets.target.wants
 install -m 0644 %SOURCE1 %{buildroot}%{_unitdir}/alarm-server.service
+install -m 0644 %SOURCE2 %{buildroot}%{_unitdir_user}/alarm-session-agent.service
+install -m 0644 %SOURCE3 %{buildroot}%{_unitdir_user}/alarm-session-agent.socket
 ln -s ../alarm-server.service %{buildroot}%{_unitdir}/multi-user.target.wants/alarm-server.service
+ln -sf ../alarm_session_agent.socket %{buildroot}%{_unitdir_user}/sockets.target.wants/alarm-session-agent.socket
 
 %post -p /sbin/ldconfig
 
@@ -108,8 +114,12 @@ chown system:system /var/log/alarmmgr.log
 %manifest alarm-server.manifest
 %{_bindir}/*
 %attr(0755,root,root) %{_bindir}/alarm-server
+%attr(0755,root,root) %{_bindir}/alarm_session_agent
 %attr(0644,root,root) %{_unitdir}/alarm-server.service
 %{_unitdir}/multi-user.target.wants/alarm-server.service
+%{_unitdir_user}/alarm-session-agent.service
+%{_unitdir_user}/alarm-session-agent.socket
+%{_unitdir_user}/sockets.target.wants/alarm-session-agent.socket
 %attr(0644,root,root) %{_datadir}/dbus-1/system-services/org.tizen.alarm.manager.service
 %license LICENSE
 %config %{_sysconfdir}/dbus-1/system.d/alarm-service.conf

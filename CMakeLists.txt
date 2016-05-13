@@ -47,6 +47,7 @@ TARGET_LINK_LIBRARIES(${this_target} alarm)
 
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(tool)
+ADD_SUBDIRECTORY(alarm_session_agent)
 
 CONFIGURE_FILE(alarm-service.conf.in alarm-service.conf @ONLY)
 INSTALL(TARGETS ${this_target} DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)

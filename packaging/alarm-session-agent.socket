@@ -1,0 +1,9 @@
+[Socket]
+ListenStream=/run/alarm_agent/%U
+DirectoryMode=0777
+SocketMode=0777
+SmackLabelIPIn=*
+SmackLabelIPOut=@
+
+[Install]
+WantedBy=sockets.target
