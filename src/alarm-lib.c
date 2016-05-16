@@ -1631,6 +1631,9 @@ EXPORT_API int alarmmgr_set_global(const alarm_id_t alarm_id,
 	int error_code;
 	ALARM_MGR_LOG_PRINT("[alarm-lib]:alarmmgr_set_global() is called.");
 
+	if (__sub_init() < 0)
+		return ERR_ALARM_SYSTEM_FAIL;
+
 	if (!_send_alarm_set_global(alarm_context, alarm_id, global, &error_code))
 		return error_code;
 
@@ -1643,6 +1646,9 @@ EXPORT_API int alarmmgr_get_global(const alarm_id_t alarm_id,
 {
 	bool _global;
 	int error_code;
+
+	if (__sub_init() < 0)
+		return ERR_ALARM_SYSTEM_FAIL;
 
 	if (global == NULL)
 		return ERR_ALARM_INVALID_PARAM;

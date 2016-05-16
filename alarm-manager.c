@@ -2933,10 +2933,10 @@ gboolean alarm_manager_alarm_set_global(AlarmManager *pObject, GDBusMethodInvoca
 		ALARM_MGR_LOG_PRINT("The alarm pkgid : %s.", callee_pkgid);
 
 		pkgmgrinfo_pkginfo_h handle;
-		retval = pkgmgrinfo_pkginfo_get_pkginfo(callee_pkgid, &handle);
+		retval = pkgmgrinfo_pkginfo_get_usr_pkginfo(callee_pkgid, uid, &handle);
 		if (retval != PMINFO_R_OK) {
-			ALARM_MGR_EXCEPTION_PRINT("The alarm(%d) is not permitted to set global.", alarm_id);
-			return_code = ERR_ALARM_INVALID_ID; /* TODO change error code */
+			ALARM_MGR_EXCEPTION_PRINT("Failed to get pkginfo\n");
+			return_code = ERR_ALARM_INVALID_ID;
 		} else {
 			bool is_global = 0;
 			retval = pkgmgrinfo_pkginfo_is_global(handle, &is_global);
