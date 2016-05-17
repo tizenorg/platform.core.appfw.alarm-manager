@@ -20,6 +20,8 @@
 #include <time.h>
 #include <signal.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -142,7 +144,7 @@ static bool __alarm_create_appsvc(alarm_info_t *alarm_info, alarm_id_t *alarm_id
 static bool __alarm_delete(uid_t uid, alarm_id_t alarm_id, int *error_code);
 static bool __alarm_update(uid_t uid, int pid, char *app_service_name, alarm_id_t alarm_id,
 			   alarm_info_t *alarm_info, int *error_code);
-static void __alarm_send_noti_to_application(const char *app_service_name, alarm_id_t alarm_id);
+static void __alarm_send_noti_to_application(const char *app_service_name, alarm_id_t alarm_id, uid_t uid);
 static void __alarm_expired();
 static gboolean __alarm_handler_idle(gpointer user_data);
 static void __on_system_time_external_changed(keynode_t *node, void *data);
@@ -1131,11 +1133,59 @@ static bool __can_skip_expired_cb(alarm_id_t alarm_id)
 	return false;
 }
 
-static void __alarm_send_noti_to_application(const char *app_service_name, alarm_id_t alarm_id)
+static gboolean __send_noti_to_session_bus(char *service_name,
+		alarm_id_t alarm_id, uid_t uid)
+{
+	int fd;
+	int ret;
+	int len;
+	struct sockaddr_un saddr;
+	uint8_t *data;
+	GVariant *gv;
+	uint8_t *gv_data;
+
+	fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+	if (fd < 0)
+		return FALSE;
+
+	saddr.sun_family = AF_UNIX;
+	snprintf(saddr.sun_path, sizeof(saddr.sun_path),
+			"/run/alarm_agent/%d", uid);
+
+	ret = connect(fd, (struct sockaddr *)&saddr, sizeof(saddr));
+	if (ret < 0) {
+		ALARM_MGR_EXCEPTION_PRINT("connect failed - (errno %d)", errno);
+		return FALSE;
+	}
+
+	gv = g_variant_new("(is)", alarm_id, service_name);
+	len = g_variant_get_size(gv);
+
+	gv_data = malloc(len);
+	if (!gv_data)
+		return FALSE;
+
+	g_variant_store(gv, gv_data);
+
+	data = malloc(len + 4);
+
+	memcpy(data, &len, 4);
+	memcpy(data + 4, gv_data, len);
+
+	if (send(fd, data, len + 4, 0) == -1) {
+		ALARM_MGR_EXCEPTION_PRINT("sendto() failed (errno %d)", errno);
+		return FALSE;
+	}
+
+	close(fd);
+
+	return TRUE;
+}
+
+static void __alarm_send_noti_to_application(const char *app_service_name, alarm_id_t alarm_id, uid_t uid)
 {
 	char service_name[MAX_SERVICE_NAME_LEN] = {0,};
 	gboolean ret;
-	GError *err = NULL;
 
 	if (app_service_name == NULL || strlen(app_service_name) == 0) {
 		ALARM_MGR_EXCEPTION_PRINT("This alarm destination is invalid.");
@@ -1148,16 +1198,24 @@ static void __alarm_send_noti_to_application(const char *app_service_name, alarm
 	memcpy(service_name, app_service_name, strlen(app_service_name));
 	SECURE_LOGI("[alarm server][send expired_alarm(alarm_id=%d) to app_service_name(%s)]", alarm_id, service_name);
 
-	ret = g_dbus_connection_emit_signal(alarm_context.connection,
-			service_name,
-			"/org/tizen/alarm/manager",
-			"org.tizen.alarm.manager",
-			"alarm_expired",
-			g_variant_new("(is)", alarm_id, service_name),
-			&err);
-	if (ret != TRUE) {
-		ALARM_MGR_EXCEPTION_PRINT("failed to send expired signal for %d, %s: %s", alarm_id, service_name, err->message);
-		g_error_free(err);
+	if (uid >= REGULAR_UID_MIN) {
+		ret = __send_noti_to_session_bus(service_name, alarm_id, uid);
+		if (ret != TRUE)
+			ALARM_MGR_EXCEPTION_PRINT("failed to send alarm expired noti for %d, %s",
+					alarm_id, service_name);
+	} else {
+		g_dbus_connection_call(alarm_context.connection,
+				service_name,
+				"/org/tizen/alarm/client",
+				"org.tizen.alarm.client",
+				"alarm_expired",
+				g_variant_new("(is)", alarm_id, service_name),
+				NULL,
+				G_DBUS_CALL_FLAGS_NONE,
+				-1,
+				NULL,
+				NULL,
+				NULL);
 	}
 }
 
@@ -1514,7 +1572,8 @@ static void __alarm_expired()
 
 				/* TODO: implement aul_update_freezer_status */
 				/* aul_update_freezer_status(__alarm_info->pid, "wakeup"); */
-				__alarm_send_noti_to_application(destination_app_service_name, alarm_id); /* dbus auto activation */
+				__alarm_send_noti_to_application(destination_app_service_name,
+						alarm_id, __alarm_info->uid); /* dbus auto activation */
 				ALARM_MGR_LOG_PRINT("after __alarm_send_noti_to_application");
 			}
 		}
@@ -3219,7 +3278,7 @@ void on_bus_name_owner_changed(GDBusConnection  *connection,
 
 				if (strcmp(expire_info->service_name, service_name) == 0) {
 					SECURE_LOGE("expired service name(%s) alarm_id (%d)", expire_info->service_name, expire_info->alarm_id);
-					__alarm_send_noti_to_application(expire_info->service_name, expire_info->alarm_id);
+					__alarm_send_noti_to_application(expire_info->service_name, expire_info->alarm_id, 0);
 					g_expired_alarm_list = g_slist_remove(g_expired_alarm_list, entry->data);
 					g_free(expire_info);
 				}
