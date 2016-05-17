@@ -43,6 +43,7 @@
 #define MAX_PKG_NAME_LEN MAX_SERVICE_NAME_LEN-8
 #define MAX_PKG_ID_LEN 256
 #define MIN_INEXACT_INTERVAL 600
+#define REGULAR_UID_MIN 5000
 
 #define SYSTEM_TIME_CHANGED "setting_time_changed"
 
@@ -70,6 +71,7 @@ application server.*/
 
 typedef struct {
 	GDBusConnection *connection;
+	GDBusConnection *session_conn;
 	GDBusProxy *proxy;
 	guint sid; /* signal subscription id */
 	alarm_cb_t alarm_handler;
