@@ -6,7 +6,10 @@ Group:      System/Libraries
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
 Source1:    alarm-server.service
-Source2:    99-rtc.rules
+Source2:    alarm-session-agent.service
+Source3:    alarm-session-agent.socket
+Source4:    alarm-agent.conf
+Source5:    99-rtc.rules
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 
@@ -24,7 +27,7 @@ BuildRequires: pkgconfig(gio-2.0)
 BuildRequires: pkgconfig(gio-unix-2.0)
 BuildRequires: pkgconfig(capi-system-device)
 BuildRequires: pkgconfig(libtzplatform-config)
-BuildRequires: pkgconfig(libsystemd-login)
+BuildRequires: pkgconfig(libsystemd)
 BuildRequires: pkgconfig(eventsystem)
 BuildRequires: python-xml
 
@@ -86,10 +89,16 @@ rm -rf %{buildroot}
 %make_install
 
 mkdir -p %{buildroot}%{_unitdir}/multi-user.target.wants
+mkdir -p %{buildroot}%{_unitdir_user}/sockets.target.wants
 install -m 0644 %SOURCE1 %{buildroot}%{_unitdir}/alarm-server.service
+install -m 0644 %SOURCE2 %{buildroot}%{_unitdir_user}/alarm-session-agent.service
+install -m 0644 %SOURCE3 %{buildroot}%{_unitdir_user}/alarm-session-agent.socket
 ln -s ../alarm-server.service %{buildroot}%{_unitdir}/multi-user.target.wants/alarm-server.service
+ln -sf ../alarm_session_agent.socket %{buildroot}%{_unitdir_user}/sockets.target.wants/alarm-session-agent.socket
+mkdir -p %{buildroot}%{_tmpfilesdir}
+install -m 0644 %SOURCE4 %{buildroot}%{_tmpfilesdir}/alarm-agent.conf
 mkdir -p %{buildroot}%{_libdir}/udev/rules.d
-install -m 0644 %SOURCE2 %{buildroot}%{_libdir}/udev/rules.d
+install -m 0644 %SOURCE5 %{buildroot}%{_libdir}/udev/rules.d
 
 %post -p /sbin/ldconfig
 
@@ -107,11 +116,16 @@ install -m 0644 %SOURCE2 %{buildroot}%{_libdir}/udev/rules.d
 %manifest alarm-server.manifest
 %{_bindir}/*
 %attr(0755,root,root) %{_bindir}/alarm-server
+%attr(0755,root,root) %{_bindir}/alarm_session_agent
 %attr(0644,root,root) %{_unitdir}/alarm-server.service
 %{_unitdir}/multi-user.target.wants/alarm-server.service
+%{_unitdir_user}/alarm-session-agent.service
+%{_unitdir_user}/alarm-session-agent.socket
+%{_unitdir_user}/sockets.target.wants/alarm-session-agent.socket
 %attr(0644,root,root) %{_datadir}/dbus-1/system-services/org.tizen.alarm.manager.service
 %license LICENSE
 %config %{_sysconfdir}/dbus-1/system.d/alarm-service.conf
+%{_tmpfilesdir}/alarm-agent.conf
 %{_libdir}/udev/rules.d/99-rtc.rules
 %if 0%{?appfw_feature_alarm_manager_module_log}
 %attr(0755,root,root) %{_sysconfdir}/dump.d/module.d/alarmmgr_log_dump.sh
