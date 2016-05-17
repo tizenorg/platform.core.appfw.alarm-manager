@@ -39,7 +39,7 @@
 #define EXPORT_API __attribute__ ((visibility("default")))
 #endif
 
-static alarm_context_t alarm_context = { NULL, NULL, 0, NULL, NULL, -1 };
+static alarm_context_t alarm_context = { NULL, NULL, NULL, 0, NULL, NULL, -1 };
 
 static bool b_initialized = false;
 static bool sub_initialized = false;
@@ -421,6 +421,7 @@ EXPORT_API int alarmmgr_init(const char *appid)
 	guint owner_id = 0;
 	int i = 0;
 	int j = 0;
+	bool is_user = false;
 
 	if (appid == NULL)
 		return ERR_ALARM_INVALID_PARAM;
@@ -454,7 +455,14 @@ EXPORT_API int alarmmgr_init(const char *appid)
 		j++;
 	}
 
-	owner_id = g_bus_own_name_on_connection(alarm_context.connection, service_name_mod,
+	if (getuid() >= REGULAR_UID_MIN) {
+		is_user = true;
+		alarm_context.session_conn = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, NULL);
+	}
+
+	owner_id = g_bus_own_name_on_connection(is_user ?
+			alarm_context.session_conn : alarm_context.connection,
+			service_name_mod,
 			G_BUS_NAME_OWNER_FLAGS_NONE, NULL, NULL, NULL, NULL);
 	if (owner_id == 0) {
 		ALARM_MGR_EXCEPTION_PRINT("Acquiring the own name is failed. %s", service_name_mod);
@@ -462,7 +470,7 @@ EXPORT_API int alarmmgr_init(const char *appid)
 	}
 
 	alarm_context.sid = g_dbus_connection_signal_subscribe(
-			alarm_context.connection,
+			is_user ? alarm_context.session_conn : alarm_context.connection,
 			NULL,
 			"org.tizen.alarm.manager",
 			"alarm_expired",
@@ -498,6 +506,11 @@ EXPORT_API void alarmmgr_fini()
 	if (alarm_context.connection) {
 		g_object_unref(alarm_context.connection);
 		alarm_context.connection = NULL;
+	}
+
+	if (alarm_context.connection) {
+		g_object_unref(alarm_context.session_conn);
+		alarm_context.session_conn = NULL;
 	}
 
 	b_initialized = false;
