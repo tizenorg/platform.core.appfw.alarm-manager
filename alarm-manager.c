@@ -271,7 +271,7 @@ int __set_time(time_t _time)
 	const char *rtc0 = default_rtc;
 	struct rtc_time _rtc_time;
 	struct timeval tv;
-	struct tm tm, *localtime_res;
+	struct tm tm, *gmtime_res;
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 	char log_tag[ALARMMGR_LOG_TAG_SIZE] = {0,};
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
@@ -290,9 +290,9 @@ int __set_time(time_t _time)
 	tv.tv_sec = _time;
 	tv.tv_usec = 0;
 
-	localtime_res = localtime_r(&(tv.tv_sec), &tm);
-	if (!localtime_res)
-		ALARM_MGR_EXCEPTION_PRINT("localtime_r is failed. [%d]", errno);
+	gmtime_res = gmtime_r(&(tv.tv_sec), &tm);
+	if (!gmtime_res)
+		ALARM_MGR_EXCEPTION_PRINT("gmtime_r is failed. [%d]", errno);
 
 	memset(&_rtc_time, 0, sizeof(_rtc_time));
 	_rtc_time.tm_sec = tm.tm_sec;
@@ -1981,7 +1981,7 @@ gboolean alarm_manager_alarm_set_rtc_time(AlarmManager *pObj, GDBusMethodInvocat
 	char buf[1024];
 
 	current_time = time(NULL);
-	alarm_tm = localtime_r(&current_time, &tm);
+	alarm_tm = gmtime_r(&current_time, &tm);
 	if (alarm_tm == NULL) {
 		ALARM_MGR_EXCEPTION_PRINT("alarm_tm is NULL");
 		return true;
