@@ -1644,7 +1644,6 @@ EXPORT_API int alarmmgr_set_global(const alarm_id_t alarm_id,
 EXPORT_API int alarmmgr_get_global(const alarm_id_t alarm_id,
 		bool *global)
 {
-	bool _global;
 	int error_code;
 
 	if (__sub_init() < 0)
@@ -1653,7 +1652,7 @@ EXPORT_API int alarmmgr_get_global(const alarm_id_t alarm_id,
 	if (global == NULL)
 		return ERR_ALARM_INVALID_PARAM;
 
-	if (!_send_alarm_get_global(alarm_context, alarm_id, &_global, &error_code))
+	if (!_send_alarm_get_global(alarm_context, alarm_id, global, &error_code))
 		return error_code;
 
 	return ALARMMGR_RESULT_SUCCESS;
