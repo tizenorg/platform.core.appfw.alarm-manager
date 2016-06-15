@@ -1155,30 +1155,50 @@ static gboolean __send_noti_to_session_bus(char *service_name,
 	ret = connect(fd, (struct sockaddr *)&saddr, sizeof(saddr));
 	if (ret < 0) {
 		ALARM_MGR_EXCEPTION_PRINT("connect failed - (errno %d)", errno);
+		close(fd);
 		return FALSE;
 	}
 
 	gv = g_variant_new("(is)", alarm_id, service_name);
-	len = g_variant_get_size(gv);
-
-	gv_data = malloc(len);
-	if (!gv_data)
-		return FALSE;
-
-	g_variant_store(gv, gv_data);
-
-	data = malloc(len + 4);
-
-	memcpy(data, &len, 4);
-	memcpy(data + 4, gv_data, len);
-
-	if (send(fd, data, len + 4, 0) == -1) {
-		ALARM_MGR_EXCEPTION_PRINT("sendto() failed (errno %d)", errno);
+	if (!gv) {
+		close(fd);
 		return FALSE;
 	}
 
-	close(fd);
+	len = g_variant_get_size(gv);
 
+	gv_data = NULL;
+	if (len > 0)
+		gv_data = malloc(len);
+
+	if (!gv_data) {
+		g_variant_unref(gv);
+		close(fd);
+		return FALSE;
+	}
+
+	g_variant_store(gv, gv_data);
+	g_variant_unref(gv);
+
+	data = malloc(len + 4);
+	if (!data) {
+		close(fd);
+		return FALSE;
+	}
+
+	memcpy(data, &len, 4);
+	memcpy(data + 4, gv_data, len);
+	free(gv_data);
+
+	if (send(fd, data, len + 4, 0) == -1) {
+		ALARM_MGR_EXCEPTION_PRINT("sendto() failed (errno %d)", errno);
+		free(data);
+		close(fd);
+		return FALSE;
+	}
+
+	free(data);
+	close(fd);
 	return TRUE;
 }
 
