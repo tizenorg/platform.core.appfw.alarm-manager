@@ -194,12 +194,19 @@ static gboolean _alarm_agent_main(gint fd, GIOCondition condition,
 			if (errno != EAGAIN && errno != EINTR)
 				LOGE("recv: fd %d errno %d", clifd, errno);
 		}
+		close(clifd);
+		return G_SOURCE_CONTINUE;
+	}
+
+	if (len <= 0) {
+		close(clifd);
 		return G_SOURCE_CONTINUE;
 	}
 
 	data = malloc(len);
 	if (!data) {
 		flush_data(clifd, len);
+		close(clifd);
 		return G_SOURCE_CONTINUE;
 	}
 
@@ -211,18 +218,26 @@ static gboolean _alarm_agent_main(gint fd, GIOCondition condition,
 			if (errno != EAGAIN && errno != EINTR)
 				LOGE("recv: fd %d errno %d", clifd, errno);
 		}
-
 		free(data);
+		close(clifd);
 		return G_SOURCE_CONTINUE;
 	}
 
 	gv = g_variant_new_from_data(G_VARIANT_TYPE("(is)"),
 			data, len, TRUE, NULL, NULL);
-	assert(gv);
+
+
+	if (!gv) {
+		free(data);
+		close(clifd);
+		return G_SOURCE_CONTINUE;
+	}
 
 	g_variant_get(gv, "(i&s)", &alarm_id, &service_name);
-
 	_send_noti(service_name, alarm_id);
+
+	free(data);
+	g_variant_unref(gv);
 	close(clifd);
 	return G_SOURCE_CONTINUE;
 }
