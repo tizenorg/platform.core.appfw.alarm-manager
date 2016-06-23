@@ -25,6 +25,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <poll.h>
+#include <linux/limits.h>
 
 #include <systemd/sd-daemon.h>
 #include <bundle.h>
@@ -198,7 +199,7 @@ static gboolean _alarm_agent_main(gint fd, GIOCondition condition,
 		return G_SOURCE_CONTINUE;
 	}
 
-	if (len <= 0) {
+	if (len <= 0 || len > PATH_MAX) {
 		close(clifd);
 		return G_SOURCE_CONTINUE;
 	}
@@ -225,7 +226,6 @@ static gboolean _alarm_agent_main(gint fd, GIOCondition condition,
 
 	gv = g_variant_new_from_data(G_VARIANT_TYPE("(is)"),
 			data, len, TRUE, NULL, NULL);
-
 
 	if (!gv) {
 		free(data);
