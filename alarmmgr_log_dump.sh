@@ -1,4 +1,5 @@
 #!/bin/sh
+PATH=/bin:/usr/bin:/sbin:/usr/sbin
 
 ALARMMGR_DUMP=$1/alarmmgr
 mkdir -p $ALARMMGR_DUMP
