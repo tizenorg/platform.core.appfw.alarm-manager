@@ -1531,7 +1531,7 @@ static void __alarm_expired()
 				}
 			} else {
 				g_variant_get(result, "(b)", &name_has_owner_reply);
-				g_object_unref(result);
+				g_variant_unref(result);
 			}
 
 			if (g_quark_to_string(__alarm_info->quark_dst_service_name) != NULL && strncmp(g_quark_to_string(__alarm_info->quark_dst_service_name), "null", 4) == 0) {
@@ -2672,7 +2672,7 @@ gboolean alarm_manager_alarm_update(AlarmManager *pObj, GDBusMethodInvocation *i
 	pid = __get_caller_pid(name);
 	if (uid < 0 || pid < 0) {
 		return_code = ERR_ALARM_SYSTEM_FAIL;
-		g_dbus_method_invocation_return_value(invoc, g_variant_new("(ii)", alarm_id, return_code));
+		g_dbus_method_invocation_return_value(invoc, g_variant_new("(i)", return_code));
 		return true;
 	}
 
@@ -3308,14 +3308,27 @@ void on_bus_name_owner_changed(GDBusConnection  *connection,
 	}
 }
 
-static void on_bus_acquired(GDBusConnection *connection, const gchar *name, gpointer user_data)
+static bool __initialize_dbus()
 {
-	ALARM_MGR_LOG_PRINT("on_bus_acquired");
+	GDBusConnection *connection = NULL;
+	GError *error = NULL;
+	guint subsc_id;
+	ALARM_MGR_LOG_PRINT("__initialize_dbus Enter");
+
+	connection = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
+	if (connection == NULL) {
+		ALARM_MGR_EXCEPTION_PRINT("g_bus_get_sync() is failed");
+		if (error) {
+			ALARM_MGR_EXCEPTION_PRINT("dbus error message : %s", error->message);
+			g_error_free(error);
+		}
+		return false;
+	}
 
 	interface = alarm_manager_skeleton_new();
 	if (interface == NULL) {
 		ALARM_MGR_EXCEPTION_PRINT("Creating a skeleton object is failed.");
-		return;
+		return false;
 	}
 
 	g_signal_connect(interface, "handle_alarm_create", G_CALLBACK(alarm_manager_alarm_create), NULL);
@@ -3337,45 +3350,38 @@ static void on_bus_acquired(GDBusConnection *connection, const gchar *name, gpoi
 	g_signal_connect(interface, "handle_alarm_set_global", G_CALLBACK(alarm_manager_alarm_set_global), NULL);
 	g_signal_connect(interface, "handle_alarm_get_global", G_CALLBACK(alarm_manager_alarm_get_global), NULL);
 
-	guint subsc_id = g_dbus_connection_signal_subscribe(connection, "org.freedesktop.DBus", "org.freedesktop.DBus",
-							"NameOwnerChanged", "/org/freedesktop/DBus", NULL, G_DBUS_SIGNAL_FLAGS_NONE,
-							on_bus_name_owner_changed, NULL, NULL);
+	subsc_id = g_dbus_connection_signal_subscribe(connection,
+			"org.freedesktop.DBus", "org.freedesktop.DBus",
+			"NameOwnerChanged", "/org/freedesktop/DBus", NULL,
+			G_DBUS_SIGNAL_FLAGS_NONE, on_bus_name_owner_changed, NULL, NULL);
 	if (subsc_id == 0) {
 		ALARM_MGR_EXCEPTION_PRINT("Subscribing to signal for invoking callback is failed.");
 		g_object_unref(interface);
 		interface = NULL;
-		return;
+		return false;
 	}
 
 	if (!g_dbus_interface_skeleton_export(G_DBUS_INTERFACE_SKELETON(interface), connection, ALARM_MGR_DBUS_PATH, NULL)) {
 		ALARM_MGR_EXCEPTION_PRINT("Exporting the interface is failed.");
 		g_object_unref(interface);
 		interface = NULL;
-		return;
-	}
-
-	alarm_context.connection = connection;
-	g_dbus_object_manager_server_set_connection(alarmmgr_server, alarm_context.connection);
-}
-
-static bool __initialize_dbus()
-{
-	ALARM_MGR_LOG_PRINT("__initialize_dbus Enter");
-
-	alarmmgr_server = g_dbus_object_manager_server_new(ALARM_MGR_DBUS_PATH);
-	if (alarmmgr_server == NULL) {
-		ALARM_MGR_EXCEPTION_PRINT("Creating a new server object is failed.");
 		return false;
 	}
 
-	guint owner_id = g_bus_own_name(G_BUS_TYPE_SYSTEM, ALARM_MGR_DBUS_NAME,
-				G_BUS_NAME_OWNER_FLAGS_NONE, on_bus_acquired, NULL, NULL, NULL, NULL);
+	g_dbus_object_manager_server_set_connection(alarmmgr_server, connection);
+
+	guint owner_id = g_bus_own_name_on_connection(connection,
+			ALARM_MGR_DBUS_NAME, G_BUS_NAME_OWNER_FLAGS_NONE,
+			NULL, NULL, NULL, NULL);
 
 	if (owner_id == 0) {
 		ALARM_MGR_EXCEPTION_PRINT("Acquiring the own name is failed.");
+		g_object_unref(interface);
 		g_object_unref(alarmmgr_server);
 		return false;
 	}
+
+	alarm_context.connection = connection;
 
 	return true;
 }
