@@ -214,6 +214,7 @@ typedef struct {
 
 typedef struct {
 	char service_name[MAX_SERVICE_NAME_LEN];
+	uid_t uid;
 	alarm_id_t alarm_id;
 } __expired_alarm_t;
 

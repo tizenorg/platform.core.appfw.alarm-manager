@@ -1395,9 +1395,6 @@ static void __alarm_expired()
 #ifdef _APPFW_FEATURE_ALARM_MANAGER_MODULE_LOG
 	char log_message[ALARMMGR_LOG_MESSAGE_SIZE] = {0,};
 #endif
-	GError *error = NULL;
-	GVariant *result = NULL;
-	gboolean name_has_owner_reply = false;
 
 	ALARM_MGR_LOG_PRINT("[alarm-server]: Enter");
 
@@ -1512,28 +1509,6 @@ static void __alarm_expired()
 			 */
 			SECURE_LOGD("[alarm-server]: destination_app_service_name :%s, app_pid=%d", destination_app_service_name, app_pid);
 
-			result = g_dbus_connection_call_sync(alarm_context.connection,
-								"org.freedesktop.DBus",
-								"/org/freedesktop/DBus",
-								"org.freedesktop.DBus",
-								"NameHasOwner",
-								g_variant_new("(s)", destination_app_service_name),
-								G_VARIANT_TYPE("(b)"),
-								G_DBUS_CALL_FLAGS_NONE,
-								-1,
-								NULL,
-								&error);
-			if (result == NULL) {
-				ALARM_MGR_EXCEPTION_PRINT("g_dbus_connection_call_sync() is failed.");
-				if (error) {
-					ALARM_MGR_EXCEPTION_PRINT("dbus error message :  %s", error->message);
-					g_error_free(error);
-				}
-			} else {
-				g_variant_get(result, "(b)", &name_has_owner_reply);
-				g_variant_unref(result);
-			}
-
 			if (g_quark_to_string(__alarm_info->quark_dst_service_name) != NULL && strncmp(g_quark_to_string(__alarm_info->quark_dst_service_name), "null", 4) == 0) {
 				if (g_quark_to_string(__alarm_info->quark_app_service_name) != NULL && strlen(g_quark_to_string(__alarm_info->quark_app_service_name)) > 6)
 					strncpy(appid, g_quark_to_string(__alarm_info->quark_app_service_name) + 6, strlen(g_quark_to_string(__alarm_info->quark_app_service_name)) - 6);
@@ -1547,7 +1522,7 @@ static void __alarm_expired()
 
 			/* Case #2. The process was killed && App type
 			 * This app is launched and owner of DBus connection is changed. and then, expiration noti is sent by DBus. */
-			if (name_has_owner_reply == false && ret == PMINFO_R_OK) {
+			if (ret == PMINFO_R_OK && !aul_app_is_running_for_uid(appid, __alarm_info->uid)) {
 				__expired_alarm_t *expire_info;
 				char alarm_id_str[32] = { 0, };
 
@@ -1564,6 +1539,7 @@ static void __alarm_expired()
 				memset(expire_info, '\0', sizeof(__expired_alarm_t));
 				strncpy(expire_info->service_name, destination_app_service_name, MAX_SERVICE_NAME_LEN-1);
 				expire_info->alarm_id = alarm_id;
+				expire_info->uid = __alarm_info->uid;
 				g_expired_alarm_list = g_slist_append(g_expired_alarm_list, expire_info);
 
 				snprintf(alarm_id_str, 31, "%d", alarm_id);
@@ -3298,7 +3274,7 @@ void on_bus_name_owner_changed(GDBusConnection  *connection,
 
 				if (strcmp(expire_info->service_name, service_name) == 0) {
 					SECURE_LOGE("expired service name(%s) alarm_id (%d)", expire_info->service_name, expire_info->alarm_id);
-					__alarm_send_noti_to_application(expire_info->service_name, expire_info->alarm_id, 0);
+					__alarm_send_noti_to_application(expire_info->service_name, expire_info->alarm_id, expire_info->uid);
 					g_expired_alarm_list = g_slist_remove(g_expired_alarm_list, entry->data);
 					g_free(expire_info);
 				}
