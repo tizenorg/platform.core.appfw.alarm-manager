@@ -8,6 +8,7 @@ Group=app_fw
 BusName=org.tizen.alarm.manager
 Type=dbus
 ExecStart=/usr/bin/alarm-server
+SmackProcessLabel=System
 TimeoutStopSec=3s
 Restart=always
 RestartSec=0
