@@ -134,6 +134,8 @@ bool _send_alarm_create(alarm_context_t context, alarm_info_t *alarm,
 			alarm_id_t *id, const char *dst_service_name,const char *dst_service_name_mod, int *error_code);
 bool _send_alarm_create_appsvc(alarm_context_t context, alarm_info_t *alarm_info,
 			alarm_id_t *alarm_id, bundle *b,int *error_code);
+bool _send_alarm_create_noti(alarm_context_t context, alarm_info_t *alarm_info,
+			alarm_id_t *alarm_id, notification_h noti, int *error_code);
 bool _send_alarm_update(alarm_context_t context, int pid, alarm_id_t alarm_id,
 			alarm_info_t *alarm_info, int *error_code);
 bool _send_alarm_delete(alarm_context_t context, alarm_id_t alarm_id, int *error_code);
@@ -181,6 +183,7 @@ typedef struct {
 	time_t due_time;
 
 	GQuark quark_bundle;	/*Bundle Content containing app-svc info*/
+	GQuark quark_noti;
 
 	alarm_info_t alarm_info;
 

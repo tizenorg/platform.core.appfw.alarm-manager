@@ -57,10 +57,11 @@ bool _save_alarms(__alarm_info_t *__alarm_info)
 	alarm_mode_t *mode = &alarm_info->mode;
 
 	char *query = sqlite3_mprintf("insert into alarmmgr( alarm_id, start,\
-			end, uid, pid, global, caller_pkgid, callee_pkgid, app_unique_name, app_service_name, app_service_name_mod, bundle, year,\
+			end, uid, pid, global, caller_pkgid, callee_pkgid, app_unique_name,\
+			app_service_name, app_service_name_mod, bundle, noti_len, noti, year,\
 			month, day, hour, min, sec, day_of_week, repeat,\
 			alarm_type, reserved_info, dst_service_name, dst_service_name_mod)\
-			values (%d,%d,%d,%d,%d,%d,%Q,%Q,%Q,%Q,%Q,%Q,%d,%d,%d,%d,%d,%d,%d,%d,\
+			values (%d,%d,%d,%d,%d,%d,%Q,%Q,%Q,%Q,%Q,%Q,%d,%Q,%d,%d,%d,%d,%d,%d,%d,%d,\
 			%d,%d,%Q,%Q)",\
 			__alarm_info->alarm_id,
 			(int)__alarm_info->start,
@@ -78,6 +79,10 @@ bool _save_alarms(__alarm_info_t *__alarm_info)
 				__alarm_info->quark_app_service_name_mod),
 			(char *)g_quark_to_string(
 				__alarm_info->quark_bundle),
+			strlen((char *)g_quark_to_string(
+				__alarm_info->quark_noti)),
+			(char *)g_quark_to_string(
+				__alarm_info->quark_noti),
 			start->year,
 			start->month,
 			start->day,
@@ -113,7 +118,7 @@ bool _update_alarms(__alarm_info_t *__alarm_info)
 
 	char *query = sqlite3_mprintf("update alarmmgr set start=%d, end=%d,\
 			uid=%d, pid=%d, global=%d, caller_pkgid=%Q, callee_pkgid=%Q, app_unique_name=%Q, app_service_name=%Q, app_service_name_mod=%Q,\
-			bundle=%Q, year=%d, month=%d, day=%d, hour=%d, min=%d, sec=%d,\
+			bundle=%Q, noti_len=%d, noti=%Q, year=%d, month=%d, day=%d, hour=%d, min=%d, sec=%d,\
 			day_of_week=%d, repeat=%d, alarm_type=%d,\
 			reserved_info=%d, dst_service_name=%Q, dst_service_name_mod=%Q\
 			where alarm_id=%d",\
@@ -132,6 +137,10 @@ bool _update_alarms(__alarm_info_t *__alarm_info)
 				__alarm_info->quark_app_service_name_mod),
 			(char *)g_quark_to_string(
 				__alarm_info->quark_bundle),
+			strlen((char *)g_quark_to_string(
+				__alarm_info->quark_noti)),
+			(char *)g_quark_to_string(
+				__alarm_info->quark_noti),
 			start->year,
 			start->month,
 			start->day,
@@ -192,6 +201,8 @@ bool _load_alarms_from_registry()
 	char dst_service_name[MAX_SERVICE_NAME_LEN] = {0,};
 	char dst_service_name_mod[MAX_SERVICE_NAME_LEN] = {0,};
 	char bundle[MAX_BUNDLE_NAME_LEN] = {0,};
+	int noti_len;
+	char *noti;
 
 	snprintf(query, MAX_QUERY_LEN, "select * from alarmmgr");
 
@@ -231,6 +242,10 @@ bool _load_alarms_from_registry()
 			MAX_SERVICE_NAME_LEN - 1);
 		strncpy(bundle, (const char *)sqlite3_column_text(stmt, col_idx++),
 			MAX_BUNDLE_NAME_LEN - 1);
+		noti_len = sqlite3_column_int(stmt, col_idx++);
+		noti = calloc(1, noti_len + 1);
+		strncpy(noti, (const char *)sqlite3_column_text(stmt, col_idx++),
+			noti_len);
 		start->year = sqlite3_column_int(stmt, col_idx++);
 		start->month = sqlite3_column_int(stmt, col_idx++);
 		start->day = sqlite3_column_int(stmt, col_idx++);
@@ -259,6 +274,8 @@ bool _load_alarms_from_registry()
 		__alarm_info->quark_dst_service_name_mod =
 		    g_quark_from_string(dst_service_name_mod);
 		__alarm_info->quark_bundle = g_quark_from_string(bundle);
+		__alarm_info->quark_noti = g_quark_from_string(noti);
+		free(noti);
 
 		_alarm_next_duetime(__alarm_info);
 		alarm_context.alarms = g_slist_append(alarm_context.alarms, __alarm_info);

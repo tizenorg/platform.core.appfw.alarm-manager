@@ -152,6 +152,7 @@ int main(int argc, char** argv)
 #include <sys/types.h>
 #include <stdbool.h>
 #include <time.h>
+#include <notification.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -873,6 +874,77 @@ int alarmmgr_add_alarm_appsvc_with_localtime(alarm_entry_t *alarm,void *bundle_d
 /**
  * This function adds an alarm entry to the server.
  * Server will remember this entry, and generate alarm events for it when necessary.
+ * Server will post notification
+ * Alarm entries registered with the server cannot be changed.
+ * Remove from server before changing.
+ * Before the application calls alarmmgr_add_alarm_noti_with_localtime(), the application have to call alarmmgr_set_time().
+ * The time set is localtime.
+ * If the application does not call alarmmgr_set_repeat_mode, the default repeat_mode is ALARM_REPEAT_MODE_ONCE.
+ * If the application does not call alarmmgr_set_type, the default alarm_type is ALARM_TYPE_DEFAULT.
+ * The id of the new alarm will be copied to  alarm_id if the fuction successes to create an alarm.
+ *
+ * @param	[in]		alarm		the entry of an alarm to be created.
+ * @param	[in]		noti			notification handle to be posted when the alarm is expired
+ * @param	[out]	alarm_id		the id of the alarm added.
+ *
+ * @return	This function returns ALARMMGR_RESULT_SUCCESS on success or a negative number on failure.
+ *
+ * @pre None.
+ * @post None.
+ * @see alarmmgr_add_alarm
+ * @remark  None.
+ *
+ * @par Sample code:
+ * @code
+#include <alarm.h>
+
+   ...
+{
+	time_t current_time;
+	struct tm current_tm;
+	alarm_entry_t* alarm_info;
+	alarm_id_t alarm_id;
+	int result;
+	alarm_date_t test_time;
+
+	noti_handle = notification_create(NOTIFICATION_TYPE_NOTI);
+	result = notification_set_text(noti_handle, NOTIFICATION_TEXT_TYPE_TITLE,
+			"Title", "TITLE", NOTIFICATION_VARIABLE_TYPE_NONE);
+
+	time(&current_time);
+
+	printf("current time: %s\n", ctime(&current_time));
+	localtime_r(&current_time, &current_tm);
+
+	alarm_info = alarmmgr_create_alarm();
+
+	test_time.year = current_tm.tm_year;
+	test_time.month = current_tm.tm_mon;
+	test_time.day = current_tm.tm_mday;
+
+	test_time.hour = current_tm.tm_hour;
+	test_time.min = current_tm.tm_min+1;
+	test_time.sec = 5;
+
+	alarmmgr_set_time(alarm_info,test_time);
+	alarmmgr_set_repeat_mode(alarm_info,ALARM_REPEAT_MODE_WEEKLY,ALARM_WDAY_MONDAY| \
+			ALARM_WDAY_TUESDAY|ALARM_WDAY_WEDNESDAY| \
+			ALARM_WDAY_THURSDAY|ALARM_WDAY_FRIDAY );
+
+	alarmmgr_set_type(alarm_info, ALARM_TYPE_DEFAULT);
+	if ((result = alarmmgr_add_alarm_noti_with_localtime(alarm_info, noti, &alarm_id)) < 0)
+		printf("Alarm creation failed!!! Alrmgr error code is %d\n",result);
+	else
+		printf("Alarm created succesfully with alarm id %d\n",alarm_id);
+
+}
+* @endcode
+*/
+int alarmmgr_add_alarm_noti_with_localtime(alarm_entry_t *alarm, notification_h noti, alarm_id_t *alarm_id);
+
+/**
+ * This function adds an alarm entry to the server.
+ * Server will remember this entry, and generate alarm events for it when necessary.
  * Alarm entries registered with the server cannot be changed.
  * Remove from server before changing.
  * Before the application calls alarmmgr_add_alarm_with_localtime(), the application have to call alarmmgr_set_time().
@@ -1017,6 +1089,58 @@ int alarmmgr_add_alarm_with_localtime(alarm_entry_t *alarm,
  */
 int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 			       time_t interval, void *bundle_data,
+			       alarm_id_t *alarm_id);
+
+/*
+ * This function adds an alarm entry to the server.
+ * Server will remember this entry, and generate alarm events for it when necessary.
+ * Server will post notification
+ * Alarm entries registered with the server cannot be changed.
+ * Remove from server before changing.
+ * After the trigger_at_time seconds from now, the alarm will be expired.
+ * If the interval is zero, the repeat_mode is ALARM_REPEAT_MODE_ONCE.
+ * If the interval is >0, the repeat_mode is ALARM_REPEAT_MODE_REPEAT.
+ * The id of the new alarm will be copied to  alarm_id if the fuction successes to create an alarm.
+ *
+ * @param	[in]		alarm_type		one of ALARM_TYPE_DEFAULT, ALARM_TYPE_VOLATILE
+ * @param	[in]		trigger_at_time	time interval to be triggered from now(sec). an alarm also will be expired at triggering time.
+ * @param	[in]		interval		Interval between subsequent repeats of the alarm
+ * @param	[in]		noti			notification handle to be posted when the alarm is expired
+ * @param	[out] 	alarm_id		the id of the alarm added.
+ *
+ * @return	This function returns ALARMMGR_RESULT_SUCCESS on success or a negative number on failure.
+ *
+ * @pre None.
+ * @post None.
+ * @see alarmmgr_add_alarm_with_localtime alarmmgr_remove_alarm
+ * @remark  None.
+ *
+ * @par Sample code:
+ * @code
+#include <alarm.h>
+
+ ...
+{
+	int result;
+	alarm_id_t alarm_id;
+	notification_h noti_handle;
+
+	noti_handle = notification_create(NOTIFICATION_TYPE_NOTI);
+	result = notification_set_text(noti_handle, NOTIFICATION_TEXT_TYPE_TITLE,
+			"Title", "TITLE", NOTIFICATION_VARIABLE_TYPE_NONE);
+
+	if ((result = alarmmgr_add_alarm_noti(ALARM_TYPE_DEFAULT, 10, 0, noti_handle, &alarm_id)))
+		printf("Unable to add alarm. Alarmmgr alarm no is %d\n", result);
+	else
+		printf("Alarm added successfully. Alarm Id is %d\n", alarm_id);
+	return;
+
+}
+
+ * @endcode
+ */
+int alarmmgr_add_alarm_noti(int alarm_type, time_t trigger_at_time,
+			       time_t interval, notification_h noti,
 			       alarm_id_t *alarm_id);
 
 

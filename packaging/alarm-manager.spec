@@ -29,6 +29,7 @@ BuildRequires: pkgconfig(capi-system-device)
 BuildRequires: pkgconfig(libtzplatform-config)
 BuildRequires: pkgconfig(libsystemd)
 BuildRequires: pkgconfig(eventsystem)
+BuildRequires: pkgconfig(notification)
 BuildRequires: python-xml
 
 %description
