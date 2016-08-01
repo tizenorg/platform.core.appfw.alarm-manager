@@ -34,6 +34,7 @@
 #include <aul.h>
 #include <gio/gio.h>
 #include <pkgmgr-info.h>
+#include <notification.h>
 
 #ifndef EXPORT_API
 #define EXPORT_API __attribute__ ((visibility("default")))
@@ -954,6 +955,60 @@ EXPORT_API int alarmmgr_add_alarm_with_localtime(alarm_entry_t *alarm,
 	return ALARMMGR_RESULT_SUCCESS;
 }
 
+EXPORT_API int alarmmgr_add_alarm_noti_with_localtime(alarm_entry_t *alarm, notification_h noti, alarm_id_t *alarm_id)
+{
+	alarm_info_t *alarm_info = NULL;	/* = (alarm_info_t*)alarm; */
+	const char *operation = NULL;
+	int error_code = 0;
+	int result;
+
+	if (alarm == NULL)
+		return ERR_ALARM_INVALID_PARAM;
+
+	if (__alarmmgr_init_appsvc() < 0) {
+		ALARM_MGR_EXCEPTION_PRINT("Unable to initialize dbus!!!\n");
+		return ERR_ALARM_SYSTEM_FAIL;
+	}
+
+	alarm_info = (alarm_info_t *)alarm;
+
+	if (alarm_info == NULL || alarm_id == NULL) {
+		ALARM_MGR_EXCEPTION_PRINT("Invalid parameter\n");
+		return ERR_ALARM_INVALID_PARAM;
+	}
+	alarm_mode_t *mode = &alarm_info->mode;
+
+	ALARM_MGR_EXCEPTION_PRINT("start(%d-%d-%d, %02d:%02d:%02d), end(%d-%d-%d), repeat(%d), interval(%d), type(%d)",
+			alarm_info->start.day, alarm_info->start.month, alarm_info->start.year,
+			alarm_info->start.hour, alarm_info->start.min, alarm_info->start.sec,
+			alarm_info->end.year, alarm_info->end.month, alarm_info->end.day,
+			alarm_info->mode.repeat, alarm_info->mode.u_interval, alarm_info->alarm_type);
+
+	/* TODO: This should be changed to > ALARM_REPEAT_MODE_MAX ? */
+	if (mode->repeat >= ALARM_REPEAT_MODE_MAX)
+		return ERR_ALARM_INVALID_PARAM;
+
+	if (!__alarm_validate_date(&alarm_info->start, &error_code)) {
+		ALARM_MGR_EXCEPTION_PRINT("start date error\n");
+		return error_code;
+	}
+
+	if (!__alarm_validate_time(&alarm_info->start, &error_code)) {
+		ALARM_MGR_EXCEPTION_PRINT("start time error\n");
+		return error_code;
+	}
+
+	if (!__alarm_validate_date(&alarm_info->end, &error_code)) {
+		ALARM_MGR_EXCEPTION_PRINT("end date error\n");
+		return error_code;
+	}
+
+	if (!_send_alarm_create_noti(alarm_context, alarm_info, alarm_id, noti, &error_code))
+		return error_code;
+
+	return ALARMMGR_RESULT_SUCCESS;
+}
+
 EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 		time_t interval, void *bundle_data,
 		alarm_id_t *alarm_id)
@@ -1055,6 +1110,77 @@ EXPORT_API int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 			alarm_info.mode.repeat, alarm_info.mode.u_interval.interval, alarm_info.alarm_type);
 
 	if (!_send_alarm_create_appsvc(alarm_context, &alarm_info, alarm_id, b, &error_code))
+		return error_code;
+
+	return ALARMMGR_RESULT_SUCCESS;
+}
+
+EXPORT_API int alarmmgr_add_alarm_noti(int alarm_type, time_t trigger_at_time,
+		time_t interval, notification_h noti,
+		alarm_id_t *alarm_id)
+{
+	int error_code = 0;
+	int result;
+	struct timeval current_time;
+	struct tm duetime_tm;
+	alarm_info_t alarm_info;
+	const char *operation = NULL;
+
+	if (__alarmmgr_init_appsvc() < 0) {
+		ALARM_MGR_EXCEPTION_PRINT("Unable to initialize dbus!!!\n");
+		return ERR_ALARM_SYSTEM_FAIL;
+	}
+
+	if (alarm_id == NULL)
+		return ERR_ALARM_INVALID_PARAM;
+
+	if (trigger_at_time < 0)
+		return ERR_ALARM_INVALID_PARAM;
+
+	alarm_info.alarm_type = alarm_type;
+	alarm_info.alarm_type |= ALARM_TYPE_RELATIVE;
+
+	gettimeofday(&current_time, NULL);
+	if (current_time.tv_usec > 500 * 1000) {
+		/* When the millisecond part of the current_time is bigger than 500ms,
+		 * the duetime increases by extra 1sec. */
+		current_time.tv_sec += (trigger_at_time + 1);
+	} else {
+		current_time.tv_sec += trigger_at_time;
+	}
+
+	tzset(); /* Processes the TZ environment variable, and Set timezone, daylight, and tzname. */
+	localtime_r(&current_time.tv_sec, &duetime_tm);
+
+	alarm_info.start.year = duetime_tm.tm_year + 1900;
+	alarm_info.start.month = duetime_tm.tm_mon + 1;
+	alarm_info.start.day = duetime_tm.tm_mday;
+
+	alarm_info.end.year = 0;
+	alarm_info.end.month = 0;
+	alarm_info.end.day = 0;
+
+	alarm_info.start.hour = duetime_tm.tm_hour;
+	alarm_info.start.min = duetime_tm.tm_min;
+	alarm_info.start.sec = duetime_tm.tm_sec;
+
+	if ((alarm_info.alarm_type & ALARM_TYPE_INEXACT) && interval < MIN_INEXACT_INTERVAL)
+		interval = MIN_INEXACT_INTERVAL;
+
+	if (interval <= 0) {
+		alarm_info.mode.repeat = ALARM_REPEAT_MODE_ONCE;
+		alarm_info.mode.u_interval.interval = 0;
+	} else {
+		alarm_info.mode.repeat = ALARM_REPEAT_MODE_REPEAT;
+		alarm_info.mode.u_interval.interval = interval;
+	}
+
+	ALARM_MGR_LOG_PRINT("trigger_at_time(%d), start(%d-%d-%d, %02d:%02d:%02d), repeat(%d), interval(%d), type(%d)",
+			trigger_at_time, alarm_info.start.day, alarm_info.start.month, alarm_info.start.year,
+			alarm_info.start.hour, alarm_info.start.min, alarm_info.start.sec,
+			alarm_info.mode.repeat, alarm_info.mode.u_interval.interval, alarm_info.alarm_type);
+
+	if (!_send_alarm_create_noti(alarm_context, &alarm_info, alarm_id, noti, &error_code))
 		return error_code;
 
 	return ALARMMGR_RESULT_SUCCESS;

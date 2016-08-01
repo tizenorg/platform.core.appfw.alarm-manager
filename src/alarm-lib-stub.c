@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <string.h>
 #include <glib.h>
+#include <notification_ipc.h>
 #include "alarm.h"
 #include "alarm-internal.h"
 #include "alarm-mgr-stub.h"
@@ -41,6 +42,85 @@ bool _send_alarm_get_number_of_ids(alarm_context_t context, int *num_of_ids,
 		int *error_code);
 bool _send_alarm_get_info(alarm_context_t context, alarm_id_t alarm_id,
 		alarm_info_t *alarm_info, int *error_code);
+
+bool _send_alarm_create_noti(alarm_context_t context, alarm_info_t *alarm_info,
+		alarm_id_t *alarm_id, notification_h noti, int *error_code)
+{
+	gboolean ret;
+	GError *error = NULL;
+	int return_code = 0;
+	GVariant *noti_gv = NULL;
+	char *noti_data;
+	guchar *data;
+	int datalen = 0;
+
+	noti_gv = notification_ipc_make_gvariant_from_noti(noti, true);
+
+	datalen = g_variant_get_size(noti_gv);
+	if (datalen < 0)
+		return false;
+
+	data = malloc(datalen);
+	if (!data)
+		return false;
+
+	if (!noti_gv) {
+		if (error_code)
+			*error_code = ERR_ALARM_SYSTEM_FAIL;
+		free(data);
+		return false;
+	}
+
+	g_variant_store(noti_gv, data);
+	noti_data = g_base64_encode((guchar *)data, datalen);
+
+	ret = alarm_manager_call_alarm_create_noti_sync((AlarmManager*)context.proxy,
+			alarm_info->start.year,
+			alarm_info->start.month,
+			alarm_info->start.day,
+			alarm_info->start.hour,
+			alarm_info->start.min,
+			alarm_info->start.sec,
+			alarm_info->end.year,
+			alarm_info->end.month,
+			alarm_info->end.day,
+			alarm_info->mode.u_interval.day_of_week,
+			alarm_info->mode.u_interval.interval,
+			alarm_info->mode.repeat,
+			alarm_info->alarm_type,
+			alarm_info->reserved_info,
+			(char *)noti_data,
+			alarm_id, &return_code,
+			NULL, &error);
+	if (noti_data) {
+		free(noti_data);
+		noti_data = NULL;
+	}
+
+	if (ret != TRUE) {
+		/* g_dbus_proxy_call_sync error */
+		/* error_code should be set */
+		ALARM_MGR_EXCEPTION_PRINT(
+				"alarm_manager_call_alarm_create_noti_sync()failed. alarm_id[%d], return_code[%d].", alarm_id, return_code);
+		ALARM_MGR_EXCEPTION_PRINT("error->message is %s(%d)", error->message, error->code);
+		if (error_code) {
+			if (error->code == G_DBUS_ERROR_ACCESS_DENIED)
+				*error_code = ERR_ALARM_NO_PERMISSION;
+			else
+				*error_code = ERR_ALARM_SYSTEM_FAIL;
+		}
+		g_error_free(error);
+		return false;
+	}
+
+	if (return_code != 0) {
+		if (error_code)
+			*error_code = return_code;
+		return false;
+	}
+
+	return true;
+}
 
 bool _send_alarm_create_appsvc(alarm_context_t context, alarm_info_t *alarm_info,
 		alarm_id_t *alarm_id, bundle *b,

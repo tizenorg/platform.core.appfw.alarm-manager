@@ -50,6 +50,25 @@
       <arg type="i" name="alarm_id" direction="out" />
       <arg type="i" name="return_code" direction="out" />
     </method>
+      <method name="alarm_create_noti">
+      <arg type="i" name="alarm_info_start_year" direction="in" />
+      <arg type="i" name="alarm_info_start_month" direction="in" />
+      <arg type="i" name="alarm_info_start_day" direction="in" />
+      <arg type="i" name="alarm_info_start_hour" direction="in" />
+      <arg type="i" name="alarm_info_start_min" direction="in" />
+      <arg type="i" name="alarm_info_start_sec" direction="in" />
+      <arg type="i" name="alarm_info_end_year" direction="in" />
+      <arg type="i" name="alarm_info_end_month" direction="in" />
+      <arg type="i" name="alarm_info_end_day" direction="in" />
+      <arg type="i" name="alarm_info_mode_day_of_week" direction="in" />
+      <arg type="i" name="alarm_info_mode_interval" direction="in" />
+      <arg type="i" name="alarm_info_mode_repeat" direction="in" />
+      <arg type="i" name="alarm_info_alarm_type" direction="in" />
+      <arg type="i" name="alarm_info_reserved_info" direction="in" />
+      <arg type="s" name="alarm_info_noti_data" direction="in" />
+      <arg type="i" name="alarm_id" direction="out" />
+      <arg type="i" name="return_code" direction="out" />
+    </method>
     <method name="alarm_delete">
       <arg type="i" name="alarm_id" direction="in" />
       <arg type="i" name="alarm_info_return_code" direction="out" />
