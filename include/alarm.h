@@ -152,6 +152,7 @@ int main(int argc, char** argv)
 #include <sys/types.h>
 #include <stdbool.h>
 #include <time.h>
+#include <notification.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -1019,6 +1020,11 @@ int alarmmgr_add_alarm_appsvc(int alarm_type, time_t trigger_at_time,
 			       time_t interval, void *bundle_data,
 			       alarm_id_t *alarm_id);
 
+int alarmmgr_add_alarm_noti(int alarm_type, time_t trigger_at_time,
+			       time_t interval, notification_h noti,
+			       alarm_id_t *alarm_id);
+
+int alarmmgr_add_alarm_noti_with_localtime(alarm_entry_t *alarm, notification_h noti, alarm_id_t *alarm_id);
 
 /**
  * This function adds an alarm entry to the server.
